@@ -74,8 +74,8 @@ export default function LoginPage() {
 
 
         {/* پنل ورود سمت راست */}
-        <div className="flex flex-col justify-center px-6 py-10 md:px-16">
-          <div className="mb-8 flex items-center justify-center gap-2 lg:justify-start  px-12 ">
+        <div className="flex flex-col justify-center px-6 py-8 md:px-16">
+          <div className="mb-8 flex items-center justify-center gap-2 lg:justify-center">
             <Leaf className="h-8 w-8 text-primary" />
             <div className="text-center leading-tight">
               <div className="text-lg font-bold text-gray-900">Beauty Clinic CRM</div>
@@ -85,17 +85,7 @@ export default function LoginPage() {
           </div>
 
           <div
-            className="
-                  mx-auto 
-                  w-full 
-                  max-w-md 
-                  rounded-lg 
-                  border 
-                  border-gray-100 
-                  bg-white 
-                  p-5
-                  sm:p-8
-                  shadow-xl">
+            className="mx-autow-full max-w-md rounded-lg border border-gray-100 bg-white p-5 sm:p-8 shadow-xl">
             {/* تب‌های ورود */}
             <div className="mb-6 flex border-b border-gray-100 text-sm">
               <button
@@ -154,25 +144,27 @@ export default function LoginPage() {
               <>
                 <label className="mb-1.5 block text-sm text-gray-600">شماره موبایل یا نام کاربری</label>
                 <div className="mb-4 flex min-h-12 items-center rounded-xl border border-gray-200 px-3">
+                   <User className="h-4 w-4 shrink-0 text-gray-300" />
                   <input
                     type="text"
                     placeholder="شماره موبایل با نام کاربری خود را وارد کنید"
                     className="w-full bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-300"
                   />
-                  <User className="h-4 w-4 shrink-0 text-gray-300" />
+                 
                 </div>
 
                 <label className="mb-1.5 block text-sm text-gray-600">رمز عبور</label>
                 <div className="mb-3 flex items-center rounded-xl border border-gray-200 px-3 py-2.5">
-                  <button type="button" onClick={() => setShowPassword((v) => !v)} className="shrink-0 text-gray-300">
-                    {showPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                  </button>
+                  <Lock className="h-4 w-4 shrink-0 text-gray-300" />
+                 
                   <input
                     type={showPassword ? "text" : "password"}
                     placeholder="رمز عبور خود را وارد کنید"
                     className="w-full bg-transparent px-2 text-sm text-gray-700 outline-none placeholder:text-gray-300"
                   />
-                  <Lock className="h-4 w-4 shrink-0 text-gray-300" />
+                   <button type="button" onClick={() => setShowPassword((v) => !v)} className="shrink-0 text-gray-300">
+                    {showPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                  </button>
                 </div>
 
                 <div className="mb-5 flex items-center justify-between text-xs">
@@ -307,39 +299,132 @@ export default function LoginPage() {
       </div>
 
       {/* فوتر */}
-      <footer className="flex flex-col items-center justify-between gap-3 border-t border-gray-100 px-6 py-4 text-xs text-gray-400 md:flex-row md:px-12">
-        <div className="flex flex-row items-center">
-          <Image
-            src="/image/loginflower.PNG"
-            alt=""
-            width={80}
-            height={40}
-            className="w-20"
-          />
-          <div>© Beauty Clinic CRM ۱۴۰۳ تمام حقوق محفوظ است.</div>
-        </div>
+      <footer
+  className="
+    border-t
+    border-gray-100
+    px-5
+    py-6
+    text-xs
+    text-gray-400
+    sm:px-8
+    md:px-12
+  "
+>
+  <div
+    className="
+      flex
+      flex-col
+      items-center
+      gap-5
+      md:flex-row
+      md:justify-between
+    "
+  >
+
+    {/* لوگو و کپی رایت */}
+    <div
+      className="
+        flex
+        flex-col
+        items-center
+        gap-2
+        sm:flex-row
+        sm:gap-3
+      "
+    >
+      <Image
+        src="/image/loginflower.PNG"
+        alt="Beauty Clinic CRM"
+        width={80}
+        height={40}
+        className="w-16 sm:w-20"
+      />
+
+      <p className="text-center leading-5">
+        © Beauty Clinic CRM
+        <br className="sm:hidden" />
+        {" "}
+        ۱۴۰۳ تمام حقوق محفوظ است.
+      </p>
+    </div>
 
 
-        <div className="flex flex-wrap items-center justify-center gap-4">
-          {FOOTER_LINKS.map((link) => (
-            <a key={link} href="#" className="hover:text-primary-dark">
-              {link}
-            </a>
-          ))}
-        </div>
+    {/* لینک ها */}
+    <nav
+      className="
+        flex
+        flex-wrap
+        justify-center
+        gap-x-5
+        gap-y-3
+        text-center
+      "
+    >
+      {FOOTER_LINKS.map((link) => (
+        <a
+          key={link}
+          href="#"
+          className="
+            transition
+            hover:text-primary-dark
+          "
+        >
+          {link}
+        </a>
+      ))}
+    </nav>
 
 
-        <div className="flex items-center gap-3">
+    {/* تنظیمات */}
+    <div
+      className="
+        flex
+        items-center
+        gap-3
+      "
+    >
 
-          <button className="rounded-full border border-gray-200 p-1.5">
-            <Moon className="h-3.5 w-3.5" />
-          </button>
-          <button className="flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1.5">
-            <Globe className="h-3.5 w-3.5" /> فارسی
-          </button>
+      <button
+        className="
+          flex
+          h-9
+          w-9
+          items-center
+          justify-center
+          rounded-full
+          border
+          border-gray-200
+          transition
+          hover:border-primary
+        "
+      >
+        <Moon className="h-4 w-4" />
+      </button>
 
-        </div>
-      </footer>
+
+      <button
+        className="
+          flex
+          h-9
+          items-center
+          gap-2
+          rounded-full
+          border
+          border-gray-200
+          px-4
+          transition
+          hover:border-primary
+        "
+      >
+        <Globe className="h-4 w-4" />
+        فارسی
+      </button>
+
+    </div>
+
+  </div>
+</footer>
     </div>
   );
 }
