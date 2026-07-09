@@ -91,7 +91,7 @@ export default function Navbar() {
                             ))}
                             <hr className="border-gray-100" />
                             <div className="flex flex-col gap-3">
-                                <a href="#login" className="w-full rounded-lg border border-primary py-2 text-center text-sm font-medium text-primary">ورود به پنل</a>
+                                <a href="/login" className="w-full rounded-lg border border-primary py-2 text-center text-sm font-medium text-primary">ورود به پنل</a>
                                 <a href="#demo" className="w-full rounded-lg bg-primary py-2 text-center text-sm font-medium text-white">درخواست دمو</a>
                             </div>
                         </div>

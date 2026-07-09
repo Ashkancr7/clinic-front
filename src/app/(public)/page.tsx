@@ -155,7 +155,7 @@ export default function LandingPage() {
 
               {/* دکمه ورود به پنل */}
               <a
-                href="#login"
+                href="/login"
                 className="inline-flex items-center gap-2 rounded-[5px] border border-primary px-7 py-2 text-sm font-medium text-primary transition-all hover:bg-primary/10 active:scale-95"
               >
                 <LogOut className="h-4 w-4" />
