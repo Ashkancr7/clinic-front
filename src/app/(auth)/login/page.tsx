@@ -74,7 +74,7 @@ export default function LoginPage() {
 
 
         {/* پنل ورود سمت راست */}
-        <div className="flex flex-col justify-center px-6 py-8 md:px-16">
+        <div className="flex flex-col justify-center px-6 py-8 md:px-32">
           <div className="mb-8 flex items-center justify-center gap-2 lg:justify-center">
             <Leaf className="h-8 w-8 text-primary" />
             <div className="text-center leading-tight">
