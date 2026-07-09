@@ -623,17 +623,20 @@ export default function LoginPage() {
         </div>
 
         <div
-  className="
+          className="
     relative
     hidden
     overflow-hidden
-    bg-primary-light/20
+    bg-gradient-to-bl
+    from-primary-light/30
+    via-primary-light/10
+    to-white/50
     px-12
     py-14
     lg:flex
     lg:flex-col
   "
->
+        >
           {/* <div
             className="absolute right-10 top-10 h-16 w-16 opacity-40"
             style={{
