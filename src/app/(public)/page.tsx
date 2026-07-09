@@ -167,7 +167,7 @@ export default function LandingPage() {
               بدون نیاز به نصب &nbsp;·&nbsp; راه‌اندازی سریع &nbsp;·&nbsp; پشتیبانی اختصاصی
             </p>
 
-            <div className="mt-6 flex flex-wrap gap-1 text-xs text-gray-500 rounded-[2px] border border-gray-100">
+            <div className="mt-6 flex flex-wrap gap-1 text-xs text-gray-500 pb-1 pr-2 rounded-[2px] border border-gray-100">
               <span className="flex items-center py-2 gap-1 " >
                 <ShieldCheck className="h-4 w-4 text-primary" /> اطلاعات امن و رمزنگاری‌شده
               </span>
