@@ -15,12 +15,22 @@ export default async function PatientClinicLayout({
   const myClinics = [{ slug: clinicSlug, name: clinic?.clinicName ?? clinicSlug }];
 
   return (
-    <div dir="rtl" className="min-h-screen bg-gray-50">
-      <header className="flex items-center justify-between border-b bg-white px-4 py-3">
-        <span className="font-bold text-primary-dark">{clinic?.clinicName ?? "کلینیک"}</span>
-        <ClinicSwitcher currentSlug={clinicSlug} clinics={myClinics} basePath="patient" />
-      </header>
-      <main className="mx-auto max-w-md md:max-w-2xl">{children}</main>
-    </div>
-  );
+  <div dir="rtl" className="min-h-screen bg-gray-50">
+    <header className="flex items-center justify-between border-b bg-white px-4 py-3 md:px-8">
+      <span className="font-bold text-primary-dark">
+        {clinic?.clinicName ?? "کلینیک"}
+      </span>
+
+      <ClinicSwitcher
+        currentSlug={clinicSlug}
+        clinics={myClinics}
+        basePath="patient"
+      />
+    </header>
+
+    <main className="mx-auto w-full max-w-[1600px] px-4 py-6 md:px-8">
+      {children}
+    </main>
+  </div>
+);
 }

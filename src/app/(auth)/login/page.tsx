@@ -20,6 +20,8 @@ import {
   Moon,
 } from "lucide-react";
 
+import Link from "next/link";
+
 import Image from "next/image";
 
 
@@ -602,16 +604,12 @@ export default function LoginPage() {
 
               حساب کاربری ندارید؟
 
-              <a
-                href="#register"
-                className="
-          mr-1
-          font-medium
-          text-primary-dark
-        "
+              <Link
+                href={`/patient/demo-clinic/intake`}
+                className="mr-1 font-medium text-primary-dark"
               >
                 ثبت‌نام کنید
-              </a>
+              </Link>
 
 
             </p>
