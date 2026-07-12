@@ -268,7 +268,13 @@ export default function PatientIntakePage() {
               <p className="mb-3 text-xs text-gray-500">
                 آیا سیگار یا دخانیات مصرف می‌کنید؟
               </p>
-              <Field label="مصرف الکل" select placeholder="انتخاب کنید" bare />
+              <Field label="مصرف الکل" select placeholder="انتخاب کنید" 
+                options={[
+                  { value: "yes", label: "بله" },
+                  { value: "no", label: "نه" },
+                  
+                ]}
+              />
             </div>
 
             {/* یادداشت‌های تکمیلی */}
@@ -313,9 +319,6 @@ export default function PatientIntakePage() {
                 من ضمن مطالعه کامل، رضایت و تعهد خود را اعلام می‌کنم. *
               </label>
             </div>
-
-
-
             <SignatureField
               onChange={(signature) => {
                 console.log(signature);
