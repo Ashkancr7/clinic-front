@@ -191,10 +191,10 @@ export default function PatientIntakePage() {
                         className="flex-1 bg-transparent text-xs text-gray-700 outline-none placeholder:text-gray-300 cursor-pointer"
                       />
 
-                      <Calendar
+                      {/* <Calendar
                         onClick={openCalendar}
                         className="mr-2 h-4 w-4 shrink-0 text-gray-300 cursor-pointer"
-                      />
+                      /> */}
                     </div>
                   )}
                 />
