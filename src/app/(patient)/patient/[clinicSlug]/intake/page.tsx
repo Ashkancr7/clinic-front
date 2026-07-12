@@ -1,6 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import DatePicker from "react-multi-date-picker";
+import persian from "react-date-object/calendars/persian";
+import persian_fa from "react-date-object/locales/persian_fa";
+import SignatureField from "@/components/forms/SignatureField";
+
 import {
   Leaf,
   ArrowRight,
@@ -86,24 +91,37 @@ const MEDICAL_QUESTIONS = [
 
 export default function PatientIntakePage() {
   const [agreed, setAgreed] = useState(false);
+  const pickerRef = useRef<any>(null);
 
   return (
-    <div dir="rtl" className="min-h-screen bg-gray-50 font-sans text-sm">
+    <div dir="rtl" className="min-h-screen bg-gray-50  text-sm">
       {/* هدر بالای صفحه */}
-      <header className="sticky top-0 z-50 flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 bg-white px-4 py-3 md:px-8 shadow-sm">
-        <div className="order-1 flex items-center gap-2">
+      <header className="sticky top-0 z-50 flex flex-col items-center gap-3 border-b border-gray-100 bg-white px-4 py-3 shadow-sm md:flex-row md:justify-between md:px-8">
+        {/* لوگو */}
+        <div className="flex items-center gap-2 text-center md:text-right">
           <Leaf className="h-7 w-7 text-emerald-600" />
-          <div className="text-right leading-tight">
-            <div className="text-base font-bold text-gray-900">Beauty Clinic CRM</div>
-            <div className="text-[11px] text-gray-400">پلتفرم مدیریت کلینیک زیبایی</div>
+
+          <div className="leading-tight">
+            <div className="text-base font-bold text-gray-900">
+              Beauty Clinic CRM
+            </div>
+
+            <div className="text-[11px] text-gray-400">
+              پلتفرم مدیریت کلینیک زیبایی
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 order-2">
+
+        {/* دکمه‌ها */}
+        <div className="flex w-full justify-center gap-2 md:w-auto md:justify-end">
           <button className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50">
-            <LogOut className="h-4 w-4" /> خروج
+            <LogOut className="h-4 w-4" />
+            خروج
           </button>
+
           <button className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50">
-            بازگشت <ArrowLeft className="h-4 w-4" />
+            بازگشت
+            <ArrowLeft className="h-4 w-4" />
           </button>
         </div>
       </header>
@@ -156,11 +174,66 @@ export default function PatientIntakePage() {
               <Field label="نام" required placeholder="نام خود را وارد کنید" />
               <Field label="نام خانوادگی" required placeholder="نام خانوادگی خود را وارد کنید" />
               <Field label="کد ملی" required placeholder="کد ملی ۱۰ رقمی خود را وارد کنید" />
-              <Field label="تاریخ تولد" required placeholder="انتخاب تاریخ" endIcon={Calendar} />
+              <Field label="تاریخ تولد" required>
+                <DatePicker
+                  ref={pickerRef}
+                  calendar={persian}
+                  locale={persian_fa}
+                  calendarPosition="bottom-right"
+                  editable={false}
+                  render={(value, openCalendar) => (
+                    <div className="flex items-center justify-between w-full">
+                      <input
+                        readOnly
+                        value={value}
+                        onClick={openCalendar}
+                        placeholder="انتخاب تاریخ"
+                        className="flex-1 bg-transparent text-xs text-gray-700 outline-none placeholder:text-gray-300 cursor-pointer"
+                      />
 
-              <Field label="جنسیت" required select placeholder="انتخاب کنید" />
-              <Field label="وضعیت تأهل" select placeholder="انتخاب کنید" />
-              <Field label="شغل" select placeholder="شغل خود را وارد کنید" />
+                      <Calendar
+                        onClick={openCalendar}
+                        className="mr-2 h-4 w-4 shrink-0 text-gray-300 cursor-pointer"
+                      />
+                    </div>
+                  )}
+                />
+              </Field>
+
+              <Field
+                label="جنسیت"
+                required
+                select
+                placeholder="انتخاب کنید"
+                options={[
+                  { value: "male", label: "مرد" },
+                  { value: "female", label: "زن" },
+                ]}
+              />
+              <Field
+                label="وضعیت تأهل"
+                select
+                placeholder="انتخاب کنید"
+                options={[
+                  { value: "single", label: "مجرد" },
+                  { value: "married", label: "متأهل" },
+                  { value: "divorced", label: "مطلقه" },
+                  { value: "widowed", label: "بیوه" },
+                ]}
+              />
+              <Field
+                label="شغل"
+                select
+                placeholder="انتخاب کنید"
+                options={[
+                  { value: "doctor", label: "پزشک" },
+                  { value: "employee", label: "کارمند" },
+                  { value: "teacher", label: "معلم" },
+                  { value: "student", label: "دانشجو" },
+                  { value: "freelancer", label: "آزاد" },
+                  { value: "other", label: "سایر" },
+                ]}
+              />
               <Field label="اشخاص معرفی‌کننده" placeholder="در صورت وجود" />
             </div>
           </FormSection>
@@ -168,7 +241,7 @@ export default function PatientIntakePage() {
           {/* اطلاعات تماس */}
           <FormSection icon={Phone} title="اطلاعات تماس">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Field label="شماره موبایل" required placeholder="0912 345 6789" endIcon={ChevronDown} />
+              <Field label="شماره موبایل" required placeholder="0912 345 6789" />
               <Field label="تلفن ثابت" placeholder="مثال: 021-12345678" />
               <Field label="ایمیل" placeholder="example@email.com" />
               <Field
@@ -190,7 +263,7 @@ export default function PatientIntakePage() {
             <div className="rounded-2xl border border-gray-100 bg-white p-4">
               <div className="mb-2 flex items-center gap-2">
                 <UserRound className="h-4 w-4 text-primary-dark" />
-                <span className="text-sm font-semibold text-gray-800">سبک زندگی</span>
+                <span className="text-sm font-semibold text-primary">سبک زندگی</span>
               </div>
               <p className="mb-3 text-xs text-gray-500">
                 آیا سیگار یا دخانیات مصرف می‌کنید؟
@@ -202,7 +275,7 @@ export default function PatientIntakePage() {
             <div className="rounded-2xl border border-gray-100 bg-white p-4 sm:col-span-2 lg:col-span-1">
               <div className="mb-2 flex items-center gap-2">
                 <StickyNote className="h-4 w-4 text-primary-dark" />
-                <span className="text-sm font-semibold text-gray-800">یادداشت‌های تکمیلی</span>
+                <span className="text-sm font-semibold text-primary">یادداشت‌های تکمیلی</span>
               </div>
               <p className="mb-3 text-xs text-gray-500">
                 هر نکته‌ای که فکر می‌کنید لازم است بدانیم.
@@ -243,29 +316,12 @@ export default function PatientIntakePage() {
 
 
 
-            <div className="rounded-2xl border-2 border-gray-100 bg-white p-5">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-semibold text-primary">امضای دیجیتال</span>
-                <button className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-danger">
-                  <Eraser className="h-3.5 w-3.5" /> پاک کردن
-                </button>
-              </div>
-              <p className="mb-2 text-xs text-gray-400">
-                لطفاً امضای خود را داخل کادر وارد کنید.
-              </p>
-              <div className="flex h-24 items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50">
-                <svg viewBox="0 0 120 40" className="h-10 w-28">
-                  <path
-                    d="M5 30 Q 15 5, 25 25 T 45 20 Q 55 10, 65 25 T 90 15 Q 100 30, 115 12"
-                    fill="none"
-                    stroke="#4338CA"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </div>
-              <div className="mt-1 text-center text-[10px] text-gray-300">امضای رضایت‌نامه</div>
-            </div>
+            <SignatureField
+              onChange={(signature) => {
+                console.log(signature);
+              }}
+            />
+
             <div className="rounded-2xl border-2 border-gray-100 bg-white p-5">
               <div className="mb-2 flex items-center gap-2">
                 <Lock className="h-4 w-4 text-primary-dark" />
@@ -281,7 +337,7 @@ export default function PatientIntakePage() {
           {/* اکشن‌ها */}
           <div className="flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button className="flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-medium text-white hover:bg-primary-dark">
-             ثبت و ادامه <ArrowLeft className="h-4 w-4" /> 
+              ثبت و ادامه <ArrowLeft className="h-4 w-4" />
             </button>
 
             <button className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-6 py-3 text-sm text-gray-600 hover:bg-gray-50">
@@ -383,22 +439,31 @@ function FormSection({
   );
 }
 
+interface Option {
+  value: string;
+  label: string;
+}
+
 function Field({
   label,
   required,
   placeholder,
   select,
+  options = [],
   endIcon: EndIcon,
   bare,
   className = "",
+  children,
 }: {
   label: string;
   required?: boolean;
   placeholder?: string;
   select?: boolean;
+  options?: Option[];
   endIcon?: typeof Calendar;
   bare?: boolean;
   className?: string;
+  children?: React.ReactNode;
 }) {
   const inputClasses =
     "w-full bg-transparent text-xs text-gray-700 outline-none placeholder:text-gray-300";
@@ -410,26 +475,40 @@ function Field({
           {label} {required && <span className="text-danger">*</span>}
         </label>
       )}
+
       <div className="flex items-center rounded-lg border border-gray-200 px-3 py-2.5">
-        {select ? (
-          <>
-            <select className={inputClasses} defaultValue="">
-              <option value="" disabled className="text-gray-300">
-                {placeholder}
+        {children ? (
+          children
+        ) : select ? (
+          <select className={inputClasses} defaultValue="">
+            <option value="" disabled>
+              {placeholder}
+            </option>
+
+            {options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
-            </select>
-            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-300" />
-          </>
+            ))}
+          </select>
         ) : (
           <>
-            <input type="text" placeholder={placeholder} className={inputClasses} />
-            {EndIcon && <EndIcon className="h-3.5 w-3.5 shrink-0 text-gray-300" />}
+            <input
+              type="text"
+              placeholder={placeholder}
+              className={inputClasses}
+            />
+            {EndIcon && (
+              <EndIcon className="h-3.5 w-3.5 shrink-0 text-gray-300" />
+            )}
           </>
         )}
       </div>
     </div>
   );
 }
+
+
 
 function MedicalQuestionCard({
   icon: Icon,
