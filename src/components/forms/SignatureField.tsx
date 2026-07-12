@@ -1,30 +1,70 @@
 "use client";
 
-import { useRef } from "react";
-import SignatureCanvas from "react-signature-canvas";
+import { useEffect, useRef } from "react";
+import SignaturePad from "signature_pad";
 import { Eraser } from "lucide-react";
 
-interface Props {
-  onChange?: (value: string) => void;
+interface SignatureFieldProps {
+  onChange?: (signature: string) => void;
 }
 
-export default function SignatureField({ onChange }: Props) {
-  const signatureRef = useRef<InstanceType<typeof SignatureCanvas> | null>(null);
+export default function SignatureField({
+  onChange,
+}: SignatureFieldProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const signaturePadRef = useRef<SignaturePad | null>(null);
 
-  const clear = () => {
-    signatureRef.current?.clear();
+  useEffect(() => {
+    const canvas = canvasRef.current;
+
+    if (!canvas) return;
+
+    const resizeCanvas = () => {
+      const ratio = Math.max(window.devicePixelRatio || 1, 1);
+
+      canvas.width = canvas.offsetWidth * ratio;
+      canvas.height = canvas.offsetHeight * ratio;
+
+      const ctx = canvas.getContext("2d");
+
+      if (ctx) {
+        ctx.scale(ratio, ratio);
+      }
+
+      signaturePadRef.current = new SignaturePad(canvas, {
+        penColor: "#4338CA",
+        minWidth: 1.5,
+        maxWidth: 2.5,
+      });
+    };
+
+    resizeCanvas();
+
+    window.addEventListener("resize", resizeCanvas);
+
+    return () => {
+      window.removeEventListener("resize", resizeCanvas);
+      signaturePadRef.current?.off();
+    };
+  }, []);
+
+  const clearSignature = () => {
+    signaturePadRef.current?.clear();
     onChange?.("");
   };
 
-  const save = () => {
-  if (!signatureRef.current || signatureRef.current.isEmpty()) return;
+  const saveSignature = () => {
+    if (!signaturePadRef.current) return;
 
-  const image = signatureRef.current
-    .getTrimmedCanvas()
-    .toDataURL("image/png");
+    if (signaturePadRef.current.isEmpty()) {
+      onChange?.("");
+      return;
+    }
 
-  onChange?.(image);
-};
+    const image = signaturePadRef.current.toDataURL("image/png");
+
+    onChange?.(image);
+  };
 
   return (
     <div className="rounded-2xl border-2 border-gray-100 bg-white p-5">
@@ -35,8 +75,8 @@ export default function SignatureField({ onChange }: Props) {
 
         <button
           type="button"
-          onClick={clear}
-          className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-danger"
+          onClick={clearSignature}
+          className="flex items-center gap-1 text-[11px] text-gray-400 transition hover:text-danger"
         >
           <Eraser className="h-3.5 w-3.5" />
           پاک کردن
@@ -44,17 +84,15 @@ export default function SignatureField({ onChange }: Props) {
       </div>
 
       <p className="mb-3 text-xs text-gray-400">
-        با ماوس یا لمس صفحه داخل کادر امضا کنید.
+        لطفاً با ماوس یا انگشت داخل کادر امضا کنید.
       </p>
 
       <div className="overflow-hidden rounded-xl border border-dashed border-gray-200 bg-gray-50">
-        <SignatureCanvas
-          ref={signatureRef}
-          penColor="#4338CA"
-          onEnd={save}
-          canvasProps={{
-            className: "w-full h-40",
-          }}
+        <canvas
+          ref={canvasRef}
+          className="h-40 w-full touch-none"
+          onMouseUp={saveSignature}
+          onTouchEnd={saveSignature}
         />
       </div>
 
