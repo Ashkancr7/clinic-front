@@ -172,7 +172,14 @@ export default function ClinicsListPage() {
                   </td>
                   <td className="py-3">
                     <div className="flex items-center gap-2">
-                      <div className="h-6 w-6 shrink-0 rounded-full bg-gray-100" />
+                      <Image
+                        src="/image/user.PNG"
+                        alt="User"
+                        width={30}
+                        height={30}
+                        unoptimized
+                        className="rounded-full object-cover"
+                      />
                       {c.manager}
                     </div>
                   </td>

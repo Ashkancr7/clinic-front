@@ -15,6 +15,9 @@ import {
   Headset,
 } from "lucide-react";
 
+import Image from "next/image";
+
+
 const NAV_ITEMS = [
   { href: "/super-admin/dashboard", label: "داشبورد", icon: LayoutDashboard },
   { href: "/super-admin/clinics", label: "کلینیک‌ها", icon: Building2 },
@@ -65,12 +68,14 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
 
         {/* تصویر تزئینی */}
         <div className="mt-8 hidden justify-center lg:flex">
-          <svg viewBox="0 0 100 100" className="h-20 w-20 opacity-70">
-            <ellipse cx="50" cy="88" rx="22" ry="4" fill="#0EA5A4" opacity="0.1" />
-            <path d="M40 88 L40 55 Q40 45 50 45 Q60 45 60 55 L60 88 Z" fill="#5EEAD4" />
-            <path d="M50 50 Q30 40 25 20 Q45 25 50 45" fill="#0EA5A4" />
-            <path d="M50 50 Q70 38 75 18 Q55 24 50 45" fill="#0F766E" />
-          </svg>
+         <Image
+                  src="/image/superadmin.PNG"
+                  alt="User"
+                  width={120}
+                  height={120}
+                  unoptimized
+                  className="rounded-full object-cover"
+                />
         </div>
 
         {/* باکس پشتیبانی */}

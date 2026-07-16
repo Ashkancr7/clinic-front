@@ -25,6 +25,7 @@ import {
   Settings,
   Headset,
 } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import Image from "next/image";
 
@@ -163,6 +164,22 @@ export default function SuperAdminDashboardPage() {
   }));
   const linePoints = coords.map((c) => `${c.x},${c.y}`).join(" ");
 
+  const [search, setSearch] = useState("");
+
+  const filteredClinics = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+
+    if (!keyword) return CLINICS;
+
+    return CLINICS.filter((clinic) =>
+      clinic.name.toLowerCase().includes(keyword) ||
+      clinic.manager.toLowerCase().includes(keyword) ||
+      clinic.phone.includes(keyword) ||
+      clinic.plan.toLowerCase().includes(keyword) ||
+      clinic.status.toLowerCase().includes(keyword)
+    );
+  }, [search]);
+
   return (
     <div className="space-y-6">
       {/* آیکون‌های بالای صفحه */}
@@ -251,6 +268,8 @@ export default function SuperAdminDashboardPage() {
             <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 sm:w-72">
               <input
                 type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
                 placeholder="جستجوی نام کلینیک، مدیر یا تلفن..."
                 className="w-full bg-transparent text-xs text-gray-600 outline-none placeholder:text-gray-300"
               />
@@ -277,7 +296,7 @@ export default function SuperAdminDashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {CLINICS.map((c) => (
+              {filteredClinics.map((c) => (
                 <tr key={c.name} className="border-b border-gray-50">
                   <td className="py-3">
                     <div className="flex items-center gap-2">
@@ -299,7 +318,14 @@ export default function SuperAdminDashboardPage() {
                   </td>
                   <td className="py-3">
                     <div className="flex items-center gap-2">
-                      <div className="h-6 w-6 shrink-0 rounded-full bg-gray-100" />
+                      <Image
+                        src="/image/user.PNG"
+                        alt="User"
+                        width={30}
+                        height={30}
+                        unoptimized
+                        className="rounded-full object-cover"
+                      />
                       {c.manager}
                     </div>
                   </td>
@@ -328,12 +354,25 @@ export default function SuperAdminDashboardPage() {
                   </td>
                 </tr>
               ))}
+              {filteredClinics.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={7}
+                    className="py-10 text-center text-sm text-gray-400"
+                  >
+                    موردی یافت نشد.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
 
         <div className="mt-4 flex flex-col-reverse items-center justify-between gap-2 text-xs text-gray-400 sm:flex-row">
-          <span>نمایش ۵ از ۳۲ کلینیک</span>
+          <span>
+            نمایش {filteredClinics.length.toLocaleString("fa-IR")} از{" "}
+            {CLINICS.length.toLocaleString("fa-IR")} کلینیک
+          </span>
           <button className="flex items-center gap-1 text-primary-dark">
             <ChevronLeft className="h-3.5 w-3.5" /> مشاهده همه کلینیک‌ها
           </button>
@@ -403,9 +442,9 @@ export default function SuperAdminDashboardPage() {
         </div>
 
         {/* رویدادهای اخیر */}
-       
 
-         <div className="rounded-2xl border border-gray-100 bg-white p-5">
+
+        <div className="rounded-2xl border border-gray-100 bg-white p-5">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-sm font-bold text-gray-800">روند رشد کلینیک‌ها</h3>
             <button className="flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-[11px] text-gray-500">
