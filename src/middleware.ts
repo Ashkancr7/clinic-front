@@ -20,7 +20,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/login") ||
     pathname.startsWith("/otp") ||
     pathname.startsWith("/select-clinic") ||
-    pathname.includes("/intake")
+    pathname.includes("/intake") ||
+    pathname.startsWith("/super-admin")
   ) {
     return NextResponse.next();
   }

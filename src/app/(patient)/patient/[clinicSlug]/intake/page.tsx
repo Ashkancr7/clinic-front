@@ -174,7 +174,8 @@ export default function PatientIntakePage() {
               <Field label="نام" required placeholder="نام خود را وارد کنید" />
               <Field label="نام خانوادگی" required placeholder="نام خانوادگی خود را وارد کنید" />
               <Field label="کد ملی" required placeholder="کد ملی ۱۰ رقمی خود را وارد کنید" />
-              <Field label="تاریخ تولد" required>
+                
+              <Field label="تاریخ تولد" required  >
                 <DatePicker
                   ref={pickerRef}
                   calendar={persian}
@@ -359,16 +360,7 @@ export default function PatientIntakePage() {
         <aside className="hidden w-full border-2 rounded-lg lg:block lg:w-80 shrink-0 space-y-4 p-4 bg-gradient-to-bl from-primary-light/15 via-primary-light/10 to-white/50">
           {/* تصویر */}
           <div className="rounded-2xl border-2 border-gray-100 p-6 text-center">
-            {/* <div dir="ltr" className="relative mx-auto mb-4 w-48 ">
-              <div className="rounded-lg border border-gray-100 bg-white p-2 shadow-md">
-                <div className="h-16 w-full rounded bg-red-50" />
-              </div>
-              <div className="absolute -bottom-3 -left-6 w-16 rounded-lg border-2 border-gray-900 bg-white p-1.5 shadow-lg">
-                <svg viewBox="0 0 40 20" className="h-6 w-full">
-                  <path d="M2 15 Q8 4 14 12 T26 8 T38 5" fill="none" stroke="#4338CA" strokeWidth="1.5" />
-                </svg>
-              </div>
-            </div> */}
+            
             <Image
               src="/image/rigester.png"
               alt="نمای دشبورد و پنل مدیریت کلینیک"
