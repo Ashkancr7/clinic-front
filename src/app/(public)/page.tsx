@@ -161,6 +161,14 @@ export default function LandingPage() {
                 <LogOut className="h-4 w-4" />
                 ورود به پنل
               </a>
+
+              <a
+                href="https://clinic-front-hazel.vercel.app/patient/demo-clinic/intake"
+                className="inline-flex items-center gap-2 rounded-[5px] border border-primary px-7 py-2 text-sm font-medium text-primary transition-all hover:bg-primary/10 active:scale-95"
+              >
+                {/* <LogOut className="h-4 w-4" /> */}
+               ثبت نام
+              </a>
             </div>
 
             <p className="mt-4 text-xs text-gray-400 text-center">
