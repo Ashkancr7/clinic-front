@@ -21,7 +21,16 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/otp") ||
     pathname.startsWith("/select-clinic") ||
     pathname.includes("/intake") ||
-    pathname.startsWith("/super-admin")
+    pathname.startsWith("/super-admin") ||
+    pathname.includes("/dashboard") ||
+    pathname.includes("/appointments") ||
+    pathname.includes("/services") ||
+    pathname.includes("/chat") ||
+    pathname.includes("/medical-records")
+
+
+
+
   ) {
     return NextResponse.next();
   }
