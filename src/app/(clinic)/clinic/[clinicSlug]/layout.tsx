@@ -1,44 +1,34 @@
-import { getActiveClinic } from "@/lib/auth/clinic-context";
+"use client";
 
-const NAV_ITEMS = [
-  { href: "dashboard", label: "داشبورد" },
-  { href: "patients", label: "مراجعین" },
-  { href: "calendar", label: "تقویم" },
-  { href: "reception", label: "پذیرش" },
-  { href: "services", label: "خدمات" },
-  { href: "finance", label: "مالی" },
-  { href: "reports", label: "گزارش‌ها" },
-  { href: "users", label: "کاربران" },
-  { href: "settings", label: "تنظیمات" },
-];
+import { use, useState } from "react";
+import { ClinicSidebar } from "@/components/layout/ClinicSidebar";
+import { ClinicTopbar } from "@/components/layout/ClinicTopbar";
+import { ROLE_LABELS, type ClinicRole } from "@/lib/auth/clinic-nav";
 
-export default async function ClinicLayout({
+export default function ClinicLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
   params: Promise<{ clinicSlug: string }>;
 }) {
-  const { clinicSlug } = await params;
-  const clinic = await getActiveClinic(clinicSlug);
+  const { clinicSlug } = use(params);
+
+  // TODO: این مقدار باید از session واقعی کاربر بیاد (getSession() در lib/auth/session.ts).
+  const [role] = useState<ClinicRole>("clinic_admin");
+
+  const userName = role === "doctor" ? "دکتر آرش نیکنام" : role === "receptionist" ? "نگار حسینی" : "دکتر سارا محمدی";
 
   return (
-    <div dir="rtl" className="flex min-h-screen bg-gray-50">
-      <aside className="w-56 shrink-0 border-l bg-white p-4">
-        <div className="mb-6 font-bold text-primary-dark">{clinic?.clinicName ?? "کلینیک"}</div>
-        <nav className="flex flex-col gap-1">
-          {NAV_ITEMS.map((item) => (
-            <a
-              key={item.href}
-              href={`/clinic/${clinicSlug}/${item.href}`}
-              className="rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-primary-light/20"
-            >
-              {item.label}
-            </a>
-          ))}
-        </nav>
-      </aside>
-      <main className="flex-1 p-6">{children}</main>
+    <div dir="rtl" className="flex min-h-screen flex-col bg-gray-50 lg:flex-row-reverse">
+
+      <div className="flex-1">
+        <ClinicTopbar userName={userName} roleLabel={ROLE_LABELS[role]} notificationCount={8} />
+        <main className="p-4 md:p-6">{children}</main>
+      </div>
+
+      <ClinicSidebar clinicSlug={clinicSlug} role={role} />
+
     </div>
   );
 }

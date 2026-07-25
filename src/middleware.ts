@@ -26,11 +26,17 @@ export async function middleware(request: NextRequest) {
     pathname.includes("/appointments") ||
     pathname.includes("/services") ||
     pathname.includes("/chat") ||
-    pathname.includes("/medical-records")
-
-
-
-
+    pathname.includes("/medical-records") ||
+    pathname.includes("/calendar") ||
+    pathname.includes("/patients") ||
+    pathname.includes("/records") ||
+    pathname.includes("/services") ||
+    pathname.includes("/finance") ||
+    pathname.includes("/marketing") ||
+    pathname.includes("/sms") ||
+    pathname.includes("/reports") ||
+    pathname.includes("/settings") 
+  
   ) {
     return NextResponse.next();
   }
