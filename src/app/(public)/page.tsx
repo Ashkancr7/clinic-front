@@ -146,11 +146,11 @@ export default function LandingPage() {
             <div className="mt-8 flex flex-wrap justify-center items-center gap-3 ">
 
               <a
-                href="#demo"
+                href="https://clinic-front-hazel.vercel.app/clinic/demo-clinic/dashboard"
                 className="inline-flex items-center gap-2 rounded-[5px] bg-primary px-7 py-2 text-sm font-medium text-white transition-all hover:bg-primary-dark active:scale-95"
               >
                 <Calendar className="h-4 w-4 " />
-                درخواست دمو
+                 پنل کلینیک
               </a>
 
               {/* دکمه ورود به پنل */}
