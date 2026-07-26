@@ -20,6 +20,9 @@ import {
   Megaphone,
 } from "lucide-react";
 
+import Image from "next/image";
+
+
 const KPIS = [
   {
     icon: Users,
@@ -355,7 +358,14 @@ export default function ClinicDashboardPage() {
           <div className="space-y-3">
             {UPCOMING_APPOINTMENTS.map((a) => (
               <div key={a.time} className="flex items-center gap-2.5">
-                <div className="h-8 w-8 shrink-0 rounded-full bg-gray-100" />
+                <Image
+                  src="/image/user.PNG"
+                  alt="User"
+                  width={30}
+                  height={30}
+                  unoptimized
+                  className="rounded-full object-cover"
+                />
                 <div className="flex-1">
                   <div className="text-xs font-medium text-gray-700">{a.name}</div>
                   <div className="text-[10px] text-gray-400">{a.service}</div>
