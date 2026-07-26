@@ -16,7 +16,19 @@ const SERVICES = [
 
 export default function ServicesManagementPage() {
   const [category, setCategory] = useState("همه");
-  const filtered = SERVICES.filter((s) => category === "همه" || s.category === category);
+  const [search, setSearch] = useState("");
+  const filtered = SERVICES.filter((service) => {
+    const matchCategory =
+      category === "همه" || service.category === category;
+
+    const matchSearch =
+      service.name.includes(search.trim()) ||
+      service.category.includes(search.trim()) ||
+      service.duration.includes(search.trim()) ||
+      service.price.includes(search.trim());
+
+    return matchCategory && matchSearch;
+  });
 
   return (
     <div className="space-y-6">
@@ -32,7 +44,13 @@ export default function ServicesManagementPage() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 sm:w-72">
-          <input type="text" placeholder="جستجوی خدمت..." className="w-full bg-transparent text-sm text-gray-600 outline-none placeholder:text-gray-300" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="جستجوی خدمت..."
+            className="w-full bg-transparent text-sm text-gray-600 outline-none placeholder:text-gray-300"
+          />
           <Search className="h-4 w-4 shrink-0 text-gray-300" />
         </div>
         <div className="flex flex-wrap gap-2">

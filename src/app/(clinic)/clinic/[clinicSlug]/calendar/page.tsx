@@ -11,6 +11,10 @@ import {
   MoreHorizontal,
   Filter,
 } from "lucide-react";
+import DatePicker from "react-multi-date-picker";
+import DateObject from "react-date-object";
+import persian from "react-date-object/calendars/persian";
+import persian_fa from "react-date-object/locales/persian_fa";
 
 const DOCTORS = [
   { id: "all", name: "همه پزشکان" },
@@ -45,10 +49,27 @@ export default function CalendarPage({ params }: { params: Promise<{ clinicSlug:
   const { clinicSlug } = use(params);
   const [doctorFilter, setDoctorFilter] = useState("all");
   const [view, setView] = useState<"day" | "week">("day");
+  const [selectedDate, setSelectedDate] = useState<DateObject>(
+    new DateObject({ calendar: persian, locale: persian_fa })
+  );
 
   const filtered = APPOINTMENTS.filter(
     (a) => doctorFilter === "all" || a.doctor === DOCTORS.find((d) => d.id === doctorFilter)?.name
   );
+
+  const goToPrevDay = () => {
+    setSelectedDate((prev) => new DateObject(prev).add(1, "day"));
+
+  };
+
+  const goToNextDay = () => {
+    setSelectedDate((prev) => new DateObject(prev).subtract(1, "day"));
+
+  };
+
+  const goToToday = () => {
+    setSelectedDate(new DateObject({ calendar: persian, locale: persian_fa }));
+  };
 
   return (
     <div className="space-y-6">
@@ -69,14 +90,44 @@ export default function CalendarPage({ params }: { params: Promise<{ clinicSlug:
       {/* نوار ابزار تاریخ و فیلتر */}
       <div className="flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
-          <button className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:bg-gray-50">
+          <button
+            onClick={goToNextDay}
+            className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:bg-gray-50"
+          >
             <ChevronRight className="h-4 w-4" />
           </button>
-          <span className="text-sm font-medium text-gray-700">چهارشنبه، ۲۳ خرداد ۱۴۰۳</span>
-          <button className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:bg-gray-50">
+
+          <DatePicker
+            value={selectedDate}
+            onChange={(val) => {
+              if (val) setSelectedDate(val as DateObject);
+            }}
+            calendar={persian}
+            locale={persian_fa}
+            calendarPosition="bottom-center"
+            render={(value, openCalendar) => (
+              <button
+                onClick={openCalendar}
+                className="rounded-lg px-2 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                {selectedDate.format("dddd، DD MMMM YYYY")}
+              </button>
+            )}
+          />
+
+          <button
+            onClick={goToPrevDay}
+            className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:bg-gray-50"
+          >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <button className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600">امروز</button>
+
+          <button
+            onClick={goToToday}
+            className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
+          >
+            امروز
+          </button>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

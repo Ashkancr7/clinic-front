@@ -69,7 +69,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
         {/* تصویر تزئینی */}
         <div className="mt-8 hidden justify-center lg:flex">
          <Image
-                  src="/image/superadmin.PNG"
+                  src="/image/superadmin.png"
                   alt="User"
                   width={120}
                   height={120}

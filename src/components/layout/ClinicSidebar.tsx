@@ -50,7 +50,7 @@ export function ClinicSidebar({ clinicSlug, role }: ClinicSidebarProps) {
       {/* تصویر تزئینی */}
       <div className="mt-6 hidden justify-center lg:flex">
         <Image
-          src="/image/superadmin.PNG"
+          src="/image/superadmin.png"
           alt="User"
           width={120}
           height={120}

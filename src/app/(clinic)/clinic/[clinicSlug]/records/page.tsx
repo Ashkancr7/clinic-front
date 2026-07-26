@@ -1,6 +1,7 @@
 "use client";
 
 import { Search, SlidersHorizontal, FolderHeart, FileText, Download } from "lucide-react";
+import { useState } from "react";
 
 const RECORDS = [
   { patient: "نسترن موسوی", type: "پرونده کامل پزشکی", updatedAt: "۱۴۰۳/۰۳/۲۱", size: "۳.۴ مگابایت" },
@@ -10,6 +11,21 @@ const RECORDS = [
 ];
 
 export default function RecordsPage() {
+
+  const [search, setSearch] = useState("");
+
+  const filteredRecords = RECORDS.filter((record) => {
+    const value = search.trim();
+
+    return (
+      record.patient.includes(value) ||
+      record.type.includes(value) ||
+      record.updatedAt.includes(value) ||
+      record.size.includes(value)
+    );
+  });
+
+
   return (
     <div className="space-y-6">
       <div>
@@ -22,7 +38,13 @@ export default function RecordsPage() {
       <div className="rounded-2xl border border-gray-100 bg-white p-5">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 sm:w-72">
-            <input type="text" placeholder="جستجوی نام مراجع یا نوع پرونده..." className="w-full bg-transparent text-xs text-gray-600 outline-none placeholder:text-gray-300" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="جستجوی نام مراجع یا نوع پرونده..."
+              className="w-full bg-transparent text-xs text-gray-600 outline-none placeholder:text-gray-300"
+            />
             <Search className="h-3.5 w-3.5 shrink-0 text-gray-300" />
           </div>
           <button className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-xs text-gray-600">
@@ -31,22 +53,34 @@ export default function RecordsPage() {
         </div>
 
         <div className="space-y-3">
-          {RECORDS.map((r, i) => (
-            <div key={i} className="flex items-center justify-between rounded-xl border border-gray-50 p-3">
-              <div className="flex items-center gap-3">
-                <FileText className="h-5 w-5 shrink-0 text-gray-300" />
-                <div>
-                  <div className="text-xs font-semibold text-gray-800">{r.type}</div>
-                  <div className="text-[11px] text-gray-400">
-                    {r.patient} · {r.updatedAt} · {r.size}
+          {filteredRecords.length > 0 ? (
+            filteredRecords.map((r, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between rounded-xl border border-gray-50 p-3"
+              >
+                <div className="flex items-center gap-3">
+                  <FileText className="h-5 w-5 shrink-0 text-gray-300" />
+                  <div>
+                    <div className="text-xs font-semibold text-gray-800">
+                      {r.type}
+                    </div>
+                    <div className="text-[11px] text-gray-400">
+                      {r.patient} · {r.updatedAt} · {r.size}
+                    </div>
                   </div>
                 </div>
+
+                <button className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:text-primary-dark">
+                  <Download className="h-3.5 w-3.5" />
+                </button>
               </div>
-              <button className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:text-primary-dark">
-                <Download className="h-3.5 w-3.5" />
-              </button>
+            ))
+          ) : (
+            <div className="rounded-xl border border-dashed border-gray-200 py-10 text-center text-sm text-gray-400">
+              پرونده‌ای یافت نشد.
             </div>
-          ))}
+          )}
         </div>
       </div>
     </div>

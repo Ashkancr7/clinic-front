@@ -2,6 +2,8 @@
 
 import { Wallet, Receipt, Clock3, TrendingDown, Search, Download, Plus, MoreHorizontal } from "lucide-react";
 
+import { useState } from "react";
+
 const STATS = [
   { icon: Wallet, tone: "text-primary-dark bg-primary-light/20", label: "درآمد این ماه", value: "۹۸,۰۰۰,۰۰۰ ت" },
   { icon: Receipt, tone: "text-blue-600 bg-secondary-blue/40", label: "فاکتورهای صادرشده", value: "۱۴۶" },
@@ -23,6 +25,22 @@ const STATUS_TONE: Record<string, string> = {
 };
 
 export default function FinancePage() {
+
+  const [search, setSearch] = useState("");
+
+  const filteredInvoices = INVOICES.filter((invoice) => {
+    const value = search.trim();
+
+    return (
+      invoice.id.includes(value) ||
+      invoice.patient.includes(value) ||
+      invoice.service.includes(value) ||
+      invoice.amount.includes(value) ||
+      invoice.date.includes(value) ||
+      invoice.status.includes(value)
+    );
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -58,7 +76,13 @@ export default function FinancePage() {
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-sm font-bold text-gray-800">فاکتورها</h2>
           <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 sm:w-64">
-            <input type="text" placeholder="جستجوی فاکتور یا مراجع..." className="w-full bg-transparent text-xs text-gray-600 outline-none placeholder:text-gray-300" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="جستجوی فاکتور یا مراجع..."
+              className="w-full bg-transparent text-xs text-gray-600 outline-none placeholder:text-gray-300"
+            />
             <Search className="h-3.5 w-3.5 shrink-0 text-gray-300" />
           </div>
         </div>
@@ -77,7 +101,7 @@ export default function FinancePage() {
               </tr>
             </thead>
             <tbody>
-              {INVOICES.map((inv) => (
+              {filteredInvoices.map((inv) => (
                 <tr key={inv.id} className="border-b border-gray-50 hover:bg-gray-50/60">
                   <td className="py-3 font-medium text-gray-700" dir="ltr">{inv.id}</td>
                   <td className="py-3 text-gray-700">{inv.patient}</td>
@@ -94,6 +118,22 @@ export default function FinancePage() {
                   </td>
                 </tr>
               ))}
+            </tbody>
+
+            <tbody>
+              {filteredInvoices.length > 0 ? (
+                filteredInvoices.map((inv) => (
+                  <tr key={inv.id} className="border-b border-gray-50 hover:bg-gray-50/60">
+                    {/* بقیه کد */}
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-gray-400">
+                    موردی یافت نشد.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
