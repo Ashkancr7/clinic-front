@@ -55,8 +55,8 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
                 key={item.href}
                 href={item.href}
                 className={`flex items-center rounded-xl px-4 py-2.5 text-sm transition-colors ${isActive
-                    ? "bg-primary-light/15 font-medium text-primary-dark"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-primary-dark"
+                  ? "bg-primary-light/15 font-medium text-primary-dark"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-primary-dark"
                   }`}
               >
                 <item.icon className="ml-5 h-4 w-4" />
@@ -68,14 +68,14 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
 
         {/* تصویر تزئینی */}
         <div className="mt-8 hidden justify-center lg:flex">
-         <Image
-                  src="/image/superadmin.png"
-                  alt="User"
-                  width={120}
-                  height={120}
-                  unoptimized
-                  className="rounded-full object-cover"
-                />
+          <Image
+            src="/image/superadmin.png"
+            alt="User"
+            width={120}
+            height={120}
+            unoptimized
+            className="rounded-full object-cover"
+          />
         </div>
 
         {/* باکس پشتیبانی */}
