@@ -45,7 +45,12 @@ export function ClinicSidebar({ clinicSlug, role }: ClinicSidebarProps) {
             return (
               <Link
                 key={item.href}
-                href={`/clinic/${clinicSlug}/${item.href}`}
+                href={
+                  item.href === "dashboard"
+                    ? `/clinic/${clinicSlug}/dashboard${role === "doctor" ? "/doctor" : role === "receptionist" ? "/reception" : ""
+                    }`
+                    : `/clinic/${clinicSlug}/${item.href}`
+                }
                 className={`flex items-center  rounded-xl px-4 py-2.5 text-sm transition-colors ${active ? "bg-primary-light/15 font-medium text-primary-dark" : "text-gray-600 hover:bg-gray-50"
                   }`}
               >
@@ -99,14 +104,14 @@ export function ClinicSidebar({ clinicSlug, role }: ClinicSidebarProps) {
       </nav>
 
       <div className="mt-6 hidden justify-center lg:flex">
-            <Image
-            src="/image/superadmin.png"
-            alt="User"
-            width={120}
-            height={120}
-            unoptimized
-            className="rounded-full object-cover"
-          />
+        <Image
+          src="/image/superadmin.png"
+          alt="User"
+          width={120}
+          height={120}
+          unoptimized
+          className="rounded-full object-cover"
+        />
       </div>
 
       <div className="mt-3 rounded-2xl bg-primary-light/15 p-4 text-center">
