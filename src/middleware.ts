@@ -35,7 +35,10 @@ export async function middleware(request: NextRequest) {
     pathname.includes("/marketing") ||
     pathname.includes("/sms") ||
     pathname.includes("/reports") ||
-    pathname.includes("/settings") 
+    pathname.includes("/settings") ||
+    pathname.includes("/profile") 
+
+
   
   ) {
     return NextResponse.next();

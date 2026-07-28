@@ -2,6 +2,7 @@
 
 import { use, useState } from "react";
 import { ClinicSidebar } from "@/components/layout/ClinicSidebar";
+import { ReceptionSidebar } from "@/components/layout/ReceptionSidebar";
 import { ClinicTopbar } from "@/components/layout/ClinicTopbar";
 import { ROLE_LABELS, type ClinicRole } from "@/lib/auth/clinic-nav";
 
@@ -43,7 +44,11 @@ export default function ClinicLayout({
         <main className="p-4 md:p-6">{children}</main>
       </div>
 
-      <ClinicSidebar clinicSlug={clinicSlug} role={role} />
+      {role === "receptionist" ? (
+        <ReceptionSidebar clinicSlug={clinicSlug} />
+      ) : (
+        <ClinicSidebar clinicSlug={clinicSlug} role={role} />
+      )}
 
     </div>
   );

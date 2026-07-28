@@ -41,7 +41,7 @@ export default function DoctorDashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">سلام دکتر آرش 👋</h1>
+        <h1 className="text-xl font-bold text-gray-900">سلام دکتر آرش</h1>
         <p className="mt-1 text-sm text-gray-400">برنامه‌ی امروز شما و بیماران در انتظار ویزیت</p>
       </div>
 
