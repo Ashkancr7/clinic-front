@@ -16,7 +16,14 @@ export default function ClinicLayout({
   const { clinicSlug } = use(params);
 
   // TODO: این مقدار باید از session واقعی کاربر بیاد (getSession() در lib/auth/session.ts).
-  const [role, setRole] = useState<ClinicRole>("clinic_admin");
+  const [role, setRole] = useState<ClinicRole>(() => {
+    if (typeof window === "undefined") return "clinic_admin";
+    const saved = localStorage.getItem("dev_role");
+    if (saved === "doctor" || saved === "receptionist" || saved === "clinic_admin") {
+      return saved;
+    }
+    return "clinic_admin";
+  });
 
   const userName = role === "doctor" ? "دکتر آرش نیکنام" : role === "receptionist" ? "نگار حسینی" : "دکتر سارا محمدی";
 
@@ -29,7 +36,11 @@ export default function ClinicLayout({
           <span className="text-[11px] text-gray-500">نمای تستی نقش:</span>
           <select
             value={role}
-            onChange={(e) => setRole(e.target.value as ClinicRole)}
+            onChange={(e) => {
+              const newRole = e.target.value as ClinicRole;
+              setRole(newRole);
+              localStorage.setItem("dev_role", newRole);
+            }}
             className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 outline-none"
           >
             {Object.entries(ROLE_LABELS).map(([value, label]) => (

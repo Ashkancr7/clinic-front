@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import Image from "next/image";
 
@@ -64,10 +65,36 @@ const FOOTER_LINKS = [
 ];
 
 export default function LoginPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"password" | "otp">("password");
   const [selectedRole, setSelectedRole] = useState<RoleKey>("patient");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+
+  const handleLogin = () => {
+    // TODO: این تابع باید بعد از احراز هویت واقعی صدا زده بشه، نه مستقیم روی کلیک دکمه
+    const clinicSlug = "demo-clinic"; // موقتی تا بک‌اند واقعی وصل بشه
+
+    localStorage.setItem("dev_role", selectedRole);
+
+    switch (selectedRole) {
+      case "superadmin":
+        router.push("/super-admin/dashboard");
+        break;
+      case "clinic_admin":
+        router.push(`/clinic/${clinicSlug}/dashboard`);
+        break;
+      case "doctor":
+        router.push(`/clinic/${clinicSlug}/dashboard/doctor`);
+        break;
+      case "receptionist":
+        router.push(`/clinic/${clinicSlug}/dashboard/reception`);
+        break;
+      case "patient":
+        router.push(`/patient/${clinicSlug}/dashboard`);
+        break;
+    }
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
@@ -523,18 +550,8 @@ export default function LoginPage() {
 
 
             <button
-              className="
-        h-12
-        w-full
-        rounded-2xl
-        bg-primary
-        text-sm
-        font-semibold
-        text-white
-        transition
-        hover:bg-primary-dark
-        hover:shadow-lg
-      "
+              onClick={handleLogin}
+              className="w-full rounded-xl bg-primary py-3 text-sm font-medium text-white hover:bg-primary-dark"
             >
               ورود به حساب کاربری
             </button>
