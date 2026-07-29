@@ -10,13 +10,14 @@ import Image from "next/image";
 
 interface ReceptionSidebarProps {
   clinicSlug: string;
+  onNavigate?: () => void;
 }
 
-export function ReceptionSidebar({ clinicSlug }: ReceptionSidebarProps) {
+export function ReceptionSidebar({ clinicSlug, onNavigate }: ReceptionSidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="flex w-full shrink-0 flex-col border-b border-gray-100 bg-white p-5 lg:h-screen lg:w-64 lg:sticky lg:top-0 lg:border-b-0 lg:border-l">
+    <aside className="flex h-full w-full shrink-0 flex-col border-b border-gray-100 bg-white p-5 lg:h-screen lg:w-64 lg:sticky lg:top-0 lg:border-b-0 lg:border-l">
       <div className="mb-4 flex items-center justify-center gap-2 lg:justify-end">
         <Leaf className="h-7 w-7 text-primary" />
         <div className="text-left leading-tight">
@@ -37,10 +38,10 @@ export function ReceptionSidebar({ clinicSlug }: ReceptionSidebarProps) {
           return (
             <Link
               key={item.href}
+              onClick={() => onNavigate?.()}
               href={href}
-              className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm transition-colors ${
-                active ? "bg-primary-light/15 font-medium text-primary-dark" : "text-gray-600 hover:bg-gray-50"
-              }`}
+              className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm transition-colors ${active ? "bg-primary-light/15 font-medium text-primary-dark" : "text-gray-600 hover:bg-gray-50"
+                }`}
             >
               <item.icon className="h-4 w-4" />
               {item.label}
@@ -49,7 +50,7 @@ export function ReceptionSidebar({ clinicSlug }: ReceptionSidebarProps) {
         })}
       </nav>
 
-       <div className="mt-6 hidden justify-center lg:flex">
+      <div className="mt-6 hidden justify-center lg:flex">
         <Image
           src="/image/superadmin.png"
           alt="User"

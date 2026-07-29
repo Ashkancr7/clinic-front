@@ -10,9 +10,10 @@ import Image from "next/image";
 interface ClinicSidebarProps {
   clinicSlug: string;
   role: ClinicRole;
+  onNavigate?: () => void;
 }
 
-export function ClinicSidebar({ clinicSlug, role }: ClinicSidebarProps) {
+export function ClinicSidebar({ clinicSlug, role, onNavigate }: ClinicSidebarProps) {
   const pathname = usePathname();
   const visibleItems = CLINIC_NAV_ITEMS.filter((item) => item.roles.includes(role));
 
@@ -26,7 +27,7 @@ export function ClinicSidebar({ clinicSlug, role }: ClinicSidebarProps) {
   );
 
   return (
-    <aside className="flex w-full shrink-0 flex-col border-b border-gray-100 bg-white p-5  lg:h-screen lg:w-64 lg:sticky lg:top-0 lg:border-b-0 lg:border-l">
+    <aside className="flex h-full w-full shrink-0 flex-col border-b border-gray-100 bg-white p-5  lg:h-screen lg:w-64 lg:sticky lg:top-0 lg:border-b-0 lg:border-l">
       <div className="mb-6 flex items-center justify-center gap-2 lg:justify-strat">
         <Leaf className="h-7 w-7 text-primary" />
         <div className="text-left leading-tight">
@@ -45,6 +46,7 @@ export function ClinicSidebar({ clinicSlug, role }: ClinicSidebarProps) {
             return (
               <Link
                 key={item.href}
+                onClick={() => onNavigate?.()}
                 href={
                   item.href === "dashboard"
                     ? `/clinic/${clinicSlug}/dashboard${role === "doctor" ? "/doctor" : role === "receptionist" ? "/reception" : ""
@@ -87,6 +89,7 @@ export function ClinicSidebar({ clinicSlug, role }: ClinicSidebarProps) {
                       return (
                         <Link
                           key={child.href}
+                          onClick={() => onNavigate?.()}
                           href={childHref}
                           className={`flex items-center  rounded-lg px-3 py-2 text-[13px] ${childActive ? "bg-primary-light/15 font-medium text-primary-dark" : "text-gray-500 hover:bg-gray-50"
                             }`}
