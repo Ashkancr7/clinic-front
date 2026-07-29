@@ -150,7 +150,7 @@ export default function LandingPage() {
                 className="inline-flex items-center gap-2 rounded-[5px] bg-primary px-7 py-2 text-sm font-medium text-white transition-all hover:bg-primary-dark active:scale-95"
               >
                 <Calendar className="h-4 w-4 " />
-                 پنل کلینیک
+                  درخواست دمو
               </a>
 
               {/* دکمه ورود به پنل */}
