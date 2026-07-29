@@ -32,6 +32,8 @@ import {
   FileText,
   Eraser,
   ShieldCheck,
+  Check,
+  ClipboardCheck,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -91,7 +93,21 @@ const MEDICAL_QUESTIONS = [
 
 export default function PatientIntakePage() {
   const [agreed, setAgreed] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
   const pickerRef = useRef<any>(null);
+
+  const totalSteps = STEPS.length;
+
+  const goNext = () => {
+    setCurrentStep((s) => Math.min(s + 1, totalSteps));
+    // اسکرول به بالای فرم برای تجربه بهتر
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const goPrev = () => {
+    setCurrentStep((s) => Math.max(s - 1, 1));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   return (
     <div dir="rtl" className="min-h-screen bg-gray-50  text-sm">
@@ -132,27 +148,53 @@ export default function PatientIntakePage() {
           {/* استپر */}
           <div className="overflow-x-auto rounded-2xl border-2 border-gray-100 bg-white p-4">
             <div className="flex min-w-max items-center justify-center gap-3 lg:justify-start">
-              {STEPS.map((step, i) => (
-                <div key={step.number} className="flex items-center gap-3">
-                  {i > 0 && <div className="h-px w-8 bg-gray-200" />}
-                  <div className="flex flex-col items-center gap-1">
-                    <div
-                      className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${step.number === 1
-                        ? "bg-primary text-white"
-                        : "border border-gray-200 text-gray-400"
+              {STEPS.map((step, i) => {
+                const isCompleted = step.number < currentStep;
+                const isActive = step.number === currentStep;
+
+                return (
+                  <div key={step.number} className="flex items-center gap-3">
+                    {i > 0 && (
+                      <div
+                        className={`h-px w-8 transition-colors ${
+                          step.number <= currentStep ? "bg-primary" : "bg-gray-200"
                         }`}
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // اجازه بازگشت به مراحل قبلی که تکمیل شده‌اند
+                        if (isCompleted) setCurrentStep(step.number);
+                      }}
+                      className="flex flex-col items-center gap-1"
                     >
-                      {step.number}
-                    </div>
-                    <span
-                      className={`whitespace-nowrap text-[11px] ${step.number === 1 ? "font-medium text-primary-dark" : "text-gray-400"
+                      <div
+                        className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-colors ${
+                          isCompleted
+                            ? "bg-primary text-white"
+                            : isActive
+                            ? "bg-primary text-white ring-4 ring-primary-light/30"
+                            : "border border-gray-200 text-gray-400"
                         }`}
-                    >
-                      {step.label}
-                    </span>
+                      >
+                        {isCompleted ? <Check className="h-4 w-4" /> : step.number}
+                      </div>
+                      <span
+                        className={`whitespace-nowrap text-[11px] transition-colors ${
+                          isActive
+                            ? "font-medium text-primary-dark"
+                            : isCompleted
+                            ? "text-primary"
+                            : "text-gray-400"
+                        }`}
+                      >
+                        {step.label}
+                      </span>
+                    </button>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -168,186 +210,221 @@ export default function PatientIntakePage() {
             </p>
           </div>
 
-          {/* اطلاعات شخصی */}
-          <FormSection icon={UserRound} title="اطلاعات شخصی">
+          {/* ---------------- مرحله ۱: اطلاعات شخصی ---------------- */}
+          {currentStep === 1 && (
+            <>
+              <FormSection icon={UserRound} title="اطلاعات شخصی">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <Field label="نام" required placeholder="نام خود را وارد کنید" />
+                  <Field label="نام خانوادگی" required placeholder="نام خانوادگی خود را وارد کنید" />
+                  <Field label="کد ملی" required placeholder="کد ملی ۱۰ رقمی خود را وارد کنید" />
+
+                  <Field label="تاریخ تولد" required  >
+                    <DatePicker
+                      ref={pickerRef}
+                      calendar={persian}
+                      locale={persian_fa}
+                      calendarPosition="bottom-right"
+                      editable={false}
+                      render={(value, openCalendar) => (
+                        <div className="flex items-center justify-between w-full">
+                          <input
+                            readOnly
+                            value={value}
+                            onClick={openCalendar}
+                            placeholder="انتخاب تاریخ"
+                            className="flex-1 bg-transparent text-xs text-gray-700 outline-none placeholder:text-gray-300 cursor-pointer"
+                          />
+                        </div>
+                      )}
+                    />
+                  </Field>
+
+                  <Field
+                    label="جنسیت"
+                    required
+                    select
+                    placeholder="انتخاب کنید"
+                    options={[
+                      { value: "male", label: "مرد" },
+                      { value: "female", label: "زن" },
+                    ]}
+                  />
+                  <Field
+                    label="وضعیت تأهل"
+                    select
+                    placeholder="انتخاب کنید"
+                    options={[
+                      { value: "single", label: "مجرد" },
+                      { value: "married", label: "متأهل" },
+                      { value: "divorced", label: "مطلقه" },
+                      { value: "widowed", label: "بیوه" },
+                    ]}
+                  />
+                  <Field
+                    label="شغل"
+                    select
+                    placeholder="انتخاب کنید"
+                    options={[
+                      { value: "doctor", label: "پزشک" },
+                      { value: "employee", label: "کارمند" },
+                      { value: "teacher", label: "معلم" },
+                      { value: "student", label: "دانشجو" },
+                      { value: "freelancer", label: "آزاد" },
+                      { value: "other", label: "سایر" },
+                    ]}
+                  />
+                  <Field label="اشخاص معرفی‌کننده" placeholder="در صورت وجود" />
+                </div>
+              </FormSection>
+
+              <FormSection icon={Phone} title="اطلاعات تماس">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <Field label="شماره موبایل" required placeholder="0912 345 6789" />
+                  <Field label="تلفن ثابت" placeholder="مثال: 021-12345678" />
+                  <Field label="ایمیل" placeholder="example@email.com" />
+                  <Field
+                    label="آدرس"
+                    placeholder="آدرس دقیق محل سکونت خود را وارد کنید"
+                    endIcon={MapPin}
+                    className="sm:col-span-2 lg:col-span-1"
+                  />
+                </div>
+              </FormSection>
+            </>
+          )}
+
+          {/* ---------------- مرحله ۲: رضایت‌نامه ---------------- */}
+          {currentStep === 2 && (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <div className="rounded-2xl border-2 border-gray-100 bg-white p-5">
+                <div className="mb-2 flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary-dark" />
+                  <span className="text-sm font-semibold text-primary">رضایت‌نامه و تعهد</span>
+                </div>
+                <p className="mb-3 text-[11px] leading-relaxed text-gray-400">
+                  اینجانب با آگاهی کامل اعلام می‌کنم که اطلاعات ارائه‌شده صحیح و به‌روز است. با
+                  علم به ماهیت خدمات به‌عمل رفته، بیمار، درمانی و مراقبتی، رضایت خود را جهت انجام
+                  خدمات در کلینیک اعلام می‌دارم. همچنین می‌پذیرم که کلیه شرایط‌وضوابط، مراقبت‌های
+                  خانگی که در درمان به من توضیح داده شده و بعد از درمان برایم توضیح داده خواهد شد را
+                  جهت سوالات خود می‌پذیرم.
+                </p>
+                <label className="flex items-start gap-2 text-[11px] text-gray-600">
+                  <input
+                    type="checkbox"
+                    checked={agreed}
+                    onChange={(e) => setAgreed(e.target.checked)}
+                    className="mt-0.5 h-3.5 w-3.5 rounded border-gray-300 text-primary"
+                  />
+                  من ضمن مطالعه کامل، رضایت و تعهد خود را اعلام می‌کنم. *
+                </label>
+              </div>
+
+              <SignatureField
+                onChange={(signature) => {
+                  console.log(signature);
+                }}
+              />
+
+              <div className="rounded-2xl border-2 border-gray-100 bg-white p-5">
+                <div className="mb-2 flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-primary-dark" />
+                  <span className="text-sm font-semibold text-primary">اطلاعات شما امن است</span>
+                </div>
+                <p className="text-xs leading-relaxed text-gray-400">
+                  کلیه اطلاعات شما مطابق با استانداردهای امنیتی رمزگذاری و محافظت می‌شود.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ---------------- مرحله ۳: سوابق پزشکی ---------------- */}
+          {currentStep === 3 && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Field label="نام" required placeholder="نام خود را وارد کنید" />
-              <Field label="نام خانوادگی" required placeholder="نام خانوادگی خود را وارد کنید" />
-              <Field label="کد ملی" required placeholder="کد ملی ۱۰ رقمی خود را وارد کنید" />
-                
-              <Field label="تاریخ تولد" required  >
-                <DatePicker
-                  ref={pickerRef}
-                  calendar={persian}
-                  locale={persian_fa}
-                  calendarPosition="bottom-right"
-                  editable={false}
-                  render={(value, openCalendar) => (
-                    <div className="flex items-center justify-between w-full">
-                      <input
-                        readOnly
-                        value={value}
-                        onClick={openCalendar}
-                        placeholder="انتخاب تاریخ"
-                        className="flex-1 bg-transparent text-xs text-gray-700 outline-none placeholder:text-gray-300 cursor-pointer"
-                      />
+              {MEDICAL_QUESTIONS.map((q) => (
+                <MedicalQuestionCard key={q.title} {...q} />
+              ))}
 
-                      {/* <Calendar
-                        onClick={openCalendar}
-                        className="mr-2 h-4 w-4 shrink-0 text-gray-300 cursor-pointer"
-                      /> */}
-                    </div>
-                  )}
+              {/* سبک زندگی */}
+              <div className="rounded-2xl border border-gray-100 bg-white p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <UserRound className="h-4 w-4 text-primary-dark" />
+                  <span className="text-sm font-semibold text-primary">سبک زندگی</span>
+                </div>
+                <p className="mb-3 text-xs text-gray-500">
+                  آیا سیگار یا دخانیات مصرف می‌کنید؟
+                </p>
+                <Field label="مصرف الکل" select placeholder="انتخاب کنید"
+                  options={[
+                    { value: "yes", label: "بله" },
+                    { value: "no", label: "نه" },
+                  ]}
                 />
-              </Field>
-
-              <Field
-                label="جنسیت"
-                required
-                select
-                placeholder="انتخاب کنید"
-                options={[
-                  { value: "male", label: "مرد" },
-                  { value: "female", label: "زن" },
-                ]}
-              />
-              <Field
-                label="وضعیت تأهل"
-                select
-                placeholder="انتخاب کنید"
-                options={[
-                  { value: "single", label: "مجرد" },
-                  { value: "married", label: "متأهل" },
-                  { value: "divorced", label: "مطلقه" },
-                  { value: "widowed", label: "بیوه" },
-                ]}
-              />
-              <Field
-                label="شغل"
-                select
-                placeholder="انتخاب کنید"
-                options={[
-                  { value: "doctor", label: "پزشک" },
-                  { value: "employee", label: "کارمند" },
-                  { value: "teacher", label: "معلم" },
-                  { value: "student", label: "دانشجو" },
-                  { value: "freelancer", label: "آزاد" },
-                  { value: "other", label: "سایر" },
-                ]}
-              />
-              <Field label="اشخاص معرفی‌کننده" placeholder="در صورت وجود" />
-            </div>
-          </FormSection>
-
-          {/* اطلاعات تماس */}
-          <FormSection icon={Phone} title="اطلاعات تماس">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Field label="شماره موبایل" required placeholder="0912 345 6789" />
-              <Field label="تلفن ثابت" placeholder="مثال: 021-12345678" />
-              <Field label="ایمیل" placeholder="example@email.com" />
-              <Field
-                label="آدرس"
-                placeholder="آدرس دقیق محل سکونت خود را وارد کنید"
-                endIcon={MapPin}
-                className="sm:col-span-2 lg:col-span-1"
-              />
-            </div>
-          </FormSection>
-
-          {/* سوالات پزشکی */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {MEDICAL_QUESTIONS.map((q) => (
-              <MedicalQuestionCard key={q.title} {...q} />
-            ))}
-
-            {/* سبک زندگی */}
-            <div className="rounded-2xl border border-gray-100 bg-white p-4">
-              <div className="mb-2 flex items-center gap-2">
-                <UserRound className="h-4 w-4 text-primary-dark" />
-                <span className="text-sm font-semibold text-primary">سبک زندگی</span>
               </div>
-              <p className="mb-3 text-xs text-gray-500">
-                آیا سیگار یا دخانیات مصرف می‌کنید؟
-              </p>
-              <Field label="مصرف الکل" select placeholder="انتخاب کنید" 
-                options={[
-                  { value: "yes", label: "بله" },
-                  { value: "no", label: "نه" },
-                  
-                ]}
-              />
-            </div>
 
-            {/* یادداشت‌های تکمیلی */}
-            <div className="rounded-2xl border border-gray-100 bg-white p-4 sm:col-span-2 lg:col-span-1">
-              <div className="mb-2 flex items-center gap-2">
-                <StickyNote className="h-4 w-4 text-primary-dark" />
-                <span className="text-sm font-semibold text-primary">یادداشت‌های تکمیلی</span>
-              </div>
-              <p className="mb-3 text-xs text-gray-500">
-                هر نکته‌ای که فکر می‌کنید لازم است بدانیم.
-              </p>
-              <textarea
-                placeholder="توضیحات خود را وارد کنید"
-                rows={3}
-                className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-700 outline-none placeholder:text-gray-300"
-              />
-            </div>
-          </div>
-
-          {/* امنیت / امضا / رضایت‌نامه */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-
-            <div className="rounded-2xl border-2 border-gray-100 bg-white p-5">
-              <div className="mb-2 flex items-center gap-2">
-                <FileText className="h-4 w-4 text-primary-dark" />
-                <span className="text-sm font-semibold text-primary">رضایت‌نامه و تعهد</span>
-              </div>
-              <p className="mb-3 text-[11px] leading-relaxed text-gray-400">
-                اینجانب با آگاهی کامل اعلام می‌کنم که اطلاعات ارائه‌شده صحیح و به‌روز است. با
-                علم به ماهیت خدمات به‌عمل رفته، بیمار، درمانی و مراقبتی، رضایت خود را جهت انجام
-                خدمات در کلینیک اعلام می‌دارم. همچنین می‌پذیرم که کلیه شرایط‌وضوابط، مراقبت‌های
-                خانگی که در درمان به من توضیح داده شده و بعد از درمان برایم توضیح داده خواهد شد را
-                جهت سوالات خود می‌پذیرم.
-              </p>
-              <label className="flex items-start gap-2 text-[11px] text-gray-600">
-                <input
-                  type="checkbox"
-                  checked={agreed}
-                  onChange={(e) => setAgreed(e.target.checked)}
-                  className="mt-0.5 h-3.5 w-3.5 rounded border-gray-300 text-primary"
+              {/* یادداشت‌های تکمیلی */}
+              <div className="rounded-2xl border border-gray-100 bg-white p-4 sm:col-span-2 lg:col-span-1">
+                <div className="mb-2 flex items-center gap-2">
+                  <StickyNote className="h-4 w-4 text-primary-dark" />
+                  <span className="text-sm font-semibold text-primary">یادداشت‌های تکمیلی</span>
+                </div>
+                <p className="mb-3 text-xs text-gray-500">
+                  هر نکته‌ای که فکر می‌کنید لازم است بدانیم.
+                </p>
+                <textarea
+                  placeholder="توضیحات خود را وارد کنید"
+                  rows={3}
+                  className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-700 outline-none placeholder:text-gray-300"
                 />
-                من ضمن مطالعه کامل، رضایت و تعهد خود را اعلام می‌کنم. *
-              </label>
-            </div>
-            <SignatureField
-              onChange={(signature) => {
-                console.log(signature);
-              }}
-            />
-
-            <div className="rounded-2xl border-2 border-gray-100 bg-white p-5">
-              <div className="mb-2 flex items-center gap-2">
-                <Lock className="h-4 w-4 text-primary-dark" />
-                <span className="text-sm font-semibold text-primary">اطلاعات شما امن است</span>
               </div>
-              <p className="text-xs leading-relaxed text-gray-400">
-                کلیه اطلاعات شما مطابق با استانداردهای امنیتی رمزگذاری و محافظت می‌شود.
+            </div>
+          )}
+
+          {/* ---------------- مرحله ۴: بررسی و تکمیل ---------------- */}
+          {currentStep === 4 && (
+            <div className="rounded-2xl border-2 border-gray-100 bg-white p-6 text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary-light/20">
+                <ClipboardCheck className="h-6 w-6 text-primary-dark" />
+              </div>
+              <h2 className="text-base font-bold text-gray-900">
+                بررسی نهایی اطلاعات
+              </h2>
+              <p className="mx-auto mt-2 max-w-md text-xs text-gray-400">
+                اطلاعات شخصی، رضایت‌نامه و سوابق پزشکی شما تکمیل شده است. پیش از ثبت
+                نهایی، در صورت نیاز می‌توانید به هر مرحله بازگردید و اطلاعات را ویرایش کنید.
               </p>
             </div>
-
-          </div>
+          )}
 
           {/* اکشن‌ها */}
           <div className="flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <button className="flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-medium text-white hover:bg-primary-dark">
-              ثبت و ادامه <ArrowLeft className="h-4 w-4" />
-            </button>
+            <div className="flex flex-col-reverse gap-3 sm:flex-row">
+              {currentStep < totalSteps ? (
+                <button
+                  onClick={goNext}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-medium text-white hover:bg-primary-dark"
+                >
+                  ثبت و ادامه <ArrowLeft className="h-4 w-4" />
+                </button>
+              ) : (
+                <button className="flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-medium text-white hover:bg-primary-dark">
+                  ثبت نهایی <Check className="h-4 w-4" />
+                </button>
+              )}
+
+              {currentStep > 1 && (
+                <button
+                  onClick={goPrev}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-6 py-3 text-sm text-gray-600 hover:bg-gray-50"
+                >
+                  <ArrowRight className="h-4 w-4" /> مرحله قبل
+                </button>
+              )}
+            </div>
 
             <button className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-6 py-3 text-sm text-gray-600 hover:bg-gray-50">
               <Save className="h-4 w-4" /> ذخیره موقت
             </button>
-
           </div>
 
           <p className="flex items-center justify-center gap-1.5 text-center text-xs text-gray-400">
@@ -360,7 +437,7 @@ export default function PatientIntakePage() {
         <aside className="hidden w-full border-2 rounded-lg lg:block lg:w-80 shrink-0 space-y-4 p-4 bg-gradient-to-bl from-primary-light/15 via-primary-light/10 to-white/50">
           {/* تصویر */}
           <div className="rounded-2xl border-2 border-gray-100 p-6 text-center">
-            
+
             <Image
               src="/image/rigester.png"
               alt="نمای دشبورد و پنل مدیریت کلینیک"
