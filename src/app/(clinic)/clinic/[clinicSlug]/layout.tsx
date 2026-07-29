@@ -15,6 +15,8 @@ export default function ClinicLayout({
 }) {
   const { clinicSlug } = use(params);
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   // TODO: این مقدار باید از session واقعی کاربر بیاد (getSession() در lib/auth/session.ts).
   const [role, setRole] = useState<ClinicRole>(() => {
     if (typeof window === "undefined") return "clinic_admin";
@@ -51,15 +53,34 @@ export default function ClinicLayout({
           </select>
         </div>
 
-        <ClinicTopbar userName={userName} roleLabel={ROLE_LABELS[role]} notificationCount={8} />
+        <ClinicTopbar
+          userName={userName}
+          roleLabel={ROLE_LABELS[role]}
+          notificationCount={8}
+          onToggleSidebar={() => setSidebarOpen((v) => !v)}
+        />
+
         <main className="p-4 md:p-6">{children}</main>
       </div>
 
-      {role === "receptionist" ? (
-        <ReceptionSidebar clinicSlug={clinicSlug} />
-      ) : (
-        <ClinicSidebar clinicSlug={clinicSlug} role={role} />
+      {/* پس‌زمینه‌ی تیره پشت سایدبار موبایل - با کلیک بسته می‌شود */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+        />
       )}
+
+      <div
+        className={`fixed inset-y-0 right-0 z-50 w-72 transition-transform duration-200 lg:static lg:z-auto lg:w-auto lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "translate-x-full"
+          }`}
+      >
+        {role === "receptionist" ? (
+          <ReceptionSidebar clinicSlug={clinicSlug} />
+        ) : (
+          <ClinicSidebar clinicSlug={clinicSlug} role={role} />
+        )}
+      </div>
 
     </div>
   );
