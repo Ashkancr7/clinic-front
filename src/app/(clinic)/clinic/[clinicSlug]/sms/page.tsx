@@ -259,7 +259,7 @@ export default function MessagesPage() {
                 <div className="text-[10px] text-gray-400">۱۴۰۳/۰۲/۲۸</div>
               </div>
             </div>
-          </div>
+          </div> 
 
           <div className="rounded-2xl border border-gray-100 bg-white p-4">
             <div className="flex items-center gap-2.5">

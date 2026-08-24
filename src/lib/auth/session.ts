@@ -1,19 +1,19 @@
 import { cookies } from "next/headers";
 
 export interface Session {
-  userId: string;
-  role: "patient" | "doctor" | "receptionist" | "clinic_admin" | "superadmin";
-  clinicIds: string[]; // برای بیمار می‌تواند چند مقداره باشد (چندکلینیکی)
+  userType: "patient" | "staff" | "super_admin";
+  clinics: { id: string; slug: string }[];
 }
 
 export async function getSession(): Promise<Session | null> {
-  const token = (await cookies()).get("session")?.value;
-  if (!token) return null;
+  const store = await cookies();
+  const token = store.get("access_token")?.value;
+  const userType = store.get("user_type")?.value as Session["userType"] | undefined;
 
-  // TODO: به بک‌اند وصل کن یا JWT را دیکود کن
-  return {
-    userId: "demo-user",
-    role: "patient",
-    clinicIds: ["demo-clinic"],
-  };
+  if (!token || !userType) return null;
+
+  const clinicsRaw = store.get("clinics")?.value;
+  const clinics = clinicsRaw ? JSON.parse(clinicsRaw) : [];
+
+  return { userType, clinics };
 }

@@ -5,11 +5,6 @@ import {
   Leaf,
   Lock,
   MessageSquare,
-  Crown,
-  Briefcase,
-  Headset,
-  Stethoscope,
-  UserRound,
   User,
   Eye,
   EyeOff,
@@ -22,19 +17,7 @@ import {
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
 import Image from "next/image";
-
-
-type RoleKey = "superadmin" | "clinic_admin" | "receptionist" | "doctor" | "patient";
-
-const ROLES: { key: RoleKey; label: string; icon: typeof Crown; tone: string }[] = [
-  { key: "patient", label: "بیمار", icon: UserRound, tone: "text-primary-dark" },
-  { key: "doctor", label: "پزشک", icon: Stethoscope, tone: "text-primary-dark" },
-  { key: "receptionist", label: "منشی", icon: Headset, tone: "text-pink-500" },
-  { key: "clinic_admin", label: "مدیر کلینیک", icon: Briefcase, tone: "text-gray-500" },
-  { key: "superadmin", label: "سوپرادمین", icon: Crown, tone: "text-purple-500" },
-];
 
 const SIDE_FEATURES = [
   {
@@ -57,610 +40,212 @@ const SIDE_FEATURES = [
   },
 ];
 
-const FOOTER_LINKS = [
-  "قوانین و مقررات",
-  "سیاست حریم خصوصی",
-  "پشتیبانی",
-  "تماس با ما",
-];
+const FOOTER_LINKS = ["قوانین و مقررات", "سیاست حریم خصوصی", "پشتیبانی", "تماس با ما"];
 
 export default function LoginPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"password" | "otp">("password");
-  const [selectedRole, setSelectedRole] = useState<RoleKey>("patient");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = () => {
-    // TODO: این تابع باید بعد از احراز هویت واقعی صدا زده بشه، نه مستقیم روی کلیک دکمه
-    const clinicSlug = "demo-clinic"; // موقتی تا بک‌اند واقعی وصل بشه
-
-    localStorage.setItem("dev_role", selectedRole);
-
-    switch (selectedRole) {
-      case "superadmin":
-        router.push("/super-admin/dashboard");
-        break;
-      case "clinic_admin":
-        router.push(`/clinic/${clinicSlug}/dashboard`);
-        break;
-      case "doctor":
-        router.push(`/clinic/${clinicSlug}/dashboard/doctor`);
-        break;
-      case "receptionist":
-        router.push(`/clinic/${clinicSlug}/dashboard/reception`);
-        break;
-      case "patient":
-        router.push(`/patient/${clinicSlug}/dashboard`);
-        break;
+   async function handleStaffLogin() {
+    if (!phone || !password) {
+      setError("شماره موبایل و رمز عبور را وارد کنید");
+      return;
     }
-  };
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/staff-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ phone, password, rememberMe }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+
+      if (data.user.user_type === "super_admin") {
+        router.push("/super-admin/clinics");
+      } else if (data.clinics.length === 1) {
+        router.push(`/clinic/${data.clinics[0].slug}/dashboard`);
+      } else {
+        router.push("/select-clinic");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "ورود ناموفق بود");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleOtpRequest() {
+    if (!phone) {
+      setError("شماره موبایل را وارد کنید");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/otp/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      router.push(`/otp?phone=${encodeURIComponent(phone)}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "ارسال کد ناموفق بود");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
       <div className="grid flex-1 lg:grid-cols-2">
-
-        <div
-          className="
-    flex
-    min-h-[100dvh]
-    flex-col
-    items-center
-    justify-start
-    bg-white
-    px-5
-    pt-10
-    sm:pt-14
-    lg:pt-16
-  "
-        >
-
+        <div className="flex min-h-[100dvh] flex-col items-center justify-start bg-white px-5 pt-10 sm:pt-14 lg:pt-16">
           {/* Logo */}
-          <div
-            className="
-      mb-8
-      flex
-      flex-col
-      items-center
-      gap-2
-    "
-          >
-
-            <Leaf
-              className="
-        h-10
-        w-10
-        text-primary
-      "
-            />
-
+          <div className="mb-8 flex flex-col items-center gap-2">
+            <Leaf className="h-10 w-10 text-primary" />
             <div className="text-center leading-tight">
-
-              <h1
-                className="
-          text-xl
-          font-bold
-          text-gray-900
-        "
-              >
-                Beauty Clinic CRM
-              </h1>
-
-
-              <p
-                className="
-          mt-1
-          text-xs
-          text-gray-400
-        "
-              >
-                پلتفرم مدیریت کلینیک‌های زیبایی
-              </p>
-
+              <h1 className="text-xl font-bold text-gray-900">Beauty Clinic CRM</h1>
+              <p className="mt-1 text-xs text-gray-400">پلتفرم مدیریت کلینیک‌های زیبایی</p>
             </div>
-
           </div>
 
-
-
           {/* Login Card */}
-          <div
-            className="
-      w-full
-      max-w-lg
-      rounded-3xl
-      border
-      border-gray-100
-      bg-white
-      p-5
-      shadow-xl
-      sm:p-8
-    "
-          >
-
-
+          <div className="w-full max-w-lg rounded-3xl border border-gray-100 bg-white p-5 shadow-xl sm:p-8">
             {/* Tabs */}
-            <div
-              className="
-        mb-7
-        flex
-        border-b
-        border-gray-100
-        text-xs
-        sm:text-sm
-      "
-            >
-
+            <div className="mb-7 flex border-b border-gray-100 text-xs sm:text-sm">
               <button
                 onClick={() => setActiveTab("password")}
-                className={`
-          flex
-          flex-1
-          items-center
-          justify-center
-          gap-2
-          pb-3
-          font-medium
-          transition
-          ${activeTab === "password"
+                className={`flex flex-1 items-center justify-center gap-2 pb-3 font-medium transition ${
+                  activeTab === "password"
                     ? "border-b-2 border-primary text-primary-dark"
                     : "text-gray-400"
-                  }
-        `}
+                }`}
               >
-
                 <Lock className="h-4 w-4" />
-
                 ورود با رمز عبور
-
               </button>
-
-
 
               <button
                 onClick={() => setActiveTab("otp")}
-                className={`
-          flex
-          flex-1
-          items-center
-          justify-center
-          gap-2
-          pb-3
-          font-medium
-          transition
-          ${activeTab === "otp"
+                className={`flex flex-1 items-center justify-center gap-2 pb-3 font-medium transition ${
+                  activeTab === "otp"
                     ? "border-b-2 border-primary text-primary-dark"
                     : "text-gray-400"
-                  }
-        `}
+                }`}
               >
-
                 <MessageSquare className="h-4 w-4" />
-
                 ورود با کد تایید
-
               </button>
-
-
             </div>
 
+            {error && (
+              <p className="mb-5 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-500">{error}</p>
+            )}
 
-
-
-            {/* Roles */}
-            <div className="mb-7">
-
-
-              <div
-                className="
-          mb-4
-          text-center
-          text-sm
-          text-gray-500
-        "
-              >
-                انتخاب نقش
-              </div>
-
-
-
-              <div
-                className="
-          grid
-          grid-cols-3
-          gap-2
-          lg:grid-cols-5
-        "
-              >
-
-                {ROLES.map((role) => {
-
-                  const isSelected =
-                    selectedRole === role.key;
-
-
-                  return (
-
-                    <button
-                      key={role.key}
-                      onClick={() => setSelectedRole(role.key)}
-                      className={`
-                flex
-                min-h-20
-                flex-col
-                items-center
-                justify-center
-                gap-2
-                rounded-2xl
-                border
-                p-2
-                text-[11px]
-                transition-all
-                duration-200
-
-                ${isSelected
-                          ?
-                          "border-primary bg-primary-light/10 text-primary-dark shadow-sm"
-                          :
-                          "border-gray-100 text-gray-500 hover:border-gray-200"
-                        }
-              `}
-                    >
-
-                      <role.icon
-                        className={`
-                  h-5
-                  w-5
-
-                  ${isSelected
-                            ?
-                            "text-primary-dark"
-                            :
-                            role.tone
-                          }
-                `}
-                      />
-
-
-                      {role.label}
-
-
-                    </button>
-
-                  )
-
-                })}
-
-              </div>
-
-
-
-              <div
-                className="
-          mt-4
-          flex
-          justify-center
-          gap-2
-        "
-              >
-
-                <span
-                  className="
-            h-1.5
-            w-5
-            rounded-full
-            bg-primary
-          "
-                />
-
-                <span
-                  className="
-            h-1.5
-            w-1.5
-            rounded-full
-            bg-gray-200
-          "
-                />
-
-
-              </div>
-
-
-            </div>
-
-
-
-
-            {/* Inputs */}
-            <label
-              className="
-        mb-2
-        block
-        text-sm
-        text-gray-600
-      "
-            >
-              شماره موبایل یا نام کاربری
-            </label>
-
-
-            <div
-              className="
-        mb-5
-        flex
-        min-h-14
-        items-center
-        rounded-2xl
-        border
-        border-gray-200
-        px-4
-        transition
-        focus-within:border-primary
-        focus-within:ring-4
-        focus-within:ring-primary/10
-      "
-            >
-
+            {/* شماره موبایل — مشترک بین هر دو تب */}
+            <label className="mb-2 block text-sm text-gray-600">شماره موبایل</label>
+            <div className="mb-5 flex min-h-14 items-center rounded-2xl border border-gray-200 px-4 transition focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10">
               <User className="h-4 w-4 text-gray-300" />
-
-
               <input
                 type="text"
-                placeholder="شماره موبایل یا نام کاربری"
-                className="
-          w-full
-          bg-transparent
-          px-3
-          text-sm
-          outline-none
-          placeholder:text-gray-300
-        "
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="09XXXXXXXXX"
+                className="w-full bg-transparent px-3 text-sm outline-none placeholder:text-gray-300"
               />
-
             </div>
 
+            {activeTab === "password" && (
+              <>
+                <label className="mb-2 block text-sm text-gray-600">رمز عبور</label>
+                <div className="mb-4 flex min-h-14 items-center rounded-2xl border border-gray-200 px-4 transition focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10">
+                  <Lock className="h-4 w-4 text-gray-300" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="رمز عبور خود را وارد کنید"
+                    className="w-full bg-transparent px-3 text-sm outline-none"
+                  />
+                  <button type="button" onClick={() => setShowPassword((v) => !v)} className="text-gray-300">
+                    {showPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                  </button>
+                </div>
 
+                <div className="mb-6 flex items-center justify-between text-xs">
+                  <label className="flex items-center gap-2 text-gray-500">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-primary"
+                    />
+                    مرا به خاطر بسپار
+                  </label>
 
+                  <a href="#forgot" className="text-primary-dark hover:underline">
+                    رمز عبور را فراموش کرده‌اید؟
+                  </a>
+                </div>
 
+                <button
+                  onClick={handleStaffLogin}
+                  disabled={loading}
+                  className="w-full rounded-xl bg-primary py-3 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50"
+                >
+                  {loading ? "در حال ورود..." : "ورود به حساب کاربری"}
+                </button>
+              </>
+            )}
 
-            <label
-              className="
-        mb-2
-        block
-        text-sm
-        text-gray-600
-      "
-            >
-              رمز عبور
-            </label>
-
-
-            <div
-              className="
-        mb-4
-        flex
-        min-h-14
-        items-center
-        rounded-2xl
-        border
-        border-gray-200
-        px-4
-        transition
-        focus-within:border-primary
-        focus-within:ring-4
-        focus-within:ring-primary/10
-      "
-            >
-
-
-              <Lock className="h-4 w-4 text-gray-300" />
-
-
-
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="رمز عبور خود را وارد کنید"
-                className="
-          w-full
-          bg-transparent
-          px-3
-          text-sm
-          outline-none
-        "
-              />
-
-
-
+            {activeTab === "otp" && (
               <button
-                type="button"
-                onClick={() => setShowPassword(v => !v)}
-                className="text-gray-300"
+                onClick={handleOtpRequest}
+                disabled={loading}
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-medium text-white transition hover:bg-primary-dark disabled:opacity-50"
               >
-
-                {
-                  showPassword
-                    ?
-                    <Eye className="h-4 w-4" />
-                    :
-                    <EyeOff className="h-4 w-4" />
-                }
-
+                <MessageSquare className="h-4 w-4" />
+                {loading ? "در حال ارسال..." : "دریافت کد تایید پیامکی"}
               </button>
+            )}
 
+            {activeTab === "password" && (
+              <>
+                <div className="my-6 flex items-center gap-3 text-xs text-gray-300">
+                  <div className="h-px flex-1 bg-gray-100" />
+                  یا
+                  <div className="h-px flex-1 bg-gray-100" />
+                </div>
 
-            </div>
+                <button
+                  onClick={() => setActiveTab("otp")}
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-primary text-sm font-medium text-primary-dark transition hover:bg-primary-light/10"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  ورود با کد تایید پیامکی
+                </button>
+              </>
+            )}
 
-
-
-
-
-            <div
-              className="
-        mb-6
-        flex
-        items-center
-        justify-between
-        text-xs
-      "
-            >
-
-              <label
-                className="
-          flex
-          items-center
-          gap-2
-          text-gray-500
-        "
-              >
-
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="
-            h-4
-            w-4
-            rounded
-            border-gray-300
-            text-primary
-          "
-                />
-
-                مرا به خاطر بسپار
-
-              </label>
-
-
-
-              <a
-                href="#forgot"
-                className="
-          text-primary-dark
-          hover:underline
-        "
-              >
-                رمز عبور را فراموش کرده‌اید؟
-              </a>
-
-
-            </div>
-
-
-
-
-
-            <button
-              onClick={handleLogin}
-              className="w-full rounded-xl bg-primary py-3 text-sm font-medium text-white hover:bg-primary-dark"
-            >
-              ورود به حساب کاربری
-            </button>
-
-
-
-
-            <div
-              className="
-        my-6
-        flex
-        items-center
-        gap-3
-        text-xs
-        text-gray-300
-      "
-            >
-
-              <div className="h-px flex-1 bg-gray-100" />
-
-              یا
-
-              <div className="h-px flex-1 bg-gray-100" />
-
-
-            </div>
-
-
-
-
-            <button
-              onClick={() => setActiveTab("otp")}
-              className="
-        flex
-        h-12
-        w-full
-        items-center
-        justify-center
-        gap-2
-        rounded-2xl
-        border
-        border-primary
-        text-sm
-        font-medium
-        text-primary-dark
-        transition
-        hover:bg-primary-light/10
-      "
-            >
-
-              <MessageSquare className="h-4 w-4" />
-
-              ورود با کد تایید پیامکی
-
-            </button>
-
-
-
-            <p
-              className="
-        mt-6
-        text-center
-        text-xs
-        text-gray-400
-      "
-            >
-
+            <p className="mt-6 text-center text-xs text-gray-400">
               حساب کاربری ندارید؟
-
-              <Link
-                href={`/patient/demo-clinic/intake`}
-                className="mr-1 font-medium text-primary-dark"
-              >
+              <Link href="/patient/demo-clinic/intake" className="mr-1 font-medium text-primary-dark">
                 ثبت‌نام کنید
               </Link>
-
-
             </p>
-
-
           </div>
-
-
         </div>
 
-        <div
-          className="
-    relative
-    hidden
-    overflow-hidden
-    bg-gradient-to-bl
-    from-primary-light/30
-    via-primary-light/10
-    to-white/50
-    px-12
-    py-14
-    lg:flex
-    lg:flex-col
-  "
-        >
-          {/* <div
-            className="absolute right-10 top-10 h-16 w-16 opacity-40"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle, #9CA3AF 1px, transparent 1px)",
-              backgroundSize: "8px 8px",
-            }}
-          /> */}
-
+        <div className="relative hidden overflow-hidden bg-gradient-to-bl from-primary-light/30 via-primary-light/10 to-white/50 px-12 py-14 lg:flex lg:flex-col">
           <h1 className="max-w-md text-3xl font-extrabold leading-tight text-gray-900">
             دسترسی امن و سریع
             <br />
@@ -668,10 +253,8 @@ export default function LoginPage() {
           </h1>
 
           <p className="mt-4 max-w-md text-sm leading-relaxed text-gray-500">
-            با Beauty Clinic CRM، همه ابزارهای موردنیاز کلینیک‌های زیبایی در یک سیستم
-            یکپارچه و هوشمند در دسترس شماست.
+            با Beauty Clinic CRM، همه ابزارهای موردنیاز کلینیک‌های زیبایی در یک سیستم یکپارچه و هوشمند در دسترس شماست.
           </p>
-
 
           <Image
             src="/image/login.PNG"
@@ -682,7 +265,6 @@ export default function LoginPage() {
             className="w-full max-w-lg object-contain "
           />
 
-          {/* کارت‌های ویژگی */}
           <div className="mt-14 grid grid-cols-3 gap-6 rounded-2xl bg-white p-5 shadow-lg">
             {SIDE_FEATURES.map((f) => (
               <div key={f.title} className="text-center">
@@ -701,40 +283,9 @@ export default function LoginPage() {
       </div>
 
       {/* فوتر */}
-      <footer
-        className="
-    border-t
-    border-gray-100
-    px-5
-    py-6
-    text-xs
-    text-gray-400
-    sm:px-8
-    md:px-12
-  "
-      >
-        <div
-          className="
-      flex
-      flex-col
-      items-center
-      gap-5
-      md:flex-row
-      md:justify-between
-    "
-        >
-
-          {/* لوگو و کپی رایت */}
-          <div
-            className="
-        flex
-        flex-col
-        items-center
-        gap-2
-        sm:flex-row
-        sm:gap-3
-      "
-          >
+      <footer className="border-t border-gray-100 px-5 py-6 text-xs text-gray-400 sm:px-8 md:px-12">
+        <div className="flex flex-col items-center gap-5 md:flex-row md:justify-between">
+          <div className="flex flex-col items-center gap-2 sm:flex-row sm:gap-3">
             <Image
               src="/image/loginflower.PNG"
               alt="Beauty Clinic CRM"
@@ -742,89 +293,30 @@ export default function LoginPage() {
               height={40}
               className="w-16 sm:w-20"
             />
-
             <p className="text-center leading-5">
               © Beauty Clinic CRM
-              <br className="sm:hidden" />
-              {" "}
-              ۱۴۰۳ تمام حقوق محفوظ است.
+              <br className="sm:hidden" /> ۱۴۰۳ تمام حقوق محفوظ است.
             </p>
           </div>
 
-
-          {/* لینک ها */}
-          <nav
-            className="
-        flex
-        flex-wrap
-        justify-center
-        gap-x-5
-        gap-y-3
-        text-center
-      "
-          >
+          <nav className="flex flex-wrap justify-center gap-x-5 gap-y-3 text-center">
             {FOOTER_LINKS.map((link) => (
-              <a
-                key={link}
-                href="#"
-                className="
-            transition
-            hover:text-primary-dark
-          "
-              >
+              <a key={link} href="#" className="transition hover:text-primary-dark">
                 {link}
               </a>
             ))}
           </nav>
 
-
-          {/* تنظیمات */}
-          <div
-            className="
-        flex
-        items-center
-        gap-3
-      "
-          >
-
-            <button
-              className="
-          flex
-          h-9
-          w-9
-          items-center
-          justify-center
-          rounded-full
-          border
-          border-gray-200
-          transition
-          hover:border-primary
-        "
-            >
+          <div className="flex items-center gap-3">
+            <button className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 transition hover:border-primary">
               <Moon className="h-4 w-4" />
             </button>
 
-
-            <button
-              className="
-          flex
-          h-9
-          items-center
-          gap-2
-          rounded-full
-          border
-          border-gray-200
-          px-4
-          transition
-          hover:border-primary
-        "
-            >
+            <button className="flex h-9 items-center gap-2 rounded-full border border-gray-200 px-4 transition hover:border-primary">
               <Globe className="h-4 w-4" />
               فارسی
             </button>
-
           </div>
-
         </div>
       </footer>
     </div>

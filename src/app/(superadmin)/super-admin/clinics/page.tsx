@@ -2,246 +2,296 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Search, Plus, Building2, CheckCircle2, XCircle, Ban, X } from "lucide-react";
 
-import {
-  Search,
-  SlidersHorizontal,
-  Plus,
-  MoreHorizontal,
-  Building2,
-  CheckCircle2,
-  XCircle,
-  Wallet,
-  ChevronRight,
-  ChevronLeft,
-  Images,
-  CalendarClock,
-  MessageSquare,
-  Users,
-} from "lucide-react";
+import { superAdminApi, type Clinic } from "@/lib/api/super-admin";
+import { queryKeys } from "@/lib/query/keys";
 
-const STATS = [
-  { icon: Building2, tone: "text-primary-dark bg-primary-light/20", label: "کل کلینیک‌ها", value: "۳۲" },
-  { icon: CheckCircle2, tone: "text-primary-dark bg-primary-light/20", label: "کلینیک‌های فعال", value: "۲۸" },
-  { icon: XCircle, tone: "text-danger bg-red-50", label: "کلینیک‌های غیرفعال", value: "۴" },
-  { icon: Wallet, tone: "text-purple-600 bg-secondary-purple/40", label: "درآمد این ماه", value: "۴۸۶,۰۰۰,۰۰۰ تومان" },
+const STATUS_LABELS: Record<Clinic["status"], { label: string; tone: string }> = {
+  active: { label: "فعال", tone: "text-primary-dark" },
+  inactive: { label: "غیرفعال", tone: "text-gray-400" },
+  suspended: { label: "معلق", tone: "text-danger" },
+};
+
+const STATUS_FILTERS: { value: Clinic["status"] | "all"; label: string }[] = [
+  { value: "all", label: "همه" },
+  { value: "active", label: "فعال" },
+  { value: "inactive", label: "غیرفعال" },
+  { value: "suspended", label: "معلق" },
 ];
-
-const CLINICS = [
-  { id: "aramesh", name: "کلینیک زیبایی آرامش", phone: "021-88880000", manager: "سارا موسوی", plan: "پلن حرفه‌ای", planTone: "bg-primary-light/20 text-primary-dark", status: "فعال", statusTone: "text-primary-dark", nextPayment: "۱۴۰۳/۰۷/۱۵", activeUsers: "۱۲۶" },
-  { id: "royan", name: "مرکز پوست و مو رویان", phone: "021-88880001", manager: "نرگس احمدی", plan: "پلن استاندارد", planTone: "bg-gray-100 text-gray-600", status: "فعال", statusTone: "text-primary-dark", nextPayment: "۱۴۰۳/۰۶/۲۰", activeUsers: "۸۹" },
-  { id: "mahrokh", name: "کلینیک لیزر ماهرخ", phone: "021-88880002", manager: "الهام رضایی", plan: "پلن پایه", planTone: "bg-secondary-pink/40 text-pink-600", status: "غیرفعال", statusTone: "text-danger", nextPayment: "-", activeUsers: "۰" },
-  { id: "bahar", name: "مرکز جوانسازی بهار", phone: "021-88880003", manager: "مینا یوسفی", plan: "پلن حرفه‌ای", planTone: "bg-primary-light/20 text-primary-dark", status: "فعال", statusTone: "text-primary-dark", nextPayment: "۱۴۰۳/۰۸/۱۰", activeUsers: "۱۵۴" },
-  { id: "niko", name: "کلینیک زیبایی نیکو", phone: "021-88880004", manager: "پریسا کاظمی", plan: "پلن استاندارد", planTone: "bg-gray-100 text-gray-600", status: "فعال", statusTone: "text-primary-dark", nextPayment: "۱۴۰۳/۰۶/۰۵", activeUsers: "۷۲" },
-  { id: "delaram", name: "کلینیک دل‌آرام", phone: "021-88880005", manager: "نازنین قاسمی", plan: "پلن پایه", planTone: "bg-secondary-pink/40 text-pink-600", status: "فعال", statusTone: "text-primary-dark", nextPayment: "۱۴۰۳/۰۶/۱۲", activeUsers: "۴۱" },
-  { id: "royaye-ziba", name: "رویای زیبا", phone: "021-88880006", manager: "شیوا کریمی", plan: "پلن حرفه‌ای", planTone: "bg-primary-light/20 text-primary-dark", status: "فعال", statusTone: "text-primary-dark", nextPayment: "۱۴۰۳/۰۷/۰۱", activeUsers: "۹۸" },
-  { id: "poostno", name: "پوست نو", phone: "021-88880007", manager: "لیلا صادقی", plan: "پلن استاندارد", planTone: "bg-gray-100 text-gray-600", status: "غیرفعال", statusTone: "text-danger", nextPayment: "-", activeUsers: "۰" },
-];
-
-const STATUS_FILTERS = ["همه", "فعال", "غیرفعال"];
-const PLAN_FILTERS = ["همه پلن‌ها", "پلن پایه", "پلن استاندارد", "پلن حرفه‌ای"];
 
 export default function ClinicsListPage() {
-  const [statusFilter, setStatusFilter] = useState("همه");
-  const [planFilter, setPlanFilter] = useState("همه پلن‌ها");
+  const [statusFilter, setStatusFilter] = useState<Clinic["status"] | "all">("all");
   const [search, setSearch] = useState("");
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const queryClient = useQueryClient();
+
+  const { data: clinics = [], isLoading, error } = useQuery({
+    queryKey: queryKeys.superAdmin.clinics.list(),
+    queryFn: superAdminApi.getClinics,
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: ({ clinicId, status }: { clinicId: string; status: Clinic["status"] }) =>
+      superAdminApi.updateClinicStatus(clinicId, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.superAdmin.clinics.list() });
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: superAdminApi.createClinic,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.superAdmin.clinics.list() });
+      setShowCreateModal(false);
+    },
+  });
 
   const filteredClinics = useMemo(() => {
-    return CLINICS.filter((clinic) => {
-      // جستجو
-      const matchSearch =
-        clinic.name.includes(search) ||
-        clinic.manager.includes(search) ||
-        clinic.phone.includes(search);
-
-      // وضعیت
-      const matchStatus =
-        statusFilter === "همه" || clinic.status === statusFilter;
-
-      // پلن
-      const matchPlan =
-        planFilter === "همه پلن‌ها" || clinic.plan === planFilter;
-
-      return matchSearch && matchStatus && matchPlan;
+    return clinics.filter((clinic) => {
+      const matchSearch = clinic.name.includes(search) || (clinic.phone ?? "").includes(search);
+      const matchStatus = statusFilter === "all" || clinic.status === statusFilter;
+      return matchSearch && matchStatus;
     });
-  }, [search, statusFilter, planFilter]);
+  }, [clinics, search, statusFilter]);
+
+  const stats = useMemo(
+    () => ({
+      total: clinics.length,
+      active: clinics.filter((c) => c.status === "active").length,
+      inactive: clinics.filter((c) => c.status !== "active").length,
+    }),
+    [clinics]
+  );
 
   return (
     <div className="space-y-6">
-      {/* هدر صفحه */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900 md:text-2xl">کلینیک‌ها</h1>
           <p className="mt-1 text-sm text-gray-400">مدیریت تمام کلینیک‌های ثبت‌شده در سامانه</p>
         </div>
-        <button className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-dark">
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-dark"
+        >
           <Plus className="h-4 w-4" /> افزودن کلینیک جدید
         </button>
       </div>
 
-      {/* کارت‌های آماری */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {STATS.map((s) => (
-          <div key={s.label} className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white p-4">
-            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${s.tone}`}>
-              <s.icon className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-lg font-bold text-gray-900">{s.value}</div>
-              <div className="text-xs text-gray-400">{s.label}</div>
-            </div>
-          </div>
-        ))}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard icon={Building2} tone="text-primary-dark bg-primary-light/20" label="کل کلینیک‌ها" value={stats.total} />
+        <StatCard icon={CheckCircle2} tone="text-primary-dark bg-primary-light/20" label="کلینیک‌های فعال" value={stats.active} />
+        <StatCard icon={XCircle} tone="text-danger bg-red-50" label="غیرفعال / معلق" value={stats.inactive} />
       </div>
 
-      {/* جدول */}
       <div className="rounded-2xl border border-gray-100 bg-white p-5">
-        {/* نوار جستجو و فیلتر */}
         <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 lg:w-80">
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="جستجوی نام کلینیک، مدیر یا تلفن..."
+              placeholder="جستجوی نام یا تلفن کلینیک..."
               className="w-full bg-transparent text-xs text-gray-600 outline-none placeholder:text-gray-300"
             />
             <Search className="h-3.5 w-3.5 shrink-0 text-gray-300" />
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded-xl border border-gray-200 px-3 py-2 text-xs text-gray-600 outline-none"
-            >
-              {STATUS_FILTERS.map((f) => (
-                <option key={f}>{f}</option>
-              ))}
-            </select>
-            <select
-              value={planFilter}
-              onChange={(e) => setPlanFilter(e.target.value)}
-              className="rounded-xl border border-gray-200 px-3 py-2 text-xs text-gray-600 outline-none"
-            >
-              {PLAN_FILTERS.map((f) => (
-                <option key={f}>{f}</option>
-              ))}
-            </select>
-            <button className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-xs text-gray-600">
-              <SlidersHorizontal className="h-3.5 w-3.5" /> فیلتر بیشتر
-            </button>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] text-right text-xs">
-            <thead>
-              <tr className="border-b border-gray-100 text-gray-400">
-                <th className="py-2 font-medium">نام کلینیک</th>
-                <th className="py-2 font-medium">مدیر</th>
-                <th className="py-2 font-medium">اشتراک</th>
-                <th className="py-2 font-medium">وضعیت</th>
-                <th className="py-2 font-medium">پرداخت بعدی</th>
-                <th className="py-2 font-medium">ماژول‌های فعال</th>
-                <th className="py-2 font-medium">کاربران فعال</th>
-                <th className="py-2 font-medium">عملیات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredClinics.map((c) => (
-                <tr key={c.id} className="border-b border-gray-50 hover:bg-gray-50/60">
-                  <td className="py-3">
-                    <Link href={`/super-admin/clinics/${c.id}`} className="flex items-center gap-2">
-                      <Image
-                        src="/image/user.PNG"
-                        alt="User"
-                        width={30}
-                        height={30}
-                        unoptimized
-                        className="rounded-full object-cover"
-                      />
-                      <div>
-                        <div className="font-medium text-gray-800 hover:text-primary-dark">{c.name}</div>
-                        <div className="text-[10px] text-gray-400" dir="ltr">
-                          {c.phone}
-                        </div>
-                      </div>
-                    </Link>
-                  </td>
-                  <td className="py-3">
-                    <div className="flex items-center gap-2">
-                      <Image
-                        src="/image/user.PNG"
-                        alt="User"
-                        width={30}
-                        height={30}
-                        unoptimized
-                        className="rounded-full object-cover"
-                      />
-                      {c.manager}
-                    </div>
-                  </td>
-                  <td className="py-3">
-                    <span className={`rounded-full px-2.5 py-1 text-[11px] ${c.planTone}`}>{c.plan}</span>
-                  </td>
-                  <td className="py-3">
-                    <span className={`flex items-center gap-1 ${c.statusTone}`}>
-                      <span className="h-1.5 w-1.5 rounded-full bg-current" /> {c.status}
-                    </span>
-                  </td>
-                  <td className="py-3 text-gray-500">{c.nextPayment}</td>
-                  <td className="py-3">
-                    <div className="flex items-center gap-1 text-gray-300">
-                      <Images className="h-3.5 w-3.5" />
-                      <CalendarClock className="h-3.5 w-3.5" />
-                      <MessageSquare className="h-3.5 w-3.5" />
-                      <Users className="h-3.5 w-3.5" />
-                    </div>
-                  </td>
-                  <td className="py-3 text-gray-700">{c.activeUsers}</td>
-                  <td className="py-3">
-                    <button className="rounded-lg border border-gray-200 p-1.5 text-gray-400">
-                      <MoreHorizontal className="h-3.5 w-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {filteredClinics.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="py-10 text-center text-sm text-gray-400"
-                  >
-                    هیچ کلینیکی پیدا نشد.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* صفحه‌بندی */}
-        <div className="mt-5 flex flex-col-reverse items-center justify-between gap-3 sm:flex-row">
-          <span className="text-xs text-gray-400">نمایش ۸ از ۳۲ کلینیک</span>
-          <div className="flex items-center gap-1.5">
-            <button className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:bg-gray-50">
-              <ChevronRight className="h-3.5 w-3.5" />
-            </button>
-            {[1, 2, 3, 4].map((p) => (
+            {STATUS_FILTERS.map((f) => (
               <button
-                key={p}
-                className={`h-7 w-7 rounded-lg text-xs ${p === 1 ? "bg-primary text-white" : "text-gray-500 hover:bg-gray-50"
-                  }`}
+                key={f.value}
+                onClick={() => setStatusFilter(f.value)}
+                className={`rounded-xl border px-3 py-2 text-xs ${
+                  statusFilter === f.value
+                    ? "border-primary bg-primary-light/10 text-primary-dark"
+                    : "border-gray-200 text-gray-600"
+                }`}
               >
-                {p.toLocaleString("fa-IR")}
+                {f.label}
               </button>
             ))}
-            <button className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:bg-gray-50">
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </button>
           </div>
+        </div>
+
+        {isLoading && <div className="py-10 text-center text-sm text-gray-400">در حال بارگذاری...</div>}
+        {error && <div className="py-10 text-center text-sm text-danger">خطا در دریافت لیست کلینیک‌ها</div>}
+
+        {!isLoading && !error && (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-right text-xs">
+              <thead>
+                <tr className="border-b border-gray-100 text-gray-400">
+                  <th className="py-2 font-medium">نام کلینیک</th>
+                  <th className="py-2 font-medium">تلفن</th>
+                  <th className="py-2 font-medium">وضعیت</th>
+                  <th className="py-2 font-medium">عملیات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredClinics.map((c) => (
+                  <tr key={c.id} className="border-b border-gray-50 hover:bg-gray-50/60">
+                    <td className="py-3">
+                      <Link href={`/super-admin/clinics/${c.id}`} className="font-medium text-gray-800 hover:text-primary-dark">
+                        {c.name}
+                      </Link>
+                    </td>
+                    <td className="py-3 text-gray-500" dir="ltr">
+                      {c.phone ?? "-"}
+                    </td>
+                    <td className="py-3">
+                      <span className={`flex items-center gap-1 ${STATUS_LABELS[c.status].tone}`}>
+                        <span className="h-1.5 w-1.5 rounded-full bg-current" /> {STATUS_LABELS[c.status].label}
+                      </span>
+                    </td>
+                    <td className="py-3">
+                      <button
+                        onClick={() =>
+                          statusMutation.mutate({
+                            clinicId: c.id,
+                            status: c.status === "active" ? "suspended" : "active",
+                          })
+                        }
+                        disabled={statusMutation.isPending}
+                        className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-[11px] text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        <Ban className="h-3 w-3" />
+                        {c.status === "active" ? "تعلیق" : "فعال‌سازی"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {filteredClinics.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="py-10 text-center text-sm text-gray-400">
+                      هیچ کلینیکی پیدا نشد.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {showCreateModal && (
+        <CreateClinicModal
+          onClose={() => setShowCreateModal(false)}
+          onSubmit={(payload) => createMutation.mutate(payload)}
+          isSubmitting={createMutation.isPending}
+          error={createMutation.error instanceof Error ? createMutation.error.message : null}
+        />
+      )}
+    </div>
+  );
+}
+
+function StatCard({
+  icon: Icon,
+  tone,
+  label,
+  value,
+}: {
+  icon: typeof Building2;
+  tone: string;
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white p-4">
+      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${tone}`}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <div>
+        <div className="text-lg font-bold text-gray-900">{value.toLocaleString("fa-IR")}</div>
+        <div className="text-xs text-gray-400">{label}</div>
+      </div>
+    </div>
+  );
+}
+
+function CreateClinicModal({
+  onClose,
+  onSubmit,
+  isSubmitting,
+  error,
+}: {
+  onClose: () => void;
+  onSubmit: (payload: { name: string; slug: string; phone?: string; address?: string }) => void;
+  isSubmitting: boolean;
+  error: string | null;
+}) {
+  const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-bold text-gray-900">افزودن کلینیک جدید</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {error && <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-500">{error}</p>}
+
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block text-xs text-gray-600">نام کلینیک</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+              placeholder="کلینیک پوست و مو نگین"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-600">شناسه یکتا (slug)</label>
+            <input
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              dir="ltr"
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+              placeholder="negin-clinic"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-600">تلفن (اختیاری)</label>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              dir="ltr"
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-600">آدرس (اختیاری)</label>
+            <textarea
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+              rows={2}
+            />
+          </div>
+        </div>
+
+        <div className="mt-5 flex gap-2">
+          <button onClick={onClose} className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm text-gray-600 hover:bg-gray-50">
+            انصراف
+          </button>
+          <button
+            disabled={!name || !slug || isSubmitting}
+            onClick={() => onSubmit({ name, slug, phone: phone || undefined, address: address || undefined })}
+            className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50"
+          >
+            {isSubmitting ? "در حال ثبت..." : "ثبت کلینیک"}
+          </button>
         </div>
       </div>
     </div>

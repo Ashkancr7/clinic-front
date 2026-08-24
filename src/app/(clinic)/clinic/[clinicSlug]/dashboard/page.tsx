@@ -21,56 +21,20 @@ import {
 } from "lucide-react";
 
 import Image from "next/image";
+import { useQuery } from "@tanstack/react-query";
 
+import { useActiveClinic } from "@/hooks/use-active-clinic";
+import { queryKeys } from "@/lib/query/keys";
+import {
+  getClinicDashboard,
+  getClinicModules,
+  getUpcomingAppointments,
+  isFinanceModuleEnabled,
+} from "@/lib/api/clinic-dashboard";
 
-const KPIS = [
-  {
-    icon: Users,
-    tone: "text-pink-600 bg-secondary-pink/40",
-    label: "مراجعه‌کنندگان این ماه",
-    value: "۲,۴۸۶",
-    trend: "+۲۸٪",
-    trendUp: true,
-    spark: [4, 5, 7, 8, 9, 12],
-  },
-  {
-    icon: CalendarCheck,
-    tone: "text-purple-600 bg-secondary-purple/40",
-    label: "نوبت‌های امروز",
-    value: "۲۸",
-    trend: "+۳ نسبت به دیروز",
-    trendUp: true,
-    spark: [6, 7, 6, 8, 7, 9],
-  },
-  {
-    icon: Sparkles,
-    tone: "text-primary-dark bg-primary-light/20",
-    label: "خدمات انجام‌شده این ماه",
-    value: "۱,۳۶۸",
-    trend: "+۱۹٪",
-    trendUp: true,
-    spark: [5, 6, 6, 8, 9, 10],
-  },
-  {
-    icon: RefreshCcw,
-    tone: "text-purple-600 bg-secondary-purple/40",
-    label: "نرخ بازگشت مشتری",
-    value: "۶۳٪",
-    trend: "+۷٪",
-    trendUp: true,
-    spark: [8, 7, 9, 8, 10, 11],
-  },
-  {
-    icon: Wallet,
-    tone: "text-primary-dark bg-primary-light/20",
-    label: "درآمد این ماه",
-    value: "۲,۶۴۸,۰۰۰,۰۰۰",
-    trend: "+۱۴٪",
-    trendUp: true,
-    spark: [4, 6, 5, 8, 9, 12],
-  },
-];
-
+// این بخش‌ها هنوز به بک‌اند وصل نشده‌اند چون endpoint مشخصی برایشان
+// در اسپک وجود ندارد (فعالیت‌های اخیر، تولدهای این هفته، شکست پیامک‌های
+// خودکار بر اساس نوع، روند مراجعات ماهانه، خدمات پرطرفدار، روند درآمد ماهانه).
 const TOP_SERVICES = [
   { name: "بوتاکس", value: 1065, percent: 33, color: "#0EA5A4" },
   { name: "فیلر", value: 814, percent: 25, color: "#F9A8D4" },
@@ -96,13 +60,6 @@ const REVENUE_MONTHS = [
   { m: "فروردین", v: 1.5 },
   { m: "اردیبهشت", v: 2.0 },
   { m: "خرداد", v: 2.65 },
-];
-
-const UPCOMING_APPOINTMENTS = [
-  { time: "۱۰:۰۰", name: "سینا یوسفی", service: "بوتاکس" },
-  { time: "۱۱:۳۰", name: "نگین محمدی", service: "فیلر لب" },
-  { time: "۱۴:۰۰", name: "الناز قربانی", service: "مزوتراپی" },
-  { time: "۱۵:۳۰", name: "فرزانه احمدی", service: "لیزر صورت" },
 ];
 
 const BIRTHDAYS = [
@@ -136,23 +93,61 @@ const QUICK_ACTIONS = [
   { icon: CalendarCheck, tone: "text-primary-dark bg-primary-light/20", label: "نوبت جدید" },
 ];
 
-function Sparkline({ data, color = "#0EA5A4" }: { data: number[]; color?: string }) {
-  const w = 100;
-  const h = 28;
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-  const stepX = w / (data.length - 1);
-  const points = data
-    .map((v, i) => `${i * stepX},${h - ((v - min) / (max - min || 1)) * h}`)
-    .join(" ");
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="h-7 w-24">
-      <polyline points={points} fill="none" stroke={color} strokeWidth="2" />
-    </svg>
-  );
+function formatValue(v: number | null, suffix = "") {
+  if (v === null) return "—";
+  return v.toLocaleString("fa-IR") + suffix;
 }
 
 export default function ClinicDashboardPage() {
+  const { clinicSlug } = useActiveClinic();
+
+  const { data: summary, isLoading: summaryLoading } = useQuery({
+    queryKey: queryKeys.dashboard.clinic(clinicSlug),
+    queryFn: () => getClinicDashboard(clinicSlug),
+    enabled: !!clinicSlug,
+  });
+
+  const { data: modules = [] } = useQuery({
+    queryKey: queryKeys.modules.list(clinicSlug),
+    queryFn: () => getClinicModules(clinicSlug),
+    enabled: !!clinicSlug,
+  });
+
+  const { data: upcomingAppointments = [], isLoading: appointmentsLoading } = useQuery({
+    queryKey: queryKeys.dashboard.upcomingAppointments(clinicSlug),
+    queryFn: () => getUpcomingAppointments(clinicSlug),
+    enabled: !!clinicSlug,
+  });
+
+  const financeEnabled = isFinanceModuleEnabled(modules);
+
+   const KPIS = [
+    {
+      icon: CalendarCheck,
+      tone: "text-purple-600 bg-secondary-purple/40",
+      label: "نوبت‌های امروز",
+      value: formatValue(summary?.appointmentsToday ?? null),
+    },
+    {
+      icon: Users,
+      tone: "text-pink-600 bg-secondary-pink/40",
+      label: "بیماران جدید امروز",
+      value: formatValue(summary?.newPatientsToday ?? null),
+    },
+    {
+      icon: Sparkles,
+      tone: "text-primary-dark bg-primary-light/20",
+      label: "خدمات انجام‌شده امروز",
+      value: formatValue(summary?.servicesPerformedToday ?? null),
+    },
+    {
+      icon: RefreshCcw,
+      tone: "text-purple-600 bg-secondary-purple/40",
+      label: "نرخ بازگشت مشتری",
+      value: formatValue(summary?.returnRatePercent ?? null, "٪"),
+    },
+  ];
+
   let cumulative = 0;
   const gradientParts = TOP_SERVICES.map((s) => {
     const start = (cumulative / TOTAL_SERVICES) * 100;
@@ -162,69 +157,29 @@ export default function ClinicDashboardPage() {
   }).join(", ");
 
   const barMax = Math.max(...VISITS_MONTHS.map((v) => v.v));
-  const lineMax = Math.max(...REVENUE_MONTHS.map((v) => v.v));
-  const chartW = 280;
-  const chartH = 110;
-  const stepX = chartW / (REVENUE_MONTHS.length - 1);
-  const lineCoords = REVENUE_MONTHS.map((r, i) => ({
-    x: i * stepX,
-    y: chartH - (r.v / (lineMax + 0.5)) * chartH,
-  }));
-  const linePoints = lineCoords.map((c) => `${c.x},${c.y}`).join(" ");
 
   return (
     <div className="space-y-6">
       {/* KPI ها */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {KPIS.map((k) => (
           <div key={k.label} className="rounded-2xl border border-gray-100 bg-white p-4">
             <div className="mb-5 flex items-center justify-between border-b border-gray-100 pb-3">
-
               <div className={`flex h-8 w-8 items-center justify-center rounded-full ${k.tone}`}>
                 <k.icon className="h-4 w-4" />
               </div>
-              <span className="text-xs text-gray-400">{k.label}</span>
-
             </div>
-            <div className="text-lg font-bold text-gray-900">{k.value}</div>
-            <div className="mt-2 flex items-center justify-between">
-              <span className="text-[11px] font-medium text-primary-dark">{k.trend} ↑</span>
-              <Sparkline data={k.spark} />
+            <div className="text-lg font-bold text-gray-900">
+              {summaryLoading ? "…" : k.value}
             </div>
+            <div className="mt-1 text-xs text-gray-400">{k.label}</div>
           </div>
         ))}
       </div>
 
-      {/* نمودارها */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-
-        {/* روند درآمد */}
-        <div className="group relative overflow-hidden rounded-3xl border border-gray-100/80 bg-white/90 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_15px_40px_rgba(0,0,0,0.08)]">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-gray-800">روند درآمد در ۶ ماه گذشته</h3>
-            <button className="flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-[10px] text-gray-500">
-              ۶ ماهه <ChevronDown className="h-3 w-3" />
-            </button>
-          </div>
-          <svg viewBox={`-10 0 ${chartW + 20} ${chartH + 20}`} className="w-full">
-            <polyline points={linePoints} fill="none" stroke="#0EA5A4" strokeWidth="2.5" />
-            {lineCoords.map((c, i) => (
-              <circle key={i} cx={c.x} cy={c.y} r="3" fill="#0EA5A4" />
-            ))}
-            {REVENUE_MONTHS.map((r, i) => (
-              <text key={r.m} x={lineCoords[i].x} y={chartH + 14} fontSize="8" fill="#9CA3AF" textAnchor="middle">
-                {r.m}
-              </text>
-            ))}
-          </svg>
-          <button className="mt-2 flex items-center gap-1 text-xs text-primary-dark">
-            <ChevronLeft className="h-3.5 w-3.5" /> گزارش مالی جامع
-          </button>
-        </div>
-
-
-        {/* مراجعات ۶ ماه گذشته */}
-        <div className="group relative overflow-hidden rounded-3xl border border-gray-100/80 bg-white/90 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_15px_40px_rgba(0,0,0,0.08)]">
+      {/* مراجعات و خدمات پرطرفدار — mock تا فرمت /reports/appointments و /reports/services تأیید شود */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="group relative overflow-hidden rounded-3xl border border-gray-100/80 bg-white/90 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-sm font-bold text-gray-800">مراجعات در ۶ ماه گذشته</h3>
             <button className="flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-[10px] text-gray-500">
@@ -251,14 +206,11 @@ export default function ClinicDashboardPage() {
             <ChevronLeft className="h-3.5 w-3.5" /> گزارش کامل مراجعات
           </button>
         </div>
-        {/* خدمات پرطرفدار */}
-        <div className="group relative overflow-hidden rounded-3xl border border-gray-100/80 bg-white/90 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_15px_40px_rgba(0,0,0,0.08)]">
+
+        <div className="group relative overflow-hidden rounded-3xl border border-gray-100/80 bg-white/90 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur">
           <h3 className="mb-4 text-sm font-bold text-gray-800">خدمات پرطرفدار</h3>
           <div className="flex justify-center">
-            <div
-              className="flex h-32 w-32 items-center justify-center rounded-full"
-              style={{ background: `conic-gradient(${gradientParts})` }}
-            >
+            <div className="flex h-32 w-32 items-center justify-center rounded-full" style={{ background: `conic-gradient(${gradientParts})` }}>
               <div className="flex h-22 w-22 flex-col items-center justify-center rounded-full bg-white p-4 text-center">
                 <span className="text-[10px] text-gray-400">کل خدمات</span>
                 <span className="text-base font-bold text-gray-800">{TOTAL_SERVICES.toLocaleString("fa-IR")}</span>
@@ -267,7 +219,7 @@ export default function ClinicDashboardPage() {
           </div>
           <div className="mt-4 space-y-1.5 text-[11px]">
             {TOP_SERVICES.map((s) => (
-              <div key={s.name} className="rounded-xl p-2 transition hover:bg-gray-50 flex items-center justify-between">
+              <div key={s.name} className="flex items-center justify-between rounded-xl p-2 transition hover:bg-gray-50">
                 <span className="flex items-center gap-1.5 text-gray-500">
                   <span className="h-2 w-2 rounded-full" style={{ backgroundColor: s.color }} />
                   {s.name}
@@ -282,13 +234,12 @@ export default function ClinicDashboardPage() {
             <ChevronLeft className="h-3.5 w-3.5" /> مشاهده همه خدمات
           </button>
         </div>
-
       </div>
 
       {/* ۴ کارت پایینی */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* فعالیت‌های اخیر */}
-        <div className="group relative overflow-hidden rounded-3xl border border-gray-100/80 bg-white/90 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_15px_40px_rgba(0,0,0,0.08)]">
+        {/* فعالیت‌های اخیر — mock، هیچ endpoint سراسری برای لاگ فعالیت وجود ندارد */}
+        <div className="group relative overflow-hidden rounded-3xl border border-gray-100/80 bg-white/90 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur">
           <div className="mb-5 flex items-center justify-between border-b border-gray-100 pb-3">
             <h3 className="flex items-center gap-2 text-sm font-extrabold text-gray-800">فعالیت‌های اخیر</h3>
             <button className="rounded-full bg-primary-light/10 px-3 py-1 text-[11px] font-medium text-primary-dark transition hover:bg-primary-light/20">مشاهده همه</button>
@@ -308,15 +259,15 @@ export default function ClinicDashboardPage() {
           </div>
         </div>
 
-        {/* پیامک‌های خودکار */}
-        <div className="group relative overflow-hidden rounded-3xl border border-gray-100/80 bg-white/90 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_15px_40px_rgba(0,0,0,0.08)]">
+        {/* پیامک‌های خودکار — mock، SmsMessage در بک‌اند نوع/دلیل پیامک را مشخص نمی‌کند */}
+        <div className="group relative overflow-hidden rounded-3xl border border-gray-100/80 bg-white/90 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur">
           <div className="mb-5 flex items-center justify-between border-b border-gray-100 pb-3">
             <h3 className="text-sm font-bold text-gray-800">پیامک‌های خودکار</h3>
             <button className="rounded-full bg-primary-light/10 px-3 py-1 text-[11px] font-medium text-primary-dark transition hover:bg-primary-light/20">مشاهده همه</button>
           </div>
           <div className="space-y-3">
             {AUTO_SMS.map((s) => (
-              <div key={s.label} className="rounded-xl p-2 transition hover:bg-gray-50 flex items-center justify-between">
+              <div key={s.label} className="flex items-center justify-between rounded-xl p-2 transition hover:bg-gray-50">
                 <span className="flex items-center gap-2 text-xs text-gray-600">
                   <span className={`flex h-6 w-6 items-center justify-center rounded-full ${s.tone}`}>
                     <s.icon className="h-3 w-3" />
@@ -329,16 +280,15 @@ export default function ClinicDashboardPage() {
           </div>
         </div>
 
-
-        {/* تولدهای این هفته */}
-        <div className="group relative overflow-hidden rounded-3xl border border-gray-100/80 bg-white/90 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_15px_40px_rgba(0,0,0,0.08)]">
+        {/* تولدهای این هفته — mock، فیلتر تولد روی /patients وجود ندارد */}
+        <div className="group relative overflow-hidden rounded-3xl border border-gray-100/80 bg-white/90 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur">
           <div className="mb-5 flex items-center justify-between border-b border-gray-100 pb-3">
             <h3 className="text-sm font-bold text-gray-800">تولدهای این هفته</h3>
             <button className="rounded-full bg-primary-light/10 px-3 py-1 text-[11px] font-medium text-primary-dark transition hover:bg-primary-light/20">مشاهده همه</button>
           </div>
           <div className="space-y-3">
             {BIRTHDAYS.map((b) => (
-              <div key={b.name} className="rounded-xl p-2 transition hover:bg-gray-50 flex items-center justify-between">
+              <div key={b.name} className="flex items-center justify-between rounded-xl p-2 transition hover:bg-gray-50">
                 <span className="text-xs text-gray-600">{b.date}</span>
                 <span className="flex items-center gap-1.5 text-xs font-medium text-gray-700">
                   {b.name}
@@ -349,37 +299,35 @@ export default function ClinicDashboardPage() {
           </div>
         </div>
 
-        {/* نوبت‌های آینده */}
-        <div className="group relative overflow-hidden rounded-3xl border border-gray-100/80 bg-white/90 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_15px_40px_rgba(0,0,0,0.08)]">
+        {/* نوبت‌های آینده — از API واقعی */}
+        <div className="group relative overflow-hidden rounded-3xl border border-gray-100/80 bg-white/90 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur">
           <div className="mb-5 flex items-center justify-between border-b border-gray-100 pb-3">
             <h3 className="text-sm font-bold text-gray-800">نوبت‌های آینده</h3>
             <button className="rounded-full bg-primary-light/10 px-3 py-1 text-[11px] font-medium text-primary-dark transition hover:bg-primary-light/20">مشاهده همه</button>
           </div>
-          <div className="space-y-3">
-            {UPCOMING_APPOINTMENTS.map((a) => (
-              <div key={a.time} className="flex items-center gap-2.5">
-                <Image
-                  src="/image/user.PNG"
-                  alt="User"
-                  width={30}
-                  height={30}
-                  unoptimized
-                  className="rounded-full object-cover"
-                />
-                <div className="flex-1">
-                  <div className="text-xs font-medium text-gray-700">{a.name}</div>
-                  <div className="text-[10px] text-gray-400">{a.service}</div>
+
+          {appointmentsLoading && <div className="py-6 text-center text-xs text-gray-400">در حال بارگذاری...</div>}
+
+          {!appointmentsLoading && (
+            <div className="space-y-3">
+              {upcomingAppointments.slice(0, 4).map((a) => (
+                <div key={a.id} className="flex items-center gap-2.5">
+                  <Image src="/image/user.PNG" alt="User" width={30} height={30} unoptimized className="rounded-full object-cover" />
+                  <div className="flex-1">
+                    <div className="text-xs font-medium text-gray-700">{a.patientName}</div>
+                    <div className="text-[10px] text-gray-400">{a.serviceName}</div>
+                  </div>
+                  <span className="text-[11px] text-gray-400">
+                    {a.startTime ? new Date(a.startTime).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" }) : "-"}
+                  </span>
                 </div>
-                <span className="text-[11px] text-gray-400">{a.time}</span>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 rounded-2xl border border-primary-light/20 bg-gradient-to-r from-primary-light/10 to-purple-100/40 py-3 text-center text-xs font-bold text-primary-dark shadow-inner">
-            جمع نوبت‌های امروز: ۲۸ مورد
-          </div>
+              ))}
+              {upcomingAppointments.length === 0 && (
+                <div className="py-4 text-center text-xs text-gray-400">نوبتی ثبت نشده.</div>
+              )}
+            </div>
+          )}
         </div>
-
-
       </div>
 
       {/* دسترسی سریع */}
@@ -387,10 +335,7 @@ export default function ClinicDashboardPage() {
         <h3 className="mb-3 text-sm font-bold text-gray-800">دسترسی سریع</h3>
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
           {QUICK_ACTIONS.map((a) => (
-            <button
-              key={a.label}
-              className="flex flex-col items-center gap-2 rounded-2xl border border-gray-100 bg-white p-4 hover:shadow-sm"
-            >
+            <button key={a.label} className="flex flex-col items-center gap-2 rounded-2xl border border-gray-100 bg-white p-4 hover:shadow-sm">
               <div className={`flex h-10 w-10 items-center justify-center rounded-full ${a.tone}`}>
                 <a.icon className="h-4 w-4" />
               </div>

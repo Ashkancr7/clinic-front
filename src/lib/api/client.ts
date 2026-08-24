@@ -1,13 +1,22 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
+const PROXY_BASE = "/api/proxy";
 
 interface RequestOptions extends RequestInit {
-  clinicSlug?: string; // اگر ست شود، به‌صورت هدر برای بک‌اند ارسال می‌شود
+  clinicSlug?: string;
+}
+
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+    this.name = "ApiError";
+  }
 }
 
 export async function apiClient<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { clinicSlug, headers, ...rest } = options;
 
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(`${PROXY_BASE}${path}`, {
     ...rest,
     headers: {
       "Content-Type": "application/json",
@@ -17,10 +26,12 @@ export async function apiClient<T>(path: string, options: RequestOptions = {}): 
     credentials: "include",
   });
 
+  const body = await res.json().catch(() => null);
+
   if (!res.ok) {
-    const errorBody = await res.json().catch(() => null);
-    throw new Error(errorBody?.message ?? `خطای درخواست: ${res.status}`);
+    console.log(`API error [${res.status}] ${path}:`, JSON.stringify(body, null, 2)); // موقت برای دیباگ
+    throw new ApiError(body?.message ?? `خطای درخواست: ${res.status}`, res.status);
   }
 
-  return res.json() as Promise<T>;
+  return body as T;
 }

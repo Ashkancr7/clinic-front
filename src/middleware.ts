@@ -1,93 +1,75 @@
 import { NextRequest, NextResponse } from "next/server";
 
-/**
- * این میدلور دو کار انجام می‌دهد:
- * ۱. بررسی می‌کند کاربر لاگین کرده و نقش او اجازه‌ی ورود به این route group را دارد
- * ۲. اگر مسیر شامل [clinicSlug] است، بررسی می‌کند کاربر واقعاً عضو همان کلینیک است
- *    (طبق NFR-TENANT-03: داده هر کلینیک باید کاملاً از کلینیک‌های دیگر جدا بماند)
- */
-
 const PATIENT_PREFIX = "/patient/";
 const CLINIC_PREFIX = "/clinic/";
 const SUPERADMIN_PREFIX = "/super-admin";
+const PUBLIC_PATHS = ["/login", "/otp", "/select-clinic"];
 
-export async function middleware(request: NextRequest) {
+function resolveHomeUrl(
+  userType: string,
+  clinicSlugs: string[],
+  patientBasePrefix: "patient" | "clinic",
+  request: NextRequest
+) {
+  if (userType === "super_admin") {
+    return new URL("/super-admin/clinics", request.url);
+  }
+  if (clinicSlugs.length === 1) {
+    return new URL(`/${patientBasePrefix}/${clinicSlugs[0]}/dashboard`, request.url);
+  }
+  return new URL("/select-clinic", request.url);
+}
+
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // مسیرهای عمومی/احراز هویت نیازی به گارد ندارند
-  if (
-    pathname === "/" ||
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/otp") ||
-    pathname.startsWith("/select-clinic") ||
-    pathname.includes("/intake") ||
-    pathname.startsWith("/super-admin") ||
-    pathname.includes("/dashboard") ||
-    pathname.includes("/appointments") ||
-    pathname.includes("/services") ||
-    pathname.includes("/chat") ||
-    pathname.includes("/medical-records") ||
-    pathname.includes("/calendar") ||
-    pathname.includes("/patients") ||
-    pathname.includes("/records") ||
-    pathname.includes("/services") ||
-    pathname.includes("/finance") ||
-    pathname.includes("/marketing") ||
-    pathname.includes("/sms") ||
-    pathname.includes("/reports") ||
-    pathname.includes("/settings") ||
-    pathname.includes("/profile") 
+  const token = request.cookies.get("access_token")?.value;
+  const userType = request.cookies.get("user_type")?.value;
+  const clinicsRaw = request.cookies.get("clinics")?.value;
+  const clinicSlugs: string[] = clinicsRaw
+    ? JSON.parse(clinicsRaw).map((c: { slug: string }) => c.slug)
+    : [];
 
-
-  
-  ) {
+  // ریشه‌ی سایت: اگر کاربر لاگین است، به داشبورد خودش هدایت شود
+  if (pathname === "/") {
+    if (token && userType) {
+      const patientBasePrefix = userType === "patient" ? "patient" : "clinic";
+      return NextResponse.redirect(resolveHomeUrl(userType, clinicSlugs, patientBasePrefix, request));
+    }
     return NextResponse.next();
   }
 
-  const session = request.cookies.get("session")?.value;
+  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p)) || pathname.includes("/intake")) {
+    return NextResponse.next();
+  }
 
-  if (!session) {
+  if (!token) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // TODO: session را با فراخوانی بک‌اند یا دیکود توکن اعتبارسنجی کن
-  // const user = await verifySession(session);
-  const user = { role: "patient", clinicIds: ["demo-clinic"] }; // placeholder موقت
-
-  if (pathname.startsWith(SUPERADMIN_PREFIX) && user.role !== "superadmin") {
+  if (pathname.startsWith(SUPERADMIN_PREFIX) && userType !== "super_admin") {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  const clinicSlugMatch =
-    pathname.startsWith(PATIENT_PREFIX) || pathname.startsWith(CLINIC_PREFIX)
-      ? pathname.split("/")[2]
-      : null;
-
-  if (clinicSlugMatch && !user.clinicIds.includes(clinicSlugMatch)) {
-    // کاربر عضو این کلینیک نیست → اجازه‌ی دسترسی به داده‌های آن را ندارد
-    return NextResponse.redirect(new URL("/select-clinic", request.url));
+  if (pathname.startsWith(PATIENT_PREFIX)) {
+    if (userType !== "patient") return NextResponse.redirect(new URL("/login", request.url));
+    const slug = pathname.split("/")[2];
+    if (slug && !clinicSlugs.includes(slug)) {
+      return NextResponse.redirect(new URL("/select-clinic", request.url));
+    }
   }
 
-  if (pathname.startsWith(PATIENT_PREFIX) && user.role !== "patient") {
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
-
-  if (
-    pathname.startsWith(CLINIC_PREFIX) &&
-    !["doctor", "receptionist", "clinic_admin"].includes(user.role)
-  ) {
-    return NextResponse.redirect(new URL("/login", request.url));
+  if (pathname.startsWith(CLINIC_PREFIX)) {
+    if (userType !== "staff") return NextResponse.redirect(new URL("/login", request.url));
+    const slug = pathname.split("/")[2];
+    if (slug && !clinicSlugs.includes(slug)) {
+      return NextResponse.redirect(new URL("/select-clinic", request.url));
+    }
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: [
-    /*
-     * روی همه‌ی مسیرها اجرا شود، به‌جز فایل‌های استاتیک/تصاویر/api داخلی نکست
-     * اضافه شدن |image برای عبور از میدل‌ور
-     */
-    "/((?!_next/static|_next/image|favicon.ico|api|image).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api|image).*)"],
 };
