@@ -26,7 +26,7 @@ export function ClinicSwitcher({ currentSlug, clinics, basePath }: ClinicSwitche
     <select
       value={currentSlug}
       onChange={(e) => router.push(`/${basePath}/${e.target.value}/dashboard`)}
-      className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm"
+      className="glass-input rounded-lg px-3 py-1.5 text-sm [&>option]:bg-abyss-900 [&>option]:text-gray-100"
     >
       {clinics.map((clinic) => (
         <option key={clinic.slug} value={clinic.slug}>

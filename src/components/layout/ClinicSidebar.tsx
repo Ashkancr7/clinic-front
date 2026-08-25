@@ -27,16 +27,16 @@ export function ClinicSidebar({ clinicSlug, role, onNavigate }: ClinicSidebarPro
   );
 
   return (
-    <aside className="flex h-full w-full shrink-0 flex-col border-b border-gray-100 bg-white p-5  lg:h-screen lg:w-64 lg:sticky lg:top-0 lg:border-b-0 lg:border-l">
+    <aside className="glass flex h-full w-full shrink-0 flex-col rounded-none p-5 lg:h-screen lg:w-64 lg:sticky lg:top-0 lg:rounded-none">
       <div className="mb-6 flex items-center justify-center gap-2 lg:justify-strat">
-        <Leaf className="h-7 w-7 text-primary" />
+        <Leaf className="h-7 w-7 text-primary-light" />
         <div className="text-left leading-tight">
-          <div className="text-base font-bold text-gray-900">Beauty Clinic CRM</div>
+          <div className="text-base font-bold text-white">Beauty Clinic CRM</div>
           <div className="text-[11px] text-gray-400">پلتفرم مدیریت کلینیک زیبایی</div>
         </div>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto scrollbar-hide">
+      <nav className="glass-scroll flex flex-1 flex-col gap-1 overflow-y-auto">
         {visibleItems.map((item) => {
           const hasChildren = !!item.children?.length;
           const active = isItemActive(item);
@@ -53,8 +53,7 @@ export function ClinicSidebar({ clinicSlug, role, onNavigate }: ClinicSidebarPro
                     }`
                     : `/clinic/${clinicSlug}/${item.href}`
                 }
-                className={`flex items-center  rounded-xl px-4 py-2.5 text-sm transition-colors ${active ? "bg-primary-light/15 font-medium text-primary-dark" : "text-gray-600 hover:bg-gray-50"
-                  }`}
+                className={`glass-nav-item flex items-center rounded-xl px-4 py-2.5 text-sm ${active ? "active" : ""}`}
               >
                 <item.icon className="h-4 w-4 ml-4" />
                 {item.label}
@@ -66,8 +65,7 @@ export function ClinicSidebar({ clinicSlug, role, onNavigate }: ClinicSidebarPro
             <div key={item.href}>
               <button
                 onClick={() => setOpenGroup(isOpen ? null : item.href)}
-                className={`flex w-full items-center  rounded-xl px-4 py-2.5 text-sm transition-colors ${active ? "bg-primary-light/15 font-medium text-primary-dark" : "text-gray-600 hover:bg-gray-50"
-                  }`}
+                className={`glass-nav-item flex w-full items-center rounded-xl px-4 py-2.5 text-sm ${active ? "active" : ""}`}
               >
 
                 <item.icon className="h-4 w-4 ml-4" />
@@ -80,7 +78,7 @@ export function ClinicSidebar({ clinicSlug, role, onNavigate }: ClinicSidebarPro
               </button>
 
               {isOpen && (
-                <div className="mr-1 mt-1 flex flex-col gap-0.5 border-r border-gray-100 pr-3">
+                <div className="mr-1 mt-1 flex flex-col gap-0.5 border-r border-white/10 pr-3">
                   {item.children!
                     .filter((child) => child.roles.includes(role))
                     .map((child) => {
@@ -91,8 +89,7 @@ export function ClinicSidebar({ clinicSlug, role, onNavigate }: ClinicSidebarPro
                           key={child.href}
                           onClick={() => onNavigate?.()}
                           href={childHref}
-                          className={`flex items-center  rounded-lg px-3 py-2 text-[13px] ${childActive ? "bg-primary-light/15 font-medium text-primary-dark" : "text-gray-500 hover:bg-gray-50"
-                            }`}
+                          className={`glass-nav-item flex items-center rounded-lg px-3 py-2 text-[13px] ${childActive ? "active" : ""}`}
                         >
                           <child.icon className="h-3.5 w-3.5 ml-2" />
                           {child.label}
@@ -113,14 +110,14 @@ export function ClinicSidebar({ clinicSlug, role, onNavigate }: ClinicSidebarPro
           width={120}
           height={120}
           unoptimized
-          className="rounded-full object-cover"
+          className="rounded-full object-cover ring-2 ring-white/10"
         />
       </div>
 
-      <div className="mt-3 rounded-2xl bg-primary-light/15 p-4 text-center">
-        <div className="text-sm font-semibold text-gray-800">نسخه حرفه‌ای</div>
-        <p className="mt-1 text-xs text-gray-500">همه امکانات برای رشد کسب‌وکار شما</p>
-        <button className="mt-3 w-full rounded-xl bg-primary-dark py-2.5 text-xs font-medium text-white hover:opacity-90">
+      <div className="glass-strong mt-3 rounded-2xl p-4 text-center">
+        <div className="text-sm font-semibold text-white">نسخه حرفه‌ای</div>
+        <p className="mt-1 text-xs text-gray-400">همه امکانات برای رشد کسب‌وکار شما</p>
+        <button className="mt-3 w-full rounded-xl border border-primary-light/30 bg-primary/80 py-2.5 text-xs font-medium text-white shadow-glow-primary transition hover:bg-primary">
           ارتقای پلن
         </button>
       </div>

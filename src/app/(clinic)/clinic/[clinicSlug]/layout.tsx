@@ -30,7 +30,7 @@ export default function ClinicLayout({
   const userName = role === "doctor" ? "دکتر آرش نیکنام" : role === "receptionist" ? "نگار حسینی" : "دکتر سارا محمدی";
 
   return (
-    <div dir="rtl" className="flex min-h-screen flex-col bg-gray-50 lg:flex-row-reverse">
+    <div dir="rtl" className="flex min-h-screen flex-col lg:flex-row-reverse">
 
       <div className="flex-1">
     
@@ -41,14 +41,18 @@ export default function ClinicLayout({
           onToggleSidebar={() => setSidebarOpen((v) => !v)}
         />
 
-        <main className="p-4 md:p-6">{children}</main>
+        <main className="p-4 md:p-6">
+          <div className="glass-content min-h-[calc(100vh-6rem)] rounded-3xl p-4 text-gray-900 md:p-6">
+            {children}
+          </div>
+        </main>
       </div>
 
       {/* پس‌زمینه‌ی تیره پشت سایدبار موبایل - با کلیک بسته می‌شود */}
       {sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
         />
       )}
 

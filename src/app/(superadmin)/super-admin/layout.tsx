@@ -52,22 +52,22 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
     <>
       <div className="mb-6 flex items-center justify-between gap-2 lg:justify-start">
         <div className="text-right leading-tight">
-          <Leaf className="h-7 w-7 text-primary" />
-          <div className="text-base font-bold text-gray-900">Beauty Clinic CRM</div>
+          <Leaf className="h-7 w-7 text-primary-light" />
+          <div className="text-base font-bold text-white">Beauty Clinic CRM</div>
           <div className="text-[11px] text-gray-400">پنل سوپرادمین</div>
         </div>
 
         {/* دکمه بستن، فقط موبایل */}
         <button
           onClick={() => setIsDrawerOpen(false)}
-          className="rounded-lg p-2 text-gray-400 hover:bg-gray-50 lg:hidden"
+          className="rounded-lg p-2 text-gray-400 hover:bg-white/[0.06] lg:hidden"
           aria-label="بستن منو"
         >
           <X className="h-5 w-5" />
         </button>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1">
+      <nav className="glass-scroll flex flex-1 flex-col gap-1 overflow-y-auto">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href;
 
@@ -75,10 +75,8 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center rounded-xl px-4 py-2.5 text-sm transition-colors ${
-                isActive
-                  ? "bg-primary-light/15 font-medium text-primary-dark"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-primary-dark"
+              className={`glass-nav-item flex items-center rounded-xl px-4 py-2.5 text-sm ${
+                isActive ? "active" : ""
               }`}
             >
               <item.icon className="ml-5 h-4 w-4 shrink-0" />
@@ -96,15 +94,15 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
           width={120}
           height={120}
           unoptimized
-          className="rounded-full object-cover"
+          className="rounded-full object-cover ring-2 ring-white/10"
         />
       </div>
 
       {/* باکس پشتیبانی */}
-      <div className="mt-4 rounded-2xl bg-primary-light/15 p-4 text-center">
-        <div className="text-sm font-semibold text-gray-800">نیاز به کمک دارید؟</div>
-        <p className="mt-1 text-xs text-gray-500">تیم پشتیبانی ما آماده پاسخگویی است.</p>
-        <button className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-dark py-2.5 text-xs font-medium text-white hover:opacity-90">
+      <div className="glass-strong mt-4 rounded-2xl p-4 text-center">
+        <div className="text-sm font-semibold text-white">نیاز به کمک دارید؟</div>
+        <p className="mt-1 text-xs text-gray-400">تیم پشتیبانی ما آماده پاسخگویی است.</p>
+        <button className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-primary-light/30 bg-primary/80 py-2.5 text-xs font-medium text-white shadow-glow-primary transition hover:bg-primary">
           <Headset className="h-4 w-4" /> تماس با پشتیبانی
         </button>
       </div>
@@ -112,16 +110,16 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
   );
 
   return (
-    <div dir="rtl" className="flex min-h-screen flex-col bg-gray-50 lg:flex-row">
+    <div dir="rtl" className="flex min-h-screen flex-col lg:flex-row">
       {/* هدر موبایل: لوگو + دکمه همبرگر */}
-      <header className="flex items-center justify-between border-b border-gray-100 bg-white px-4 py-3 lg:hidden">
+      <header className="glass flex items-center justify-between rounded-none px-4 py-3 lg:hidden">
         <div className="flex items-center gap-2">
-          <Leaf className="h-6 w-6 text-primary" />
-          <span className="text-sm font-bold text-gray-900">Beauty Clinic CRM</span>
+          <Leaf className="h-6 w-6 text-primary-light" />
+          <span className="text-sm font-bold text-white">Beauty Clinic CRM</span>
         </div>
         <button
           onClick={() => setIsDrawerOpen(true)}
-          className="rounded-lg border border-gray-200 p-2 text-gray-600"
+          className="rounded-lg border border-white/15 p-2 text-gray-200"
           aria-label="باز کردن منو"
         >
           <Menu className="h-5 w-5" />
@@ -132,22 +130,26 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
       {isDrawerOpen && (
         <div
           onClick={() => setIsDrawerOpen(false)}
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
           aria-hidden="true"
         />
       )}
 
       {/* سایدبار: دسکتاپ ثابت / موبایل دراور کشویی */}
       <aside
-        className={`fixed inset-y-0 right-0 z-50 flex w-72 max-w-[85%] flex-col overflow-y-auto bg-white p-5 shadow-xl transition-transform duration-300 ease-in-out
-        lg:static lg:z-auto lg:w-64 lg:max-w-none lg:translate-x-0 lg:shadow-none lg:border-r lg:border-gray-100
+        className={`glass fixed inset-y-0 right-0 z-50 flex w-72 max-w-[85%] flex-col overflow-y-auto rounded-none p-5 transition-transform duration-300 ease-in-out
+        lg:static lg:z-auto lg:w-64 lg:max-w-none lg:translate-x-0
         ${isDrawerOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}`}
       >
         {SidebarContent}
       </aside>
 
       {/* محتوای اصلی */}
-      <main className="flex-1 overflow-x-hidden p-4 md:p-8">{children}</main>
+      <main className="flex-1 overflow-x-hidden p-4 md:p-8">
+        <div className="glass-content min-h-[calc(100vh-4rem)] rounded-3xl p-4 text-gray-900 md:p-6">
+          {children}
+        </div>
+      </main>
     </div>
   );
 }

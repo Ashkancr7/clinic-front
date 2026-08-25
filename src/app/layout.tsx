@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
+import { AuroraBackground } from "@/components/ui/AuroraBackground";
 
 // TODO: فونت Vazirmatn را داخل src/styles/fonts قرار بده و اینجا با next/font/local لود کن
 import localFont from "next/font/local";
@@ -33,7 +34,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fa" dir="rtl">
-      <body className={`${vazir.className} bg-white text-gray-900 antialiased`}>
+      <body className={`${vazir.className} bg-abyss-950 text-gray-100 antialiased`}>
+        <AuroraBackground />
         <Providers>{children}</Providers>
       </body>
     </html>

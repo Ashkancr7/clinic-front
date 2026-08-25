@@ -53,9 +53,9 @@ export default function OtpForm() {
   return (
     <div
       dir="rtl"
-      className="flex min-h-screen items-center justify-center bg-white px-5"
+      className="flex min-h-screen items-center justify-center px-5"
     >
-      <div className="w-full max-w-sm rounded-3xl border border-gray-100 p-6 shadow-xl">
+      <div className="glass-content w-full max-w-sm rounded-3xl p-6 text-gray-900">
         <h1 className="mb-2 text-xl font-bold text-gray-900">
           تایید کد ورود
         </h1>

@@ -106,20 +106,20 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="flex min-h-screen flex-col">
       <div className="grid flex-1 lg:grid-cols-2">
-        <div className="flex min-h-[100dvh] flex-col items-center justify-start bg-white px-5 pt-10 sm:pt-14 lg:pt-16">
+        <div className="flex min-h-[100dvh] flex-col items-center justify-start px-5 pt-10 sm:pt-14 lg:pt-16">
           {/* Logo */}
           <div className="mb-8 flex flex-col items-center gap-2">
-            <Leaf className="h-10 w-10 text-primary" />
+            <Leaf className="h-10 w-10 text-primary-light" />
             <div className="text-center leading-tight">
-              <h1 className="text-xl font-bold text-gray-900">Beauty Clinic CRM</h1>
+              <h1 className="text-xl font-bold text-white">Beauty Clinic CRM</h1>
               <p className="mt-1 text-xs text-gray-400">پلتفرم مدیریت کلینیک‌های زیبایی</p>
             </div>
           </div>
 
           {/* Login Card */}
-          <div className="w-full max-w-lg rounded-3xl border border-gray-100 bg-white p-5 shadow-xl sm:p-8">
+          <div className="glass-content w-full max-w-lg rounded-3xl p-5 text-gray-900 sm:p-8">
             {/* Tabs */}
             <div className="mb-7 flex border-b border-gray-100 text-xs sm:text-sm">
               <button
@@ -245,14 +245,14 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="relative hidden overflow-hidden bg-gradient-to-bl from-primary-light/30 via-primary-light/10 to-white/50 px-12 py-14 lg:flex lg:flex-col">
-          <h1 className="max-w-md text-3xl font-extrabold leading-tight text-gray-900">
+        <div className="glass relative hidden overflow-hidden rounded-none px-12 py-14 lg:flex lg:flex-col">
+          <h1 className="max-w-md text-3xl font-extrabold leading-tight text-white">
             دسترسی امن و سریع
             <br />
-            به مدیریت <span className="text-primary-dark">کلینیک</span> شما
+            به مدیریت <span className="text-primary-light">کلینیک</span> شما
           </h1>
 
-          <p className="mt-4 max-w-md text-sm leading-relaxed text-gray-500">
+          <p className="mt-4 max-w-md text-sm leading-relaxed text-gray-400">
             با Beauty Clinic CRM، همه ابزارهای موردنیاز کلینیک‌های زیبایی در یک سیستم یکپارچه و هوشمند در دسترس شماست.
           </p>
 
@@ -265,17 +265,17 @@ export default function LoginPage() {
             className="w-full max-w-lg object-contain "
           />
 
-          <div className="mt-14 grid grid-cols-3 gap-6 rounded-2xl bg-white p-5 shadow-lg">
+          <div className="glass-strong mt-14 grid grid-cols-3 gap-6 rounded-2xl p-5">
             {SIDE_FEATURES.map((f) => (
               <div key={f.title} className="text-center">
                 <f.icon className={`mx-auto mb-2 h-6 w-6 ${f.tone}`} />
-                <div className="text-xs font-semibold text-gray-800">{f.title}</div>
+                <div className="text-xs font-semibold text-gray-100">{f.title}</div>
                 <p className="mt-1 text-[10px] leading-relaxed text-gray-400">{f.desc}</p>
               </div>
             ))}
           </div>
 
-          <div className="mt-5 flex items-center justify-center gap-2 rounded-full bg-primary-light/15 px-4 py-2 text-xs text-primary-dark">
+          <div className="mt-5 flex items-center justify-center gap-2 rounded-full bg-primary-light/15 px-4 py-2 text-xs text-primary-light">
             <Lock className="h-3.5 w-3.5" />
             اطلاعات شما نزد ما امن است و به هیچ عنوان در اختیار شخص ثالث قرار نمی‌گیرد.
           </div>
@@ -283,7 +283,7 @@ export default function LoginPage() {
       </div>
 
       {/* فوتر */}
-      <footer className="border-t border-gray-100 px-5 py-6 text-xs text-gray-400 sm:px-8 md:px-12">
+      <footer className="glass rounded-none px-5 py-6 text-xs text-gray-400 sm:px-8 md:px-12">
         <div className="flex flex-col items-center gap-5 md:flex-row md:justify-between">
           <div className="flex flex-col items-center gap-2 sm:flex-row sm:gap-3">
             <Image
@@ -301,18 +301,18 @@ export default function LoginPage() {
 
           <nav className="flex flex-wrap justify-center gap-x-5 gap-y-3 text-center">
             {FOOTER_LINKS.map((link) => (
-              <a key={link} href="#" className="transition hover:text-primary-dark">
+              <a key={link} href="#" className="transition hover:text-primary-light">
                 {link}
               </a>
             ))}
           </nav>
 
           <div className="flex items-center gap-3">
-            <button className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 transition hover:border-primary">
+            <button className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 text-gray-300 transition hover:border-primary-light hover:text-primary-light">
               <Moon className="h-4 w-4" />
             </button>
 
-            <button className="flex h-9 items-center gap-2 rounded-full border border-gray-200 px-4 transition hover:border-primary">
+            <button className="flex h-9 items-center gap-2 rounded-full border border-white/15 px-4 text-gray-300 transition hover:border-primary-light hover:text-primary-light">
               <Globe className="h-4 w-4" />
               فارسی
             </button>

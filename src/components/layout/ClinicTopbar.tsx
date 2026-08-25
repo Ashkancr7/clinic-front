@@ -41,12 +41,12 @@ export function ClinicTopbar({
     };
 
     return (
-        <header className="flex h-16 items-center justify-between border-b border-gray-100 bg-white px-6">
+        <header className="glass flex h-16 items-center justify-between rounded-none px-6">
             {/* سمت راست */}
             <div className="flex items-center gap-6">
                 <button
                     onClick={onToggleSidebar}
-                    className="text-gray-600 transition hover:text-primary"
+                    className="text-gray-300 transition hover:text-primary-light"
                 >
                     <Menu className="h-6 w-6" />
                 </button>
@@ -55,16 +55,16 @@ export function ClinicTopbar({
             {/* وسط */}
             <div className="flex items-center gap-4">
                 {/* باکس تاریخ */}
-                <div className="flex h-10 items-center overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div className="glass-input flex h-10 items-center overflow-hidden rounded-xl">
                     <button
                         onClick={goToToday}
-                        className="flex items-center gap-2 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        className="flex items-center gap-2 px-4 text-sm font-medium text-gray-100 hover:bg-white/[0.06]"
                     >
                         <ChevronDown className="h-4 w-4" />
                         امروز
                     </button>
 
-                    <div className="h-5 w-px bg-gray-200" />
+                    <div className="h-5 w-px bg-white/10" />
 
                     <DatePicker
                         value={selectedDate}
@@ -75,10 +75,10 @@ export function ClinicTopbar({
                         render={(value, openCalendar) => (
                             <button
                                 onClick={openCalendar}
-                                className="flex items-center gap-2 px-4 text-sm text-gray-600 hover:bg-gray-50"
+                                className="flex items-center gap-2 px-4 text-sm text-gray-300 hover:bg-white/[0.06]"
                             >
                                 {selectedDate ? selectedDate.format("YYYY/MM/DD") : "انتخاب تاریخ"}
-                                <CalendarDays className="h-4 w-4 text-gray-500" />
+                                <CalendarDays className="h-4 w-4 text-gray-400" />
                             </button>
                         )}
                     />
@@ -86,16 +86,16 @@ export function ClinicTopbar({
 
                 {/* تنظیمات */}
                 {showSettingsIcon && (
-                    <button className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-50 hover:text-primary">
+                    <button className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-300 transition hover:bg-white/[0.08] hover:text-primary-light">
                         <Settings className="h-5 w-5" />
                     </button>
                 )}
 
                 {/* اعلان */}
-                <button className="relative flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-50 hover:text-primary">
+                <button className="relative flex h-9 w-9 items-center justify-center rounded-lg text-gray-300 transition hover:bg-white/[0.08] hover:text-primary-light">
                     <Bell className="h-5 w-5" />
                     {notificationCount > 0 && (
-                        <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-pink-500 text-[9px] font-medium text-white">
+                        <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-pink-500 text-[9px] font-medium text-white ring-2 ring-abyss-900">
                             {notificationCount.toLocaleString("fa-IR")}
                         </span>
                     )}
@@ -104,10 +104,10 @@ export function ClinicTopbar({
 
             {/* اطلاعات کاربر */}
             <div className="flex items-center gap-3">
-                <ChevronDown className="h-4 w-4 text-gray-400" />
+                <ChevronDown className="h-4 w-4 text-gray-500" />
 
                 <div className="hidden text-right sm:block">
-                    <p className="text-sm font-semibold text-gray-800">{userName}</p>
+                    <p className="text-sm font-semibold text-gray-100">{userName}</p>
                     <p className="text-xs text-gray-400">{roleLabel}</p>
                 </div>
 
@@ -117,7 +117,7 @@ export function ClinicTopbar({
                     width={50}
                     height={50}
                     unoptimized
-                    className="rounded-full object-cover"
+                    className="rounded-full object-cover ring-2 ring-white/10"
                 />
             </div>
         </header>

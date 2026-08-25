@@ -9,8 +9,8 @@ body {
 }
 
 body {
-  background-color: theme("colors.gray.50");
-  color: theme("colors.gray.900");
+  background-color: theme("colors.abyss.950");
+  color: theme("colors.gray.100");
 }
 
 .scrollbar-hide {
@@ -20,4 +20,77 @@ body {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none; /* Chrome, Safari */
+}
+
+/* ===================== Liquid Glass Theme ===================== */
+
+@layer components {
+  /* شیشه‌ی تیره: برای سایدبار، تاپ‌بار، مودال‌ها روی بوم تیره */
+  .glass {
+    @apply relative isolate border border-white/10 bg-white/[0.06] shadow-glass backdrop-blur-2xl;
+  }
+  .glass::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.28),
+      rgba(255, 255, 255, 0) 35%,
+      rgba(255, 255, 255, 0) 70%,
+      rgba(255, 255, 255, 0.12)
+    );
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* نسخه‌ی پررنگ‌تر شیشه، برای عناصر برجسته (کارت فعال، مودال) */
+  .glass-strong {
+    @apply glass bg-white/[0.1] shadow-glass-lg;
+  }
+
+  /* پنل شیشه‌ای روشن: برای بستر محتوای اصلی صفحات (خوانایی متن تیره حفظ می‌شود) */
+  .glass-content {
+    @apply relative isolate border border-white/60 bg-white/85 shadow-glass-lg backdrop-blur-2xl;
+  }
+
+  /* ورودی‌های فرم روی بستر شیشه‌ای تیره */
+  .glass-input {
+    @apply border border-white/10 bg-white/[0.06] text-gray-100 placeholder:text-gray-500 backdrop-blur-xl transition-colors focus:border-primary-light/50 focus:outline-none focus:ring-2 focus:ring-primary-light/20;
+  }
+
+  /* آیتم ناوبری روی سایدبار/تاپ‌بار شیشه‌ای */
+  .glass-nav-item {
+    @apply text-gray-300 transition-colors hover:bg-white/[0.06] hover:text-white;
+  }
+  .glass-nav-item.active {
+    @apply bg-primary-light/15 font-medium text-primary-light;
+  }
+}
+
+/* بوم پس‌زمینه‌ی متحرک با حباب‌های نوری (Aurora) */
+.aurora-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  mix-blend-mode: screen;
+  opacity: 0.55;
+  will-change: transform;
+}
+
+/* اسکرول‌بار نازک و هماهنگ با تم تیره، برای سطوح شیشه‌ای */
+.glass-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.glass-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+}
+.glass-scroll::-webkit-scrollbar-track {
+  background: transparent;
 }

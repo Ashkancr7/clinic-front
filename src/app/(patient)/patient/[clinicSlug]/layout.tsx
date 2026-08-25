@@ -21,9 +21,9 @@ export default async function PatientClinicLayout({
   ];
 
   return (
-    <div dir="rtl" className="min-h-screen bg-gray-50">
-      <header className="flex items-center justify-between border-b bg-white px-4 py-3 md:px-8">
-        <span className="font-bold text-primary-dark">
+    <div dir="rtl" className="min-h-screen">
+      <header className="glass flex items-center justify-between rounded-none px-4 py-3 md:px-8">
+        <span className="font-bold text-primary-light">
           {clinic?.clinicSlug ?? "کلینیک"}
         </span>
 
@@ -35,7 +35,9 @@ export default async function PatientClinicLayout({
       </header>
 
       <main className="mx-auto w-full max-w-[1600px] px-4 py-6 md:px-8">
-        {children}
+        <div className="glass-content rounded-3xl p-4 text-gray-900 md:p-6">
+          {children}
+        </div>
       </main>
     </div>
   );
