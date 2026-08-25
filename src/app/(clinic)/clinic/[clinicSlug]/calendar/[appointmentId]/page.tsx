@@ -33,6 +33,10 @@ import {
   X,
 } from "lucide-react";
 import Image from "next/image";
+import { Calendar } from "react-multi-date-picker";
+import persian from "react-date-object/calendars/persian";
+import persian_fa from "react-date-object/locales/persian_fa";
+import DateObject from "react-date-object";
 
 import { ApiError } from "@/lib/api/client";
 import { getPatientDetail, getPatientDebt } from "@/lib/api/patients";
@@ -46,6 +50,9 @@ import {
   formatDurationMinutes,
   toLocalIsoDate,
   buildDateTime,
+  extractTimeLabel,
+  getAvailability,
+  type AvailabilitySlot,
 } from "@/lib/api/appointments";
 import { queryKeys } from "@/lib/query/keys";
 
@@ -469,10 +476,12 @@ export default function AppointmentDetailPage({
         </div>
       </div>
 
-      {showRescheduleModal && (
+       {showRescheduleModal && appt.doctorId && (
         <RescheduleModal
-          currentDate={toLocalIsoDate(new Date(appt.startTime))}
-          currentTime={formatTime(appt.startTime)}
+          clinicSlug={clinicSlug}
+          doctorId={appt.doctorId}
+          currentStartTime={appt.startTime}
+          currentEndTime={appt.endTime}
           onClose={() => setShowRescheduleModal(false)}
           onSubmit={(date, time) => rescheduleMutation.mutate({ date, time })}
           isSubmitting={rescheduleMutation.isPending}
@@ -483,57 +492,101 @@ export default function AppointmentDetailPage({
 }
 
 function RescheduleModal({
-  currentDate,
-  currentTime,
+  clinicSlug,
+  doctorId,
+  currentStartTime,
+  currentEndTime,
   onClose,
   onSubmit,
   isSubmitting,
 }: {
-  currentDate: string;
-  currentTime: string;
+  clinicSlug: string;
+  doctorId: number;
+  currentStartTime: string;
+  currentEndTime: string;
   onClose: () => void;
   onSubmit: (date: string, time: string) => void;
   isSubmitting: boolean;
 }) {
-  const [date, setDate] = useState(currentDate);
-  const [time, setTime] = useState(currentTime);
+  const [date, setDate] = useState<DateObject>(
+    new DateObject({ date: new Date(currentStartTime), calendar: persian, locale: persian_fa })
+  );
+  const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
+
+  const isoDate = toLocalIsoDate(date.toDate());
+  const currentTimeLabel = extractTimeLabel(
+    new Date(currentStartTime).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })
+  );
+  const isSameDayAsCurrent = isoDate === toLocalIsoDate(new Date(currentStartTime));
+
+  const { data: rawSlots = [], isLoading: slotsLoading } = useQuery({
+    queryKey: queryKeys.appointmentsCalendar.availability(clinicSlug, doctorId, isoDate),
+    queryFn: () => getAvailability(clinicSlug, { doctorUserId: doctorId, date: isoDate }),
+    enabled: !!clinicSlug && !!doctorId,
+  });
+
+  // ساعت فعلی خودِ همین نوبت را هم به لیست اضافه می‌کند (چون آن ساعت طبیعتاً
+  // در لیست availability به‌عنوان اشغال‌شده حساب می‌شود و نباید مخفی بماند)
+  const slots = useMemoSlots(rawSlots, isSameDayAsCurrent, currentTimeLabel);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-bold text-gray-900">تغییر زمان نوبت</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="space-y-3">
-          <div>
-            <label className="mb-1 block text-xs text-gray-600">تاریخ جدید (YYYY-MM-DD)</label>
-            <input
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              dir="ltr"
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-gray-600">ساعت جدید (HH:mm)</label>
-            <input
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              dir="ltr"
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
-            />
+
+        <div className="rounded-2xl border border-gray-100">
+          <Calendar
+            value={date}
+            onChange={(v) => {
+              if (v) {
+                setDate(v as DateObject);
+                setSelectedSlot(null);
+              }
+            }}
+            calendar={persian}
+            locale={persian_fa}
+            shadow={false}
+          />
+        </div>
+
+        <div className="mt-4">
+          <label className="mb-2 block text-xs font-medium text-gray-600">ساعت جدید</label>
+
+          {slotsLoading && <p className="text-[11px] text-gray-300">در حال دریافت ساعت‌های آزاد...</p>}
+          {!slotsLoading && slots.length === 0 && <p className="text-[11px] text-gray-300">ساعت آزادی برای این روز نیست.</p>}
+
+          <div className="grid max-h-48 grid-cols-3 gap-2 overflow-y-auto">
+            {slots.map((slot, i) => (
+              <button
+                key={i}
+                onClick={() => setSelectedSlot(slot)}
+                className={`rounded-xl border py-2 text-xs ${
+                  selectedSlot?.start === slot.start
+                    ? "border-primary bg-primary-light/10 font-medium text-primary-dark"
+                    : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {extractTimeLabel(slot.start)}
+                {extractTimeLabel(slot.start) === currentTimeLabel && isSameDayAsCurrent && (
+                  <span className="mr-1 text-[9px] text-gray-400">(فعلی)</span>
+                )}
+              </button>
+            ))}
           </div>
         </div>
+
         <div className="mt-5 flex gap-2">
           <button onClick={onClose} className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm text-gray-600 hover:bg-gray-50">
             انصراف
           </button>
           <button
-            disabled={!date || !time || isSubmitting}
-            onClick={() => onSubmit(date, time)}
+            disabled={!selectedSlot || isSubmitting}
+            onClick={() => selectedSlot && onSubmit(isoDate, extractTimeLabel(selectedSlot.start))}
             className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50"
           >
             {isSubmitting ? "در حال ثبت..." : "ثبت تغییر"}
@@ -542,6 +595,14 @@ function RescheduleModal({
       </div>
     </div>
   );
+}
+
+function useMemoSlots(rawSlots: AvailabilitySlot[], isSameDayAsCurrent: boolean, currentTimeLabel: string): AvailabilitySlot[] {
+  const hasCurrent = rawSlots.some((s) => extractTimeLabel(s.start) === currentTimeLabel);
+  if (isSameDayAsCurrent && !hasCurrent) {
+    return [{ start: currentTimeLabel, end: "" }, ...rawSlots];
+  }
+  return rawSlots;
 }
 
 function SummaryItem({
