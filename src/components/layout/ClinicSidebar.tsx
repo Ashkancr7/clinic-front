@@ -29,9 +29,9 @@ export function ClinicSidebar({ clinicSlug, role, onNavigate }: ClinicSidebarPro
   return (
     <aside className="glass flex h-full w-full shrink-0 flex-col rounded-none p-5 lg:h-screen lg:w-64 lg:sticky lg:top-0 lg:rounded-none">
       <div className="mb-6 flex items-center justify-center gap-2 lg:justify-strat">
-        <Leaf className="h-7 w-7 text-primary-light" />
+        <Leaf className="h-7 w-7 text-primary dark:text-primary-light" />
         <div className="text-left leading-tight">
-          <div className="text-base font-bold text-white">Beauty Clinic CRM</div>
+          <div className="text-base font-bold text-gray-900 dark:text-white">Beauty Clinic CRM</div>
           <div className="text-[11px] text-gray-400">پلتفرم مدیریت کلینیک زیبایی</div>
         </div>
       </div>
@@ -78,7 +78,7 @@ export function ClinicSidebar({ clinicSlug, role, onNavigate }: ClinicSidebarPro
               </button>
 
               {isOpen && (
-                <div className="mr-1 mt-1 flex flex-col gap-0.5 border-r border-white/10 pr-3">
+                <div className="mr-1 mt-1 flex flex-col gap-0.5 border-r border-gray-100 pr-3 dark:border-white/10">
                   {item.children!
                     .filter((child) => child.roles.includes(role))
                     .map((child) => {
@@ -110,14 +110,14 @@ export function ClinicSidebar({ clinicSlug, role, onNavigate }: ClinicSidebarPro
           width={120}
           height={120}
           unoptimized
-          className="rounded-full object-cover ring-2 ring-white/10"
+          className="rounded-full object-cover ring-2 ring-gray-100 dark:ring-white/10"
         />
       </div>
 
       <div className="glass-strong mt-3 rounded-2xl p-4 text-center">
-        <div className="text-sm font-semibold text-white">نسخه حرفه‌ای</div>
-        <p className="mt-1 text-xs text-gray-400">همه امکانات برای رشد کسب‌وکار شما</p>
-        <button className="mt-3 w-full rounded-xl border border-primary-light/30 bg-primary/80 py-2.5 text-xs font-medium text-white shadow-glow-primary transition hover:bg-primary">
+        <div className="text-sm font-semibold text-gray-800 dark:text-white">نسخه حرفه‌ای</div>
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">همه امکانات برای رشد کسب‌وکار شما</p>
+        <button className="mt-3 w-full rounded-xl border border-transparent bg-primary-dark py-2.5 text-xs font-medium text-white transition hover:opacity-90 dark:border-primary-light/30 dark:bg-primary/80 dark:shadow-glow-primary dark:hover:bg-primary">
           ارتقای پلن
         </button>
       </div>

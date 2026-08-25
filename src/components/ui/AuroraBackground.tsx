@@ -2,7 +2,7 @@ export function AuroraBackground() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-abyss-950"
+      className="pointer-events-none fixed inset-0 -z-10 hidden overflow-hidden bg-abyss-950 dark:block"
     >
       {/* شبکه‌ی ظریف برای عمق بیشتر */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:44px_44px]" />

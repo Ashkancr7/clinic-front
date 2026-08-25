@@ -19,15 +19,15 @@ export function ReceptionSidebar({ clinicSlug, onNavigate }: ReceptionSidebarPro
   return (
     <aside className="glass flex h-full w-full shrink-0 flex-col rounded-none p-5 lg:h-screen lg:w-64 lg:sticky lg:top-0 lg:rounded-none">
       <div className="mb-4 flex items-center justify-center gap-2 lg:justify-end">
-        <Leaf className="h-7 w-7 text-primary-light" />
+        <Leaf className="h-7 w-7 text-primary dark:text-primary-light" />
         <div className="text-left leading-tight">
-          <div className="text-base font-bold text-white">Beauty Clinic CRM</div>
+          <div className="text-base font-bold text-gray-900 dark:text-white">Beauty Clinic CRM</div>
           <div className="text-[11px] text-gray-400">پلتفرم مدیریت کلینیک زیبایی</div>
         </div>
       </div>
 
       {/* برچسب پنل فعلی */}
-      <div className="glass-strong mb-3 flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-primary-light">
+      <div className="glass-strong mb-3 flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-primary-dark dark:text-primary-light">
         <Headset className="h-4 w-4" /> پنل منشی / نوبت‌دهی
       </div>
 
@@ -56,14 +56,14 @@ export function ReceptionSidebar({ clinicSlug, onNavigate }: ReceptionSidebarPro
           width={120}
           height={120}
           unoptimized
-          className="rounded-full object-cover ring-2 ring-white/10"
+          className="rounded-full object-cover ring-2 ring-gray-100 dark:ring-white/10"
         />
       </div>
 
       <div className="glass-strong mt-3 rounded-2xl p-4 text-center">
-        <div className="text-sm font-semibold text-white">نسخه حرفه‌ای</div>
-        <p className="mt-1 text-xs text-gray-400">همه امکانات برای رشد کسب‌وکار شما</p>
-        <button className="mt-3 w-full rounded-xl border border-primary-light/30 bg-primary/80 py-2.5 text-xs font-medium text-white shadow-glow-primary transition hover:bg-primary">
+        <div className="text-sm font-semibold text-gray-800 dark:text-white">نسخه حرفه‌ای</div>
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">همه امکانات برای رشد کسب‌وکار شما</p>
+        <button className="mt-3 w-full rounded-xl border border-transparent bg-primary-dark py-2.5 text-xs font-medium text-white transition hover:opacity-90 dark:border-primary-light/30 dark:bg-primary/80 dark:shadow-glow-primary dark:hover:bg-primary">
           ارتقای پلن
         </button>
       </div>

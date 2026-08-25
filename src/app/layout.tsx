@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 import { AuroraBackground } from "@/components/ui/AuroraBackground";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { themeInitScript } from "@/components/theme/theme-script";
 
 // TODO: فونت Vazirmatn را داخل src/styles/fonts قرار بده و اینجا با next/font/local لود کن
 import localFont from "next/font/local";
@@ -33,10 +36,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fa" dir="rtl">
-      <body className={`${vazir.className} bg-abyss-950 text-gray-100 antialiased`}>
-        <AuroraBackground />
-        <Providers>{children}</Providers>
+    <html lang="fa" dir="rtl" suppressHydrationWarning>
+      <head>
+        {/* قبل از رندر صفحه اجرا می‌شود تا تم ذخیره‌شده بدون فلش اعمال شود */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body
+        className={`${vazir.className} bg-white text-gray-900 antialiased transition-colors duration-300 dark:bg-abyss-950 dark:text-gray-100`}
+        suppressHydrationWarning
+      >
+        <ThemeProvider>
+          <AuroraBackground />
+          <Providers>{children}</Providers>
+          <ThemeToggle />
+        </ThemeProvider>
       </body>
     </html>
   );

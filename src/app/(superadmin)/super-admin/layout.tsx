@@ -52,15 +52,15 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
     <>
       <div className="mb-6 flex items-center justify-between gap-2 lg:justify-start">
         <div className="text-right leading-tight">
-          <Leaf className="h-7 w-7 text-primary-light" />
-          <div className="text-base font-bold text-white">Beauty Clinic CRM</div>
+          <Leaf className="h-7 w-7 text-primary dark:text-primary-light" />
+          <div className="text-base font-bold text-gray-900 dark:text-white">Beauty Clinic CRM</div>
           <div className="text-[11px] text-gray-400">پنل سوپرادمین</div>
         </div>
 
         {/* دکمه بستن، فقط موبایل */}
         <button
           onClick={() => setIsDrawerOpen(false)}
-          className="rounded-lg p-2 text-gray-400 hover:bg-white/[0.06] lg:hidden"
+          className="rounded-lg p-2 text-gray-400 hover:bg-gray-50 dark:hover:bg-white/[0.06] lg:hidden"
           aria-label="بستن منو"
         >
           <X className="h-5 w-5" />
@@ -94,15 +94,15 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
           width={120}
           height={120}
           unoptimized
-          className="rounded-full object-cover ring-2 ring-white/10"
+          className="rounded-full object-cover ring-2 ring-gray-100 dark:ring-white/10"
         />
       </div>
 
       {/* باکس پشتیبانی */}
       <div className="glass-strong mt-4 rounded-2xl p-4 text-center">
-        <div className="text-sm font-semibold text-white">نیاز به کمک دارید؟</div>
-        <p className="mt-1 text-xs text-gray-400">تیم پشتیبانی ما آماده پاسخگویی است.</p>
-        <button className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-primary-light/30 bg-primary/80 py-2.5 text-xs font-medium text-white shadow-glow-primary transition hover:bg-primary">
+        <div className="text-sm font-semibold text-gray-800 dark:text-white">نیاز به کمک دارید؟</div>
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">تیم پشتیبانی ما آماده پاسخگویی است.</p>
+        <button className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-primary-dark py-2.5 text-xs font-medium text-white transition hover:opacity-90 dark:border-primary-light/30 dark:bg-primary/80 dark:shadow-glow-primary dark:hover:bg-primary">
           <Headset className="h-4 w-4" /> تماس با پشتیبانی
         </button>
       </div>
@@ -114,12 +114,12 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
       {/* هدر موبایل: لوگو + دکمه همبرگر */}
       <header className="glass flex items-center justify-between rounded-none px-4 py-3 lg:hidden">
         <div className="flex items-center gap-2">
-          <Leaf className="h-6 w-6 text-primary-light" />
-          <span className="text-sm font-bold text-white">Beauty Clinic CRM</span>
+          <Leaf className="h-6 w-6 text-primary dark:text-primary-light" />
+          <span className="text-sm font-bold text-gray-900 dark:text-white">Beauty Clinic CRM</span>
         </div>
         <button
           onClick={() => setIsDrawerOpen(true)}
-          className="rounded-lg border border-white/15 p-2 text-gray-200"
+          className="rounded-lg border border-gray-200 p-2 text-gray-600 dark:border-white/15 dark:text-gray-200"
           aria-label="باز کردن منو"
         >
           <Menu className="h-5 w-5" />

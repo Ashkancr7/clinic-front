@@ -9,6 +9,11 @@ body {
 }
 
 body {
+  background-color: theme("colors.white");
+  color: theme("colors.gray.900");
+}
+
+.dark body {
   background-color: theme("colors.abyss.950");
   color: theme("colors.gray.100");
 }
@@ -22,14 +27,16 @@ body {
   display: none; /* Chrome, Safari */
 }
 
-/* ===================== Liquid Glass Theme ===================== */
+/* =============== تم روشن (طراحی اصلی) + تم تیره (Liquid Glass) =============== */
 
 @layer components {
-  /* شیشه‌ی تیره: برای سایدبار، تاپ‌بار، مودال‌ها روی بوم تیره */
+  /* حالت روشن: همان ظاهر ساده و تخت اولیه‌ی پروژه (بدون بلور/شفافیت) */
+  /* حالت تیره: شیشه‌ی مات با بلور، برای سایدبار/تاپ‌بار/مودال روی بوم تیره */
   .glass {
-    @apply relative isolate border border-white/10 bg-white/[0.06] shadow-glass backdrop-blur-2xl;
+    @apply relative isolate border border-gray-100 bg-white shadow-none transition-colors duration-300;
+    @apply dark:border-white/10 dark:bg-white/[0.06] dark:shadow-glass dark:backdrop-blur-2xl;
   }
-  .glass::before {
+  .dark .glass::before {
     content: "";
     position: absolute;
     inset: 0;
@@ -48,27 +55,52 @@ body {
     pointer-events: none;
   }
 
-  /* نسخه‌ی پررنگ‌تر شیشه، برای عناصر برجسته (کارت فعال، مودال) */
+  /* نسخه‌ی پررنگ‌تر: روشن = باکس تیفانی/تیل کم‌رنگ اصلی، تیره = شیشه‌ی برجسته‌تر */
   .glass-strong {
-    @apply glass bg-white/[0.1] shadow-glass-lg;
+    @apply relative isolate border-0 bg-primary-light/15 shadow-none transition-colors duration-300;
+    @apply dark:border dark:border-white/10 dark:bg-white/[0.1] dark:shadow-glass-lg dark:backdrop-blur-2xl;
+  }
+  .dark .glass-strong::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.28),
+      rgba(255, 255, 255, 0) 35%,
+      rgba(255, 255, 255, 0) 70%,
+      rgba(255, 255, 255, 0.12)
+    );
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
   }
 
-  /* پنل شیشه‌ای روشن: برای بستر محتوای اصلی صفحات (خوانایی متن تیره حفظ می‌شود) */
+  /* بستر محتوای اصلی صفحات: روشن = کاملاً شفاف/هم‌رنگ صفحه (دقیقاً مثل طراحی اولیه)، تیره = پنل شیشه‌ای روشن روی بوم تیره */
   .glass-content {
-    @apply relative isolate border border-white/60 bg-white/85 shadow-glass-lg backdrop-blur-2xl;
+    @apply relative isolate border-0 bg-transparent shadow-none transition-colors duration-300;
+    @apply dark:border dark:border-white/60 dark:bg-white/85 dark:text-gray-900 dark:shadow-glass-lg dark:backdrop-blur-2xl;
   }
 
-  /* ورودی‌های فرم روی بستر شیشه‌ای تیره */
+  /* ورودی‌ها و فیلدهای فرم */
   .glass-input {
-    @apply border border-white/10 bg-white/[0.06] text-gray-100 placeholder:text-gray-500 backdrop-blur-xl transition-colors focus:border-primary-light/50 focus:outline-none focus:ring-2 focus:ring-primary-light/20;
+    @apply border border-gray-200 bg-white text-gray-800 shadow-sm placeholder:text-gray-400 transition-colors;
+    @apply focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20;
+    @apply dark:border-white/10 dark:bg-white/[0.06] dark:text-gray-100 dark:shadow-none dark:backdrop-blur-xl dark:placeholder:text-gray-500;
+    @apply dark:focus:border-primary-light/50 dark:focus:ring-primary-light/20;
   }
 
-  /* آیتم ناوبری روی سایدبار/تاپ‌بار شیشه‌ای */
+  /* آیتم ناوبری روی سایدبار/تاپ‌بار */
   .glass-nav-item {
-    @apply text-gray-300 transition-colors hover:bg-white/[0.06] hover:text-white;
+    @apply text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900;
+    @apply dark:text-gray-300 dark:hover:bg-white/[0.06] dark:hover:text-white;
   }
   .glass-nav-item.active {
-    @apply bg-primary-light/15 font-medium text-primary-light;
+    @apply bg-primary-light/15 font-medium text-primary-dark;
+    @apply dark:bg-primary-light/15 dark:text-primary-light;
   }
 }
 

@@ -23,7 +23,7 @@ export default async function PatientClinicLayout({
   return (
     <div dir="rtl" className="min-h-screen">
       <header className="glass flex items-center justify-between rounded-none px-4 py-3 md:px-8">
-        <span className="font-bold text-primary-light">
+        <span className="font-bold text-primary-dark dark:text-primary-light">
           {clinic?.clinicSlug ?? "کلینیک"}
         </span>
 
