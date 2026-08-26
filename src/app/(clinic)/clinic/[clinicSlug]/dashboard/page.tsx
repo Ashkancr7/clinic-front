@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
 import { useActiveClinic } from "@/hooks/use-active-clinic";
@@ -85,12 +86,12 @@ const RECENT_ACTIVITIES = [
 ];
 
 const QUICK_ACTIONS = [
-  { icon: Briefcase, tone: "text-gray-600 bg-gray-100", label: "مدیریت خدمات" },
-  { icon: BarChart3, tone: "text-primary-dark bg-primary-light/20", label: "گزارش درآمد" },
-  { icon: Send, tone: "text-pink-600 bg-secondary-pink/40", label: "ارسال پیامک" },
-  { icon: Receipt, tone: "text-blue-600 bg-secondary-blue/40", label: "صدور فاکتور" },
-  { icon: UserPlus, tone: "text-purple-600 bg-secondary-purple/40", label: "مراجع جدید" },
-  { icon: CalendarCheck, tone: "text-primary-dark bg-primary-light/20", label: "نوبت جدید" },
+  { icon: Briefcase, tone: "text-gray-600 bg-gray-100", label: "مدیریت خدمات", href: "services" },
+  { icon: BarChart3, tone: "text-primary-dark bg-primary-light/20", label: "گزارش درآمد", href: null },
+  { icon: Send, tone: "text-pink-600 bg-secondary-pink/40", label: "ارسال پیامک", href: "sms" },
+  { icon: Receipt, tone: "text-blue-600 bg-secondary-blue/40", label: "صدور فاکتور", href: null },
+  { icon: UserPlus, tone: "text-purple-600 bg-secondary-purple/40", label: "مراجع جدید", href: "patients?new=1" },
+  { icon: CalendarCheck, tone: "text-primary-dark bg-primary-light/20", label: "نوبت جدید", href: "calendar/new" },
 ];
 
 function formatValue(v: number | null, suffix = "") {
@@ -330,18 +331,36 @@ export default function ClinicDashboardPage() {
         </div>
       </div>
 
-      {/* دسترسی سریع */}
+           {/* دسترسی سریع */}
       <div>
         <h3 className="mb-3 text-sm font-bold text-gray-800">دسترسی سریع</h3>
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-          {QUICK_ACTIONS.map((a) => (
-            <button key={a.label} className="flex flex-col items-center gap-2 rounded-2xl border border-gray-100 bg-white p-4 hover:shadow-sm">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-full ${a.tone}`}>
-                <a.icon className="h-4 w-4" />
-              </div>
-              <span className="text-[11px] font-medium text-gray-700">{a.label}</span>
-            </button>
-          ))}
+          {QUICK_ACTIONS.map((a) =>
+            a.href ? (
+              <Link
+                key={a.label}
+                href={`/clinic/${clinicSlug}/${a.href}`}
+                className="flex flex-col items-center gap-2 rounded-2xl border border-gray-100 bg-white p-4 hover:shadow-sm"
+              >
+                <div className={`flex h-10 w-10 items-center justify-center rounded-full ${a.tone}`}>
+                  <a.icon className="h-4 w-4" />
+                </div>
+                <span className="text-[11px] font-medium text-gray-700">{a.label}</span>
+              </Link>
+            ) : (
+              <button
+                key={a.label}
+                disabled
+                title="این بخش هنوز آماده نشده"
+                className="flex cursor-not-allowed flex-col items-center gap-2 rounded-2xl border border-gray-100 bg-white p-4 opacity-50"
+              >
+                <div className={`flex h-10 w-10 items-center justify-center rounded-full ${a.tone}`}>
+                  <a.icon className="h-4 w-4" />
+                </div>
+                <span className="text-[11px] font-medium text-gray-700">{a.label}</span>
+              </button>
+            )
+          )}
         </div>
       </div>
     </div>

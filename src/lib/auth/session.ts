@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 
 export interface Session {
   userType: "patient" | "staff" | "super_admin";
-  clinics: { id: string; slug: string }[];
+  clinics: { id: string; slug: string; name?: string }[];
 }
 
 export async function getSession(): Promise<Session | null> {

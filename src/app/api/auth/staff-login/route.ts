@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
   res.cookies.set("access_token", token, cookieOpts);
   res.cookies.set("user_type", user.user_type, cookieOpts);
-  res.cookies.set("clinics", JSON.stringify(clinics.map((c: any) => ({ id: c.id, slug: c.slug }))), cookieOpts);
+    res.cookies.set("clinics", JSON.stringify(clinics.map((c: any) => ({ id: c.id, slug: c.slug, name: c.name }))), cookieOpts);
 
   return res;
 }

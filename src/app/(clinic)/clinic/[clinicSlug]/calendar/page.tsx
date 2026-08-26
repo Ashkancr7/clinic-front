@@ -11,6 +11,7 @@ import persian_fa from "react-date-object/locales/persian_fa";
 
 import { getAppointments, getDoctors, completeAppointment, cancelAppointment, toLocalIsoDate } from "@/lib/api/appointments";
 import { queryKeys } from "@/lib/query/keys";
+import { LoadingLogo } from "@/components/LoadingLogo";
 
 const STATUS_BADGE: Record<string, string> = {
   confirmed: "bg-primary-light/20 text-primary-dark",
@@ -175,7 +176,7 @@ export default function CalendarPage({ params }: { params: Promise<{ clinicSlug:
         <div className="rounded-2xl border border-gray-100 bg-white p-5 lg:col-span-2">
           <h2 className="mb-4 text-sm font-bold text-gray-800">برنامه‌ی روز</h2>
 
-          {isLoading && <div className="py-10 text-center text-sm text-gray-400">در حال بارگذاری...</div>}
+          {isLoading && <LoadingLogo />}
           {error && <div className="py-10 text-center text-sm text-danger">خطا در دریافت نوبت‌ها</div>}
 
           {!isLoading && !error && (

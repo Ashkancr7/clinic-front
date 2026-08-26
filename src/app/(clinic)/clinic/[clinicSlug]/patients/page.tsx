@@ -1,7 +1,8 @@
 "use client";
 
-import { use, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Search,
@@ -20,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import Image from "next/image";
+
 
 import { getPatients, createPatient, type PatientListItem } from "@/lib/api/patients";
 import { queryKeys } from "@/lib/query/keys";
@@ -49,7 +51,16 @@ function formatJalaliDate(iso: string | null) {
 export default function PatientsListPage({ params }: { params: Promise<{ clinicSlug: string }> }) {
   const { clinicSlug } = use(params);
   const [search, setSearch] = useState("");
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const searchParams = useSearchParams();
+  const [showCreateModal, setShowCreateModal] = useState(searchParams.get("new") === "1");
+
+  // اگر کاربر از یک لینک دیگر با ?new=1 وارد این صفحه شد (مثلاً از «دسترسی سریع»
+  // در داشبورد)، مودال افزودن مراجعه‌کننده به‌صورت خودکار باز می‌شود
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setShowCreateModal(true);
+    }
+  }, [searchParams]);
   const queryClient = useQueryClient();
 
   const { data: patients = [], isLoading, error } = useQuery({

@@ -1,4 +1,4 @@
-import { getActiveClinic } from "@/lib/auth/clinic-context";
+import { getActiveClinic, getPatientClinics } from "@/lib/auth/clinic-context";
 import { ClinicSwitcher } from "@/components/layout/ClinicSwitcher";
 
 export default async function PatientClinicLayout({
@@ -9,27 +9,19 @@ export default async function PatientClinicLayout({
   params: Promise<{ clinicSlug: string }>;
 }) {
   const { clinicSlug } = await params;
-
   const clinic = await getActiveClinic(clinicSlug);
+  const myClinics = await getPatientClinics();
 
-  // TODO: لیست همه‌ی کلینیک‌های عضویت بیمار را از API بگیر
-  const myClinics = [
-    {
-      slug: clinicSlug,
-      name: clinic?.clinicSlug ?? clinicSlug,
-    },
-  ];
+  const currentClinicName = myClinics.find((c) => c.slug === clinicSlug)?.name ?? clinic?.clinicSlug ?? "کلینیک";
 
   return (
     <div dir="rtl" className="min-h-screen">
       <header className="glass flex items-center justify-between rounded-none px-4 py-3 md:px-8">
-        <span className="font-bold text-primary-dark dark:text-primary-light">
-          {clinic?.clinicSlug ?? "کلینیک"}
-        </span>
+        <span className="font-bold text-primary-dark dark:text-primary-light">{currentClinicName}</span>
 
         <ClinicSwitcher
           currentSlug={clinicSlug}
-          clinics={myClinics}
+          clinics={myClinics.map((c) => ({ slug: c.slug, name: c.name }))}
           basePath="patient"
         />
       </header>

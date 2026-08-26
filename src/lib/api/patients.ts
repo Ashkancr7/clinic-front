@@ -46,6 +46,7 @@ export interface PatientListItem {
   age: number | null;
   status: "active" | "inactive" | "archived" | null;
   lastVisitAt: string | null;
+  patientCode: string | null;
 }
 
 export async function getPatients(clinicSlug: string, search?: string): Promise<PatientListItem[]> {
@@ -56,12 +57,10 @@ export async function getPatients(clinicSlug: string, search?: string): Promise<
   );
   const raw = unwrapList<Record<string, unknown>>(res);
 
-  return raw.map((pc) => {
-    // ساختار واقعی: هر آیتم یک رکورد PatientClinic است که اطلاعات شخصی
-    // بیمار زیر کلید patient قرار دارد (نه برعکس)
+    return raw.map((pc) => {
     const patient = (pc.patient as Record<string, unknown>) ?? {};
     return {
-      id: String(patient.id ?? pc.patient_id ?? ""), // شناسه‌ی خود بیمار، نه رکورد PatientClinic
+      id: String(patient.id ?? pc.patient_id ?? ""),
       firstName: String(patient.first_name ?? ""),
       lastName: String(patient.last_name ?? ""),
       phone: String(patient.phone ?? ""),
@@ -69,6 +68,7 @@ export async function getPatients(clinicSlug: string, search?: string): Promise<
       age: calculateAge(patient.birth_date as string | undefined),
       status: (pc.status as PatientListItem["status"]) ?? null,
       lastVisitAt: (pc.last_visit_at as string | null) ?? null,
+      patientCode: (pc.patient_code as string | null) ?? null,
     };
   });
 }

@@ -2,6 +2,7 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
+
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   MoreVertical,
@@ -55,6 +56,7 @@ import {
   type AvailabilitySlot,
 } from "@/lib/api/appointments";
 import { queryKeys } from "@/lib/query/keys";
+import { LoadingLogo } from "@/components/LoadingLogo";
 
 const STATUS_LEGEND = [
   { label: "در انتظار تایید", tone: "bg-amber-50 text-warning", dot: "bg-warning", desc: "نوبت در انتظار بررسی و تایید است" },
@@ -220,8 +222,15 @@ export default function AppointmentDetailPage({
     },
   });
 
-  if (isLoading) return <div className="py-20 text-center text-sm text-gray-400">در حال بارگذاری...</div>;
-  if (error || !appt) return <div className="py-20 text-center text-sm text-danger">نوبت یافت نشد.</div>;
+  // حالت loading — باید قبل از چک error/!appt برگردانده شود، وگرنه
+  // چون appt هنوز undefined است، شرط پایین به‌اشتباه «نوبت یافت نشد» را نشان می‌دهد
+  if (isLoading) {
+    return <LoadingLogo />;
+  }
+
+  if (error || !appt) {
+    return <div className="py-20 text-center text-sm text-danger">نوبت یافت نشد.</div>;
+  }
 
   const durationMin = formatDurationMinutes(appt.startTime, appt.endTime);
 
@@ -476,7 +485,7 @@ export default function AppointmentDetailPage({
         </div>
       </div>
 
-       {showRescheduleModal && appt.doctorId && (
+      {showRescheduleModal && appt.doctorId && (
         <RescheduleModal
           clinicSlug={clinicSlug}
           doctorId={appt.doctorId}

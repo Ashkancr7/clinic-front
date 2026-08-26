@@ -56,4 +56,18 @@ export const queryKeys = {
     list: (clinicSlug: string) => ["services", clinicSlug, "list"] as const,
   },
 
+    session: {
+    currentUser: (clinicSlug: string) => ["session", clinicSlug, "current-user"] as const,
+  },
+  notifications: {
+    unreadCount: () => ["notifications", "unread-count"] as const,
+  },
+
+    patientPortal: {
+    dashboard: (clinicSlug: string) => ["patient-portal", clinicSlug, "dashboard"] as const,
+    appointments: (clinicSlug: string) => ["patient-portal", clinicSlug, "appointments"] as const,
+    images: (clinicSlug: string) => ["patient-portal", clinicSlug, "images"] as const,
+    consents: (clinicSlug: string) => ["patient-portal", clinicSlug, "consents"] as const,
+  },
+
 };

@@ -40,8 +40,8 @@ export async function POST(req: NextRequest) {
     cache: "no-store",
   });
   const clinicsBody = await clinicsRes.json().catch(() => null);
-  const patientClinics: { clinic: { id: string; slug: string } }[] = clinicsBody?.data ?? [];
-  const clinics = patientClinics.map((pc) => ({ id: pc.clinic.id, slug: pc.clinic.slug }));
+  const patientClinics: { clinic: { id: string; slug: string; name: string } }[] = clinicsBody?.data ?? [];
+  const clinics = patientClinics.map((pc) => ({ id: pc.clinic.id, slug: pc.clinic.slug, name: pc.clinic.name }));
 
   const res = NextResponse.json({ user, clinics });
   res.cookies.set("access_token", token, cookieOpts);

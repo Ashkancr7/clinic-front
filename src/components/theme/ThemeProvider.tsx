@@ -12,22 +12,33 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  // مقدار اولیه از روی کلاسی که theme-script قبل از هیدریشن روی html گذاشته خوانده می‌شود
-  const [theme, setThemeState] = useState<Theme>("light");
+function writeThemeCookie(theme: Theme) {
+  // یک سال اعتبار؛ non-httpOnly تا هم از کلاینت و هم از سرور (root layout) قابل خواندن باشد
+  document.cookie = `theme=${theme}; path=/; max-age=31536000; SameSite=Lax`;
+}
 
+export function ThemeProvider({
+  children,
+  initialTheme,
+}: {
+  children: ReactNode;
+  initialTheme: Theme;
+}) {
+  const [theme, setThemeState] = useState<Theme>(initialTheme);
+
+  // هماهنگ‌سازی کلاس html با مقداری که سرور رندر کرده (برای پوشش لحظه‌ی هیدریشن)
   useEffect(() => {
-    const isDark = document.documentElement.classList.contains("dark");
-    setThemeState(isDark ? "dark" : "light");
-  }, []);
+    document.documentElement.classList.toggle("dark", initialTheme === "dark");
+  }, [initialTheme]);
 
   const applyTheme = (next: Theme) => {
     setThemeState(next);
     document.documentElement.classList.toggle("dark", next === "dark");
+    writeThemeCookie(next);
     try {
       localStorage.setItem("theme", next);
     } catch {
-      // localStorage در دسترس نیست، مشکلی نیست
+      // localStorage در دسترس نیست، مشکلی نیست چون کوکی هم داریم
     }
   };
 

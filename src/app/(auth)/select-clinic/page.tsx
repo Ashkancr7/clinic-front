@@ -20,22 +20,21 @@ export default async function SelectClinicPage() {
   const basePath = session.userType === "patient" ? "/patient" : "/clinic";
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md items-center p-6">
-      <div className="glass-content w-full rounded-3xl p-6 text-gray-900">
-        <h1 className="mb-6 text-xl font-bold text-gray-900">انتخاب کلینیک</h1>
-        <div className="space-y-3">
-          {session.clinics.map((c) => {
-            return (
-              <a
-                key={c.id}
-                href={`${basePath}/${c.slug}/dashboard`}
-                className="block rounded-2xl border border-gray-200 bg-white/60 p-4 text-sm text-gray-800 backdrop-blur-sm transition hover:border-primary hover:bg-white"
-              >
-                {c.slug}
-              </a>
-            );
-          })}
-        </div>
+    <div className="mx-auto max-w-md p-6">
+      <h1 className="mb-6 text-xl font-bold text-gray-900">انتخاب کلینیک</h1>
+      <div className="space-y-3">
+        {session.clinics.map((c) => {
+          return (
+            <a
+            
+              key={c.id}
+              href={`${basePath}/${c.slug}/dashboard`}
+              className="block rounded-2xl border border-gray-200 p-4 text-sm hover:border-primary"
+            >
+              {c.name ?? c.slug}
+            </a>
+          );
+        })}
       </div>
     </div>
   );
