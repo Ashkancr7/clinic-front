@@ -107,21 +107,28 @@ export default function PatientDashboardPage({ params }: { params: Promise<{ cli
     enabled: !!clinicSlug,
   });
 
-  const now = new Date();
-  const upcoming = useMemo(
-    () =>
-      appointments
-        .filter((a) => new Date(a.startTime) > now && a.status !== "cancelled")
-        .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()),
-    [appointments]
-  );
   const completed = useMemo(() => appointments.filter((a) => a.status === "completed"), [appointments]);
-  const nextAppointment = upcoming[0] ?? null;
+  const nextAppointment = summary?.nextAppointment ?? null;
 
   const STATS = [
-    { icon: FileText, label: "فایل‌ها و تصاویر", value: images.length.toLocaleString("fa-IR"), iconClass: "bg-violet-50 text-violet-600" },
-    { icon: CalendarCheck, label: "نوبت‌های آینده", value: upcoming.length.toLocaleString("fa-IR"), iconClass: "bg-blue-50 text-blue-600" },
-    { icon: Heart, label: "خدمات انجام‌شده", value: completed.length.toLocaleString("fa-IR"), iconClass: "bg-red-50 text-red-600" },
+    {
+      icon: FileText,
+      label: "فایل‌ها و تصاویر",
+      value: (summary?.visibleImagesCount ?? images.length).toLocaleString("fa-IR"),
+      iconClass: "bg-violet-50 text-violet-600",
+    },
+    {
+      icon: CalendarCheck,
+      label: "نوبت‌های گذشته",
+      value: (summary?.pastAppointmentsCount ?? 0).toLocaleString("fa-IR"),
+      iconClass: "bg-blue-50 text-blue-600",
+    },
+    {
+      icon: Heart,
+      label: "خدمات انجام‌شده",
+      value: (summary?.completedVisitsCount ?? completed.length).toLocaleString("fa-IR"),
+      iconClass: "bg-red-50 text-red-600",
+    },
   ];
 
   return (
@@ -253,9 +260,8 @@ export default function PatientDashboardPage({ params }: { params: Promise<{ cli
                     <button
                       key={tab.key}
                       onClick={() => setActiveTab(tab.key)}
-                      className={`flex items-center gap-2 whitespace-nowrap border-b-2 py-3 transition-colors ${
-                        activeTab === tab.key ? "border-primary font-medium text-primary-dark" : "border-transparent text-gray-400 hover:text-gray-600"
-                      }`}
+                      className={`flex items-center gap-2 whitespace-nowrap border-b-2 py-3 transition-colors ${activeTab === tab.key ? "border-primary font-medium text-primary-dark" : "border-transparent text-gray-400 hover:text-gray-600"
+                        }`}
                     >
                       <Icon className="h-4 w-4" />
                       <span>{tab.label}</span>

@@ -94,14 +94,139 @@ body {
   }
 
   /* آیتم ناوبری روی سایدبار/تاپ‌بار */
-  .glass-nav-item {
-    @apply text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900;
-    @apply dark:text-gray-300 dark:hover:bg-white/[0.06] dark:hover:text-white;
-  }
-  .glass-nav-item.active {
-    @apply bg-primary-light/15 font-medium text-primary-dark;
-    @apply dark:bg-primary-light/15 dark:text-primary-light;
-  }
+ /* ==================== Navigation Items ==================== */
+
+.glass-nav-item {
+  @apply relative overflow-hidden;
+  @apply text-gray-600;
+  @apply transition-all duration-300 ease-out;
+  @apply hover:text-gray-900;
+
+  @apply dark:text-gray-300;
+  @apply dark:hover:text-white;
+}
+
+/* نور نرم هنگام Hover */
+.glass-nav-item::before {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+
+  border-radius: inherit;
+
+  background: linear-gradient(
+    90deg,
+    rgba(20, 184, 166, 0.10),
+    rgba(20, 184, 166, 0.04),
+    transparent
+  );
+
+  opacity: 0;
+
+  transform: translateX(16px);
+
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+
+  pointer-events: none;
+}
+
+/* خط کناری */
+.glass-nav-item::after {
+  content: "";
+
+  position: absolute;
+  right: 0;
+  top: 20%;
+
+  width: 3px;
+  height: 60%;
+
+  border-radius: 999px;
+
+  background: #14b8a6;
+
+  transform: scaleY(0);
+
+  transition: transform 0.3s ease;
+
+  pointer-events: none;
+}
+
+/* Hover */
+.glass-nav-item:hover {
+  transform: translateX(-3px);
+
+  background: rgba(20, 184, 166, 0.06);
+
+  box-shadow:
+    0 8px 20px rgba(20, 184, 166, 0.06);
+}
+
+/* Dark Hover */
+.dark .glass-nav-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+
+  box-shadow:
+    0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* فعال شدن نور */
+.glass-nav-item:hover::before {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* فعال شدن خط */
+.glass-nav-item:hover::after {
+  transform: scaleY(1);
+}
+
+/* محتوا بالای افکت */
+.glass-nav-item > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* انیمیشن آیکون */
+.glass-nav-item svg {
+  position: relative;
+  z-index: 1;
+
+  transition:
+    transform 0.3s ease,
+    color 0.3s ease;
+}
+
+.glass-nav-item:hover svg {
+  transform: scale(1.12);
+  color: #14b8a6;
+}
+
+/* ==================== Active Item ==================== */
+
+.glass-nav-item.active {
+  @apply bg-primary-light/15;
+  @apply font-medium text-primary-dark;
+
+  box-shadow:
+    0 4px 15px rgba(20, 184, 166, 0.06);
+}
+
+.glass-nav-item.active::after {
+  transform: scaleY(1);
+}
+
+.dark .glass-nav-item.active {
+  @apply bg-primary-light/15;
+  @apply text-primary-light;
+}
+
+.dark .glass-nav-item.active svg {
+  color: #14b8a6;
+}
 }
 
 /* بوم پس‌زمینه‌ی متحرک با حباب‌های نوری (Aurora) */

@@ -65,39 +65,78 @@ export function ClinicSidebar({ clinicSlug, role, onNavigate }: ClinicSidebarPro
             <div key={item.href}>
               <button
                 onClick={() => setOpenGroup(isOpen ? null : item.href)}
-                className={`glass-nav-item flex w-full items-center rounded-xl px-4 py-2.5 text-sm ${active ? "active" : ""}`}
+                className={`glass-nav-item flex w-full items-center rounded-xl px-4 py-2.5 text-sm transition-all duration-300 ${active ? "active" : ""}`}
               >
 
                 <item.icon className="h-4 w-4 ml-4" />
 
                 <span className="flex items-center gap-2">
                   {item.label}
-                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                  <ChevronDown
+                    className={`
+    h-3.5 w-3.5
+    transition-transform
+    duration-500
+    ease-[cubic-bezier(0.22,1,0.36,1)]
+    ${isOpen ? "rotate-180" : "rotate-0"}
+  `}
+                  />
 
                 </span>
               </button>
 
-              {isOpen && (
-                <div className="mr-1 mt-1 flex flex-col gap-0.5 border-r border-gray-100 pr-3 dark:border-white/10">
-                  {item.children!
-                    .filter((child) => child.roles.includes(role))
-                    .map((child) => {
-                      const childHref = `/clinic/${clinicSlug}/${child.href}`;
-                      const childActive = pathname === childHref;
-                      return (
-                        <Link
-                          key={child.href}
-                          onClick={() => onNavigate?.()}
-                          href={childHref}
-                          className={`glass-nav-item flex items-center rounded-lg px-3 py-2 text-[13px] ${childActive ? "active" : ""}`}
-                        >
-                          <child.icon className="h-3.5 w-3.5 ml-2" />
-                          {child.label}
-                        </Link>
-                      );
-                    })}
+              <div
+                className={`
+  grid
+  transition-all
+  duration-500
+  ease-[cubic-bezier(0.22,1,0.36,1)]
+  ${isOpen
+                    ? "grid-rows-[1fr] opacity-100"
+                    : "grid-rows-[0fr] opacity-0"
+                  }
+`}
+              >
+                <div className="min-h-0 overflow-hidden">
+                  <div
+                    className={`
+  mr-1 mt-1 flex flex-col gap-0.5
+  border-r border-gray-100 pr-3
+  dark:border-white/10
+  transition-transform
+  duration-500
+  ease-[cubic-bezier(0.22,1,0.36,1)]
+  ${isOpen ? "translate-y-0" : "-translate-y-1"}
+`}
+                  >
+                    {item.children!
+                      .filter((child) => child.roles.includes(role))
+                      .map((child) => {
+                        const childHref = `/clinic/${clinicSlug}/${child.href}`;
+                        const childActive = pathname === childHref;
+
+                        return (
+                          <Link
+                            key={child.href}
+                            onClick={() => onNavigate?.()}
+                            href={childHref}
+                            className={`
+                glass-nav-item
+                flex items-center
+                rounded-lg
+                px-3 py-2
+                text-[13px]
+                ${childActive ? "active" : ""}
+              `}
+                          >
+                            <child.icon className="ml-2 h-3.5 w-3.5" />
+                            {child.label}
+                          </Link>
+                        );
+                      })}
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           );
         })}

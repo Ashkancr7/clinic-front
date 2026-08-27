@@ -26,9 +26,14 @@ function unwrapObject<T>(res: unknown): T {
   return res as T;
 }
 
-// --- خلاصه داشبورد بیمار (فرمت دقیق مستند نیست) ---
+// --- خلاصه داشبورد بیمار — فرمت واقعی تأیید شده ---
 export interface PatientDashboardSummary {
   fullName: string | null;
+  completedVisitsCount: number;
+  pastAppointmentsCount: number;
+  visibleImagesCount: number;
+  signedConsentsCount: number;
+  nextAppointment: PatientAppointment | null;
 }
 
 export async function getPatientDashboardSummary(clinicSlug: string): Promise<PatientDashboardSummary> {
@@ -37,11 +42,17 @@ export async function getPatientDashboardSummary(clinicSlug: string): Promise<Pa
     { clinicSlug }
   );
   const data = unwrapObject<Record<string, unknown>>(res);
-  const patient = (data.patient as Record<string, unknown>) ?? data;
-  const fullName =
-    patient.first_name && patient.last_name ? `${patient.first_name} ${patient.last_name}` : (data.full_name as string | undefined) ?? null;
+  const patient = (data.patient as Record<string, unknown>) ?? {};
+  const nextAppointmentRaw = data.next_appointment as Record<string, unknown> | null;
 
-  return { fullName };
+  return {
+    fullName: (patient.full_name as string | undefined) ?? null,
+    completedVisitsCount: Number(data.completed_visits_count ?? 0),
+    pastAppointmentsCount: Number(data.past_appointments_count ?? 0),
+    visibleImagesCount: Number(data.visible_images_count ?? 0),
+    signedConsentsCount: Number(data.signed_consents_count ?? 0),
+    nextAppointment: nextAppointmentRaw ? mapPatientAppointment(nextAppointmentRaw) : null,
+  };
 }
 
 // --- نوبت‌های بیمار ---
