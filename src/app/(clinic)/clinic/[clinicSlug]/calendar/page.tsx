@@ -31,6 +31,7 @@ import {
 
 import { queryKeys } from "@/lib/query/keys";
 import { LoadingLogo } from "@/components/LoadingLogo";
+import { getCurrentClinicUser } from "@/lib/api/session";
 
 const STATUS_BADGE: Record<string, string> = {
   confirmed:
@@ -102,12 +103,22 @@ export default function CalendarPage({
 
   const isoDate = toLocalIsoDate(selectedDate.toDate());
 
+  // نقش کاربر جاری را می‌گیریم تا اگر پزشک بود، فیلتر همیشه روی خودش قفل بماند
+  // (پزشک نباید بتواند نوبت‌های سایر پزشکان را ببیند؛ فقط منشی/مدیر این دسترسی را دارند)
+  const { data: currentUser } = useQuery({
+    queryKey: queryKeys.session.currentUser(clinicSlug),
+    queryFn: () => getCurrentClinicUser(clinicSlug),
+    enabled: !!clinicSlug,
+  });
+
+  const isDoctor = currentUser?.roleKey === "doctor";
+  const effectiveDoctorFilter = isDoctor ? currentUser?.userId ?? undefined : doctorFilter === "all" ? undefined : doctorFilter;
+
   const { data: doctors = [] } = useQuery({
     queryKey: queryKeys.appointmentsCalendar.doctors(clinicSlug),
-
     queryFn: () => getDoctors(clinicSlug),
-
-    enabled: !!clinicSlug,
+    // پزشک نیازی به لیست همه‌ی پزشکان ندارد (چون فیلتر برایش قفل است)
+    enabled: !!clinicSlug && !isDoctor,
   });
 
   const {
@@ -115,22 +126,19 @@ export default function CalendarPage({
     isLoading,
     error,
   } = useQuery({
-    queryKey: queryKeys.appointmentsCalendar.list(
-      clinicSlug,
-      isoDate,
-      doctorFilter === "all" ? undefined : doctorFilter
-    ),
-
+    queryKey: queryKeys.appointmentsCalendar.list(clinicSlug, isoDate, effectiveDoctorFilter),
     queryFn: () =>
       getAppointments(clinicSlug, {
         from: isoDate,
         to: isoDate,
-        doctorUserId:
-          doctorFilter === "all" ? undefined : doctorFilter,
+        doctorUserId: effectiveDoctorFilter,
       }),
-
-    enabled: !!clinicSlug,
+    // تا وقتی نقش کاربر مشخص نشده، اصلاً درخواست نمی‌زنیم — وگرنه ممکن است برای
+    // یک لحظه نوبت‌های همه‌ی پزشکان برای کاربر پزشک لود شود (نشت داده)
+    enabled: !!clinicSlug && !!currentUser && (!isDoctor || !!currentUser.userId),
   });
+
+
 
   const completeMutation = useMutation({
     mutationFn: (id: string) => completeAppointment(clinicSlug, id),
@@ -266,26 +274,30 @@ export default function CalendarPage({
         </div>
 
         {/* Filters */}
+        {/* Filters */}
+        {/* Filters */}
         <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={doctorFilter}
-            onChange={(e) =>
-              setDoctorFilter(
-                e.target.value === "all"
-                  ? "all"
-                  : Number(e.target.value)
-              )
-            }
-            className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600 outline-none transition focus:border-primary dark:border-white/10 dark:bg-white/[0.05] dark:text-gray-300"
-          >
-            <option value="all">همه پزشکان</option>
+          {!isDoctor && (
+            <select
+              value={doctorFilter}
+              onChange={(e) =>
+                setDoctorFilter(
+                  e.target.value === "all"
+                    ? "all"
+                    : Number(e.target.value)
+                )
+              }
+              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600 outline-none transition focus:border-primary dark:border-white/10 dark:bg-white/[0.05] dark:text-gray-300"
+            >
+              <option value="all">همه پزشکان</option>
 
-            {doctors.map((d) => (
-              <option key={d.userId} value={d.userId}>
-                {d.fullName}
-              </option>
-            ))}
-          </select>
+              {doctors.map((d) => (
+                <option key={d.userId} value={d.userId}>
+                  {d.fullName}
+                </option>
+              ))}
+            </select>
+          )}
 
           <select
             value={statusFilter}
@@ -430,8 +442,8 @@ export default function CalendarPage({
                             <span className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
                               {a.appointmentType ===
                                 "online" && (
-                                <Video className="h-3 w-3 shrink-0 text-blue-500" />
-                              )}
+                                  <Video className="h-3 w-3 shrink-0 text-blue-500" />
+                                )}
 
                               <span className="truncate">
                                 {TYPE_LABEL[
@@ -444,10 +456,9 @@ export default function CalendarPage({
 
                           <td className="py-3">
                             <span
-                              className={`rounded-full px-2 py-0.5 text-[10px] ${
-                                STATUS_BADGE[a.status] ??
+                              className={`rounded-full px-2 py-0.5 text-[10px] ${STATUS_BADGE[a.status] ??
                                 "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400"
-                              }`}
+                                }`}
                             >
                               {STATUS_LABEL[a.status] ??
                                 a.status}
