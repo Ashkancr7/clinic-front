@@ -27,7 +27,7 @@ export default async function PatientClinicLayout({
       </header>
 
       <main className="mx-auto w-full max-w-[1600px] px-4 py-6 md:px-8">
-        <div className="glass-content rounded-3xl p-4 text-gray-900 md:p-6">
+        <div className="rounded-3xl bg-white p-4 text-gray-900 dark:bg-slate-950 dark:text-white md:p-6">
           {children}
         </div>
       </main>

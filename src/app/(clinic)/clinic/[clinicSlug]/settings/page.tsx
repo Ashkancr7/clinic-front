@@ -1,7 +1,16 @@
+
 "use client";
 
 import { useState } from "react";
-import { Settings2, Clock3, FileText, Bell, Save, Upload } from "lucide-react";
+
+import {
+  Settings2,
+  Clock3,
+  FileText,
+  Bell,
+  Save,
+  Upload,
+} from "lucide-react";
 
 const TABS = [
   { key: "general", label: "عمومی", icon: Settings2 },
@@ -10,7 +19,15 @@ const TABS = [
   { key: "notifications", label: "اطلاع‌رسانی", icon: Bell },
 ];
 
-const WEEK_DAYS = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه"];
+const WEEK_DAYS = [
+  "شنبه",
+  "یکشنبه",
+  "دوشنبه",
+  "سه‌شنبه",
+  "چهارشنبه",
+  "پنج‌شنبه",
+  "جمعه",
+];
 
 export default function ClinicSettingsPage() {
   const [tab, setTab] = useState("general");
@@ -19,86 +36,190 @@ export default function ClinicSettingsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-gray-900">تنظیمات کلینیک</h1>
-        <p className="mt-1 text-sm text-gray-400">اطلاعات عمومی، ساعات کاری و تنظیمات فرم‌ها</p>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+          تنظیمات کلینیک
+        </h1>
+
+        <p className="mt-1 text-sm text-gray-400 dark:text-gray-500">
+          اطلاعات عمومی، ساعات کاری و تنظیمات فرم‌ها
+        </p>
       </div>
 
+      {/* Content */}
       <div className="flex flex-col gap-6 lg:flex-row-reverse">
+        {/* Tabs */}
         <div className="flex gap-2 overflow-x-auto lg:w-56 lg:flex-col lg:overflow-visible">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm ${
-                tab === t.key ? "bg-primary-light/15 font-medium text-primary-dark" : "text-gray-500 hover:bg-gray-50"
-              }`}
-            >
-              <t.icon className="h-4 w-4" /> {t.label}
-            </button>
-          ))}
+          {TABS.map((t) => {
+            const Icon = t.icon;
+
+            return (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm transition-colors ${
+                  tab === t.key
+                    ? "bg-primary-light/15 font-medium text-primary-dark dark:bg-primary/15 dark:text-primary-light"
+                    : "text-gray-500 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+                }`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {t.label}
+              </button>
+            );
+          })}
         </div>
 
-        <div className="flex-1 rounded-2xl border border-gray-100 bg-white p-6">
+        {/* Main panel */}
+        <div className="flex-1 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:shadow-none">
+          {/* General */}
           {tab === "general" && (
             <div className="space-y-5">
-              <h2 className="text-sm font-bold text-gray-800">اطلاعات عمومی کلینیک</h2>
-              <div className="flex items-center gap-3">
-                <div className="h-14 w-14 rounded-xl bg-gray-100" />
-                <button className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-xs text-gray-600">
-                  <Upload className="h-3.5 w-3.5" /> آپلود لوگوی کلینیک
+              <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">
+                اطلاعات عمومی کلینیک
+              </h2>
+
+              {/* Logo */}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl border border-gray-100 bg-gray-100 dark:border-gray-800 dark:bg-gray-800">
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                    لوگو
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-xs text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  آپلود لوگوی کلینیک
                 </button>
               </div>
+
+              {/* Fields */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="نام کلینیک" defaultValue="کلینیک زیبایی آرامش" />
-                <Field label="شماره تماس" defaultValue="021-88880000" dir="ltr" />
-                <Field label="آدرس" defaultValue="تهران، ولیعصر، بالاتر از ونک" className="sm:col-span-2" />
+                <Field
+                  label="نام کلینیک"
+                  defaultValue="کلینیک زیبایی آرامش"
+                />
+
+                <Field
+                  label="شماره تماس"
+                  defaultValue="021-88880000"
+                  dir="ltr"
+                />
+
+                <Field
+                  label="آدرس"
+                  defaultValue="تهران، ولیعصر، بالاتر از ونک"
+                  className="sm:col-span-2"
+                />
               </div>
             </div>
           )}
 
+          {/* Working hours */}
           {tab === "hours" && (
             <div className="space-y-4">
-              <h2 className="text-sm font-bold text-gray-800">ساعات کاری هفتگی</h2>
-              {WEEK_DAYS.map((day) => (
-                <div key={day} className="flex items-center justify-between rounded-xl border border-gray-100 p-3 text-xs">
-                  <span className="w-20 text-gray-700">{day}</span>
-                  <div className="flex items-center gap-2">
-                    <input type="time" defaultValue="09:00" className="rounded-lg border border-gray-200 px-2 py-1.5 outline-none" />
-                    <span className="text-gray-400">تا</span>
-                    <input type="time" defaultValue="20:00" className="rounded-lg border border-gray-200 px-2 py-1.5 outline-none" />
+              <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">
+                ساعات کاری هفتگی
+              </h2>
+
+              <div className="space-y-2">
+                {WEEK_DAYS.map((day) => (
+                  <div
+                    key={day}
+                    className="flex flex-col gap-3 rounded-xl border border-gray-100 p-3 text-xs transition-colors hover:bg-gray-50 sm:flex-row sm:items-center sm:justify-between dark:border-gray-800 dark:hover:bg-gray-800/50"
+                  >
+                    <span className="w-20 shrink-0 text-gray-700 dark:text-gray-200">
+                      {day}
+                    </span>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="time"
+                        defaultValue="09:00"
+                        className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-gray-700 outline-none transition-colors focus:border-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                      />
+
+                      <span className="text-gray-400 dark:text-gray-500">
+                        تا
+                      </span>
+
+                      <input
+                        type="time"
+                        defaultValue="20:00"
+                        className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-gray-700 outline-none transition-colors focus:border-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                      />
+                    </div>
+
+                    <label className="flex cursor-pointer items-center gap-1.5 text-gray-500 dark:text-gray-400">
+                      <input
+                        type="checkbox"
+                        defaultChecked={day !== "جمعه"}
+                        className="h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-800"
+                      />
+
+                      باز
+                    </label>
                   </div>
-                  <label className="flex items-center gap-1.5 text-gray-500">
-                    <input type="checkbox" defaultChecked={day !== "جمعه"} className="h-3.5 w-3.5 rounded text-primary" /> باز
-                  </label>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
 
+          {/* Forms */}
           {tab === "forms" && (
             <div className="space-y-3">
-              <h2 className="text-sm font-bold text-gray-800">فرم‌ها و رضایت‌نامه‌ها</h2>
-              <p className="text-xs text-gray-400">
+              <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">
+                فرم‌ها و رضایت‌نامه‌ها
+              </h2>
+
+              <p className="text-xs leading-6 text-gray-400 dark:text-gray-500">
                 فرم پذیرش و رضایت‌نامه‌های هر خدمت از اینجا مدیریت می‌شوند.
               </p>
-              <button className="rounded-xl bg-primary-light/15 px-4 py-2 text-xs font-medium text-primary-dark">
-                رفتن به فرم‌ساز پذیرش و رضایت‌نامه‌ها →
+
+              <button
+                type="button"
+                className="rounded-xl bg-primary-light/15 px-4 py-2 text-xs font-medium text-primary-dark transition-colors hover:bg-primary-light/25 dark:bg-primary/15 dark:text-primary-light dark:hover:bg-primary/20"
+              >
+                رفتن به فرم‌ساز پذیرش و رضایت‌نامه‌ها ←
               </button>
             </div>
           )}
 
+          {/* Notifications */}
           {tab === "notifications" && (
             <div className="space-y-4">
-              <h2 className="text-sm font-bold text-gray-800">تنظیمات اطلاع‌رسانی</h2>
-              <ToggleRow title="اطلاع‌رسانی ایمیلی" desc="ایمیل برای رویدادهای مهم کلینیک" checked={emailNotif} onChange={setEmailNotif} />
-              <ToggleRow title="اطلاع‌رسانی پیامکی" desc="پیامک برای هشدارهای فوری" checked={smsNotif} onChange={setSmsNotif} />
+              <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">
+                تنظیمات اطلاع‌رسانی
+              </h2>
+
+              <ToggleRow
+                title="اطلاع‌رسانی ایمیلی"
+                desc="ایمیل برای رویدادهای مهم کلینیک"
+                checked={emailNotif}
+                onChange={setEmailNotif}
+              />
+
+              <ToggleRow
+                title="اطلاع‌رسانی پیامکی"
+                desc="پیامک برای هشدارهای فوری"
+                checked={smsNotif}
+                onChange={setSmsNotif}
+              />
             </div>
           )}
 
-          <div className="mt-8 flex justify-end border-t border-gray-100 pt-5">
-            <button className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-medium text-white hover:bg-primary-dark">
-              <Save className="h-4 w-4" /> ذخیره تغییرات
+          {/* Save */}
+          <div className="mt-8 flex justify-end border-t border-gray-100 pt-5 dark:border-gray-800">
+            <button
+              type="button"
+              className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-dark"
+            >
+              <Save className="h-4 w-4" />
+              ذخیره تغییرات
             </button>
           </div>
         </div>
@@ -107,25 +228,81 @@ export default function ClinicSettingsPage() {
   );
 }
 
-function Field({ label, defaultValue, dir, className = "" }: { label: string; defaultValue?: string; dir?: "ltr" | "rtl"; className?: string }) {
+/* ---------------------------------- */
+/* Field */
+/* ---------------------------------- */
+
+function Field({
+  label,
+  defaultValue,
+  dir = "rtl",
+  className = "",
+}: {
+  label: string;
+  defaultValue?: string;
+  dir?: "ltr" | "rtl";
+  className?: string;
+}) {
   return (
     <div className={className}>
-      <label className="mb-1.5 block text-xs text-gray-600">{label}</label>
-      <input type="text" defaultValue={defaultValue} dir={dir} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-xs text-gray-700 outline-none" />
+      <label className="mb-1.5 block text-xs text-gray-600 dark:text-gray-400">
+        {label}
+      </label>
+
+      <input
+        type="text"
+        defaultValue={defaultValue}
+        dir={dir}
+        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-xs text-gray-700 outline-none transition-colors placeholder:text-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/10 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:placeholder:text-gray-600 dark:focus:border-primary"
+      />
     </div>
   );
 }
 
-function ToggleRow({ title, desc, checked, onChange }: { title: string; desc: string; checked: boolean; onChange: (v: boolean) => void }) {
+/* ---------------------------------- */
+/* Toggle */
+/* ---------------------------------- */
+
+function ToggleRow({
+  title,
+  desc,
+  checked,
+  onChange,
+}: {
+  title: string;
+  desc: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 p-4">
+    <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 p-4 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50">
       <div>
-        <div className="text-sm font-medium text-gray-800">{title}</div>
-        <p className="mt-0.5 text-xs text-gray-400">{desc}</p>
+        <div className="text-sm font-medium text-gray-800 dark:text-gray-100">
+          {title}
+        </div>
+
+        <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+          {desc}
+        </p>
       </div>
-      <button onClick={() => onChange(!checked)} className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? "bg-primary" : "bg-gray-200"}`}>
-        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${checked ? "right-0.5" : "right-5"}`} />
+
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        aria-pressed={checked}
+        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+          checked
+            ? "bg-primary"
+            : "bg-gray-200 dark:bg-gray-700"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-all ${
+            checked ? "right-0.5" : "right-5"
+          }`}
+        />
       </button>
     </div>
   );
 }
+

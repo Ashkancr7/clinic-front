@@ -1,5 +1,4 @@
 import { apiClient } from "./client";
-import { getStaffMembers } from "./staff";
 
 interface LaravelEnvelope<T> {
   success: boolean;
@@ -21,36 +20,40 @@ export interface CurrentClinicUser {
   roleName: string;
 }
 
-// فرمت دقیق /auth/me مستند نیست و نقش کاربر را در یک کلینیک خاص مشخص نمی‌کند؛
-// برای همین بعد از گرفتن هویت کاربر، آن را با لیست کارکنان همین کلینیک
-// (که فرمتش قبلاً تست و تأیید شده) کراس‌رفرنس می‌گیریم تا نقش دقیق به‌دست بیاید
+// فرمت واقعی و تأییدشده‌ی /auth/me: { data: { user: {...}, clinics: [{ id, name, slug,
+// pivot: { role_id, access_scope, is_active } }] } }
+// نقش فقط به‌صورت role_id عددی می‌آید، نه اسم؛ این mapping بر اساس داده‌های seed
+// واقعی که قبلاً از /clinics/current/staff دیده شده استخراج شده است.
+const ROLE_ID_TO_KEY: Record<number, CurrentClinicUser["roleKey"]> = {
+  2: "clinic_admin",
+  3: "doctor",
+  4: "receptionist",
+};
+const ROLE_ID_TO_NAME: Record<number, string> = {
+  2: "مدیر کلینیک",
+  3: "پزشک",
+  4: "منشی / پذیرش",
+};
+
 export async function getCurrentClinicUser(clinicSlug: string): Promise<CurrentClinicUser> {
   const res = await apiClient<LaravelEnvelope<Record<string, unknown>> | Record<string, unknown>>("/auth/me", {
     clinicSlug,
   });
   const data = unwrapObject<Record<string, unknown>>(res);
-  const user = (data.user as Record<string, unknown> | undefined) ?? data;
+
+  const user = (data.user as Record<string, unknown>) ?? {};
   const userId = user.id != null ? Number(user.id) : null;
   const fullName = (user.full_name as string | undefined) ?? "";
 
-  if (userId == null) {
-    return { userId: null, fullName, roleKey: null, roleName: "" };
-  }
+  const clinics = (data.clinics as Record<string, unknown>[]) ?? [];
+  const currentClinic = clinics.find((c) => c.slug === clinicSlug);
+  const pivot = currentClinic?.pivot as Record<string, unknown> | undefined;
+  const roleId = pivot?.role_id != null ? Number(pivot.role_id) : null;
 
-  try {
-    const staff = await getStaffMembers(clinicSlug);
-    const me = staff.find((s) => s.userId === userId);
-    if (me) {
-      return {
-        userId,
-        fullName: fullName || me.fullName,
-        roleKey: (me.roleKey as CurrentClinicUser["roleKey"]) ?? null,
-        roleName: me.roleName,
-      };
-    }
-  } catch {
-    // اگر دسترسی به لیست کارکنان نبود (مثلاً برای منشی)، بی‌خیال کراس‌رفرنس می‌شویم
-  }
-
-  return { userId, fullName, roleKey: null, roleName: "" };
+  return {
+    userId,
+    fullName,
+    roleKey: roleId != null ? (ROLE_ID_TO_KEY[roleId] ?? null) : null,
+    roleName: roleId != null ? (ROLE_ID_TO_NAME[roleId] ?? "") : "",
+  };
 }
