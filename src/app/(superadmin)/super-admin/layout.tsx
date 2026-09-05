@@ -37,7 +37,7 @@ const NAV_ITEMS = [
   },
   {
     href: "/super-admin/users",
-    label: "کاربران",
+    label: "کلینک طرف قرارداد",
     icon: Users,
   },
   {

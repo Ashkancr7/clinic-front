@@ -70,4 +70,8 @@ export const queryKeys = {
     consents: (clinicSlug: string) => ["patient-portal", clinicSlug, "consents"] as const,
   },
 
+    superAdminModules: {
+    list: (clinicId: string) => ["super-admin", "modules", clinicId] as const,
+  },
+
 };

@@ -86,7 +86,21 @@ export const superAdminApi = {
     return unwrapItem<Clinic>(res);
   },
 
-  createClinic: async (payload: { name: string; slug: string; phone?: string; address?: string }) => {
+  createClinic: async (payload: {
+     name: string;
+    slug: string;
+    phone?: string;
+    address?: string;
+    slogan?: string;
+    specialty?: string;
+    logo_url?: string;
+    brand_color?: string;
+    latitude?: string;
+    longitude?: string;
+    
+    }) => 
+      
+      {
     const res = await apiClient<LaravelEnvelope<Clinic> | Clinic>("/super-admin/clinics", {
       method: "POST",
       body: JSON.stringify(payload),
@@ -96,7 +110,7 @@ export const superAdminApi = {
 
   updateClinic: async (
     clinicId: string,
-    payload: Partial<Pick<Clinic, "name" | "phone" | "address" | "slogan" | "specialty">>
+    payload: Partial<Pick<Clinic, "name" | "phone" | "address" | "slogan" | "specialty" | "logo_url" | "brand_color" | "latitude" | "longitude">>
   ) => {
     const res = await apiClient<LaravelEnvelope<Clinic> | Clinic>(`/super-admin/clinics/${clinicId}`, {
       method: "PATCH",

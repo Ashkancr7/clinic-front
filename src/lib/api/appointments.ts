@@ -28,20 +28,76 @@ function unwrapObject<T>(res: unknown): T {
 
 export type AppointmentStatus = "pending" | "confirmed" | "rescheduled" | "cancelled" | "completed" | "no_show";
 
+export interface AppointmentStatusHistory {
+  id?: string | number;
+  status: AppointmentStatus;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: number | null;
+  changed_by?: {
+    id?: number;
+    full_name?: string;
+  } | null;
+  reason?: string | null;
+  notes?: string | null;
+  from_status?: AppointmentStatus | null;
+  to_status?: AppointmentStatus | null;
+}
+
+export interface AppointmentPatient {
+  id: string;
+  user_id?: string | null;
+  first_name: string;
+  last_name: string;
+  national_id?: string | null;
+  birth_date?: string | null;
+  gender?: string | null;
+  phone?: string | null;
+  emergency_contact?: string | null;
+}
+
+export interface AppointmentDoctor {
+  id: number;
+  full_name: string;
+  phone?: string | null;
+  email?: string | null;
+  avatar_file_id?: string | null;
+}
+
+export interface AppointmentService {
+  id: string;
+  name: string;
+  description?: string | null;
+  default_duration_minutes?: number;
+  base_price?: string | number;
+}
+
 export interface CalendarAppointment {
   id: string;
   startTime: string;
   endTime: string;
+
   patientId: string | null;
   patientName: string;
   patientPhone: string;
-  serviceName: string;
+
   doctorId: number | null;
   doctorName: string;
-  appointmentType: "in_person" | "online" | "followup";
+
+  serviceName: string;
+
+  appointmentType: "in_person" | "online" | string;
   status: AppointmentStatus;
-  source: "admin" | "receptionist" | "patient_portal" | "website" | null;
+  source: string | null;
   notes: string | null;
+
+  cancellationReason?: string | null;
+
+  patient?: AppointmentPatient | null;
+  doctor?: AppointmentDoctor | null;
+  service?: AppointmentService | null;
+
+  statusHistory?: AppointmentStatusHistory[];
 }
 
 function mapAppointment(a: Record<string, unknown>): CalendarAppointment {
@@ -50,23 +106,87 @@ function mapAppointment(a: Record<string, unknown>): CalendarAppointment {
   const doctor = (a.doctor ?? a.doctor_user) as Record<string, unknown> | undefined;
 
   return {
-    id: String(a.id ?? ""),
-    startTime: String(a.start_time ?? ""),
-    endTime: String(a.end_time ?? ""),
-    patientId: (a.patient_id as string | null) ?? null,
-    patientName:
-      patient?.first_name && patient?.last_name
-        ? `${patient.first_name} ${patient.last_name}`
-        : (a.patient_name as string | undefined) ?? "بیمار",
-    patientPhone: (patient?.phone as string | undefined) ?? "",
-    serviceName: (service?.name as string | undefined) ?? (a.service_name as string | undefined) ?? "-",
-    doctorId: (a.doctor_user_id as number | null) ?? null,
-    doctorName: (doctor?.full_name as string | undefined) ?? (a.doctor_name as string | undefined) ?? "-",
-    appointmentType: (a.appointment_type as CalendarAppointment["appointmentType"]) ?? "in_person",
-    status: (a.status as AppointmentStatus) ?? "pending",
-    source: (a.source as CalendarAppointment["source"]) ?? null,
-    notes: (a.notes as string | null) ?? null,
-  };
+  id: String(a.id ?? ""),
+  startTime: String(a.start_time ?? ""),
+  endTime: String(a.end_time ?? ""),
+
+  patientId: (a.patient_id as string | null) ?? null,
+
+  patientName:
+    patient?.first_name && patient?.last_name
+      ? `${patient.first_name} ${patient.last_name}`
+      : (a.patient_name as string | undefined) ?? "بیمار",
+
+  patientPhone: (patient?.phone as string | undefined) ?? "",
+
+  serviceName:
+    (service?.name as string | undefined) ??
+    (a.service_name as string | undefined) ??
+    "-",
+
+  doctorId: (a.doctor_user_id as number | null) ?? null,
+
+  doctorName:
+    (doctor?.full_name as string | undefined) ??
+    (a.doctor_name as string | undefined) ??
+    "-",
+
+  appointmentType:
+    (a.appointment_type as CalendarAppointment["appointmentType"]) ??
+    "in_person",
+
+  status: (a.status as AppointmentStatus) ?? "pending",
+
+  source: (a.source as string | null) ?? null,
+
+  notes: (a.notes as string | null) ?? null,
+
+  cancellationReason:
+    (a.cancellation_reason as string | null) ?? null,
+
+  patient: patient
+    ? {
+        id: String(patient.id ?? ""),
+        user_id: (patient.user_id as string | null) ?? null,
+        first_name: String(patient.first_name ?? ""),
+        last_name: String(patient.last_name ?? ""),
+        national_id: (patient.national_id as string | null) ?? null,
+        birth_date: (patient.birth_date as string | null) ?? null,
+        gender: (patient.gender as string | null) ?? null,
+        phone: (patient.phone as string | null) ?? null,
+        emergency_contact:
+          (patient.emergency_contact as string | null) ?? null,
+      }
+    : null,
+
+  doctor: doctor
+    ? {
+        id: Number(doctor.id),
+        full_name: String(doctor.full_name ?? ""),
+        phone: (doctor.phone as string | null) ?? null,
+        email: (doctor.email as string | null) ?? null,
+        avatar_file_id:
+          (doctor.avatar_file_id as string | null) ?? null,
+      }
+    : null,
+
+  service: service
+    ? {
+        id: String(service.id ?? ""),
+        name: String(service.name ?? ""),
+        description:
+          (service.description as string | null) ?? null,
+        default_duration_minutes:
+          Number(service.default_duration_minutes ?? 0),
+        base_price:
+          (service.base_price as string | number | undefined) ?? 0,
+      }
+    : null,
+
+  statusHistory: Array.isArray(a.status_history)
+    ? (a.status_history as CalendarAppointment["statusHistory"])
+    : [],
+};
 }
 
 export async function getAppointments(

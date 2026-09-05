@@ -59,11 +59,11 @@ const STATUS_FILTERS: {
   value: Clinic["status"] | "all";
   label: string;
 }[] = [
-  { value: "all", label: "همه" },
-  { value: "active", label: "فعال" },
-  { value: "inactive", label: "غیرفعال" },
-  { value: "suspended", label: "معلق" },
-];
+    { value: "all", label: "همه" },
+    { value: "active", label: "فعال" },
+    { value: "inactive", label: "غیرفعال" },
+    { value: "suspended", label: "معلق" },
+  ];
 
 export default function ClinicsListPage() {
   const [statusFilter, setStatusFilter] =
@@ -304,9 +304,8 @@ export default function ClinicsListPage() {
                     px-3 py-2
                     text-xs
                     transition
-                    ${
-                      isSelected
-                        ? `
+                    ${isSelected
+                      ? `
                           border-primary
                           bg-primary-light/10
                           text-primary-dark
@@ -314,7 +313,7 @@ export default function ClinicsListPage() {
                           dark:bg-primary/10
                           dark:text-primary-light
                         `
-                        : `
+                      : `
                           border-gray-200
                           text-gray-600
                           hover:bg-gray-50
@@ -369,6 +368,10 @@ export default function ClinicsListPage() {
 
                   <th className="py-3 font-medium text-gray-400 dark:text-gray-500">
                     تلفن
+                  </th>
+
+                  <th className="py-3 font-medium text-gray-400 dark:text-gray-500">
+                    تخصص
                   </th>
 
                   <th className="py-3 font-medium text-gray-400 dark:text-gray-500">
@@ -440,6 +443,13 @@ export default function ClinicsListPage() {
                         dir="ltr"
                       >
                         {clinic.phone ?? "-"}
+                      </td>
+
+                      <td
+                        className="py-3.5 text-gray-500 dark:text-gray-400"
+                        dir="ltr"
+                      >
+                        {clinic.specialty ?? "-"}
                       </td>
 
                       {/* Status */}
@@ -521,7 +531,7 @@ export default function ClinicsListPage() {
                 {filteredClinics.length === 0 && (
                   <tr>
                     <td
-                      colSpan={4}
+                      colSpan={5}
                       className="py-14 text-center"
                     >
                       <div className="flex flex-col items-center">
@@ -691,415 +701,175 @@ function CreateClinicModal({
   error,
 }: {
   onClose: () => void;
-
   onSubmit: (payload: {
     name: string;
     slug: string;
     phone?: string;
     address?: string;
+    slogan?: string;
+    specialty?: string;
+    logo_url?: string;
+    brand_color?: string;
+    latitude?: string;
+    longitude?: string;
   }) => void;
-
   isSubmitting: boolean;
-
   error: string | null;
 }) {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
-
-  /*
-   * قفل اسکرول صفحه هنگام باز بودن Modal
-   */
-  useEffect(() => {
-    const originalOverflow = document.body.style.overflow;
-
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
-  }, []);
-
-  /*
-   * بستن Modal با Escape
-   */
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !isSubmitting) {
-        onClose();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isSubmitting, onClose]);
-
-  const isValid =
-    name.trim().length > 0 &&
-    slug.trim().length > 0 &&
-    !isSubmitting;
+  const [slogan, setSlogan] = useState("");
+  const [specialty, setSpecialty] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [brandColor, setBrandColor] = useState("#0EA5A4");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
 
   return (
-    <div
-      className="
-        fixed inset-0
-        z-[100]
-        flex items-center justify-center
-        bg-black/40
-        p-4
-        backdrop-blur-sm
-      "
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !isSubmitting) {
-          onClose();
-        }
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="create-clinic-title"
-        className="
-          w-full
-          max-w-md
-          overflow-hidden
-          rounded-2xl
-          border border-gray-100
-          bg-white
-          shadow-2xl
-          dark:border-white/[0.1]
-          dark:bg-[#15191d]
-        "
-      >
-        {/* Modal Header */}
-        <div
-          className="
-            flex items-center justify-between
-            border-b border-gray-100
-            px-5 py-4
-            dark:border-white/[0.07]
-          "
-        >
-          <div>
-            <h2
-              id="create-clinic-title"
-              className="text-base font-bold text-gray-900 dark:text-white"
-            >
-              افزودن کلینیک جدید
-            </h2>
-
-            <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
-              اطلاعات کلینیک را وارد کنید.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isSubmitting}
-            aria-label="بستن"
-            className="
-              flex h-8 w-8
-              items-center justify-center
-              rounded-lg
-              text-gray-400
-              transition
-              hover:bg-gray-100
-              hover:text-gray-600
-              disabled:opacity-50
-              dark:hover:bg-white/[0.06]
-              dark:hover:text-gray-200
-            "
-          >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-bold text-gray-900">افزودن کلینیک جدید</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="p-5">
-          {error && (
-            <div
-              className="
-                mb-4
-                rounded-xl
-                border border-red-100
-                bg-red-50
-                px-3 py-2.5
-                text-xs
-                leading-relaxed
-                text-red-600
-                dark:border-red-500/10
-                dark:bg-red-500/10
-                dark:text-red-400
-              "
-            >
-              {error}
-            </div>
-          )}
+        {error && <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-500">{error}</p>}
 
-          <div className="space-y-4">
-            {/* Name */}
-            <div>
-              <label
-                htmlFor="clinic-name"
-                className="
-                  mb-1.5
-                  block
-                  text-xs
-                  font-medium
-                  text-gray-600
-                  dark:text-gray-300
-                "
-              >
-                نام کلینیک
-              </label>
-
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block text-xs text-gray-600">نام کلینیک *</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+              placeholder="کلینیک پوست و مو نگین"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-600">شناسه یکتا (slug) *</label>
+            <input
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              dir="ltr"
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+              placeholder="negin-clinic"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-600">شعار کلینیک</label>
+            <input
+              value={slogan}
+              onChange={(e) => setSlogan(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+              placeholder="پوست سالم، اعتماد به‌نفس بیشتر"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-600">تخصص</label>
+            <input
+              value={specialty}
+              onChange={(e) => setSpecialty(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+              placeholder="پوست و مو"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-600">تلفن</label>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              dir="ltr"
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-600">آدرس</label>
+            <textarea
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+              rows={2}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-600">آدرس لوگو (URL)</label>
+            <input
+              value={logoUrl}
+              onChange={(e) => setLogoUrl(e.target.value)}
+              dir="ltr"
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+              placeholder="https://..."
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-600">رنگ برند</label>
+            <div className="flex items-center gap-2">
               <input
-                id="clinic-name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                disabled={isSubmitting}
-                autoFocus
-                className="
-                  w-full
-                  rounded-xl
-                  border border-gray-200
-                  bg-transparent
-                  px-3 py-2.5
-                  text-sm
-                  text-gray-800
-                  outline-none
-                  transition
-                  placeholder:text-gray-300
-                  focus:border-primary
-                  disabled:cursor-not-allowed
-                  disabled:opacity-60
-                  dark:border-white/[0.1]
-                  dark:text-gray-100
-                  dark:placeholder:text-gray-600
-                  dark:focus:border-primary-light/50
-                "
-                placeholder="کلینیک پوست و مو نگین"
+                type="color"
+                value={brandColor}
+                onChange={(e) => setBrandColor(e.target.value)}
+                className="h-9 w-12 rounded-lg border border-gray-200"
               />
-            </div>
-
-            {/* Slug */}
-            <div>
-              <label
-                htmlFor="clinic-slug"
-                className="
-                  mb-1.5
-                  block
-                  text-xs
-                  font-medium
-                  text-gray-600
-                  dark:text-gray-300
-                "
-              >
-                شناسه یکتا (slug)
-              </label>
-
               <input
-                id="clinic-slug"
-                value={slug}
-                onChange={(event) => setSlug(event.target.value)}
-                disabled={isSubmitting}
+                value={brandColor}
+                onChange={(e) => setBrandColor(e.target.value)}
                 dir="ltr"
-                className="
-                  w-full
-                  rounded-xl
-                  border border-gray-200
-                  bg-transparent
-                  px-3 py-2.5
-                  text-left
-                  text-sm
-                  text-gray-800
-                  outline-none
-                  transition
-                  placeholder:text-gray-300
-                  focus:border-primary
-                  disabled:cursor-not-allowed
-                  disabled:opacity-60
-                  dark:border-white/[0.1]
-                  dark:text-gray-100
-                  dark:placeholder:text-gray-600
-                  dark:focus:border-primary-light/50
-                "
-                placeholder="negin-clinic"
-              />
-
-              <p className="mt-1.5 text-[10px] text-gray-400 dark:text-gray-600">
-                فقط برای شناسایی یکتای کلینیک استفاده می‌شود.
-              </p>
-            </div>
-
-            {/* Phone */}
-            <div>
-              <label
-                htmlFor="clinic-phone"
-                className="
-                  mb-1.5
-                  block
-                  text-xs
-                  font-medium
-                  text-gray-600
-                  dark:text-gray-300
-                "
-              >
-                تلفن
-                <span className="mr-1 text-gray-400">(اختیاری)</span>
-              </label>
-
-              <input
-                id="clinic-phone"
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-                disabled={isSubmitting}
-                dir="ltr"
-                inputMode="tel"
-                className="
-                  w-full
-                  rounded-xl
-                  border border-gray-200
-                  bg-transparent
-                  px-3 py-2.5
-                  text-left
-                  text-sm
-                  text-gray-800
-                  outline-none
-                  transition
-                  placeholder:text-gray-300
-                  focus:border-primary
-                  disabled:cursor-not-allowed
-                  disabled:opacity-60
-                  dark:border-white/[0.1]
-                  dark:text-gray-100
-                  dark:placeholder:text-gray-600
-                  dark:focus:border-primary-light/50
-                "
-                placeholder="02112345678"
-              />
-            </div>
-
-            {/* Address */}
-            <div>
-              <label
-                htmlFor="clinic-address"
-                className="
-                  mb-1.5
-                  block
-                  text-xs
-                  font-medium
-                  text-gray-600
-                  dark:text-gray-300
-                "
-              >
-                آدرس
-                <span className="mr-1 text-gray-400">(اختیاری)</span>
-              </label>
-
-              <textarea
-                id="clinic-address"
-                value={address}
-                onChange={(event) => setAddress(event.target.value)}
-                disabled={isSubmitting}
-                rows={3}
-                className="
-                  w-full
-                  resize-none
-                  rounded-xl
-                  border border-gray-200
-                  bg-transparent
-                  px-3 py-2.5
-                  text-right
-                  text-sm
-                  leading-relaxed
-                  text-gray-800
-                  outline-none
-                  transition
-                  placeholder:text-gray-300
-                  focus:border-primary
-                  disabled:cursor-not-allowed
-                  disabled:opacity-60
-                  dark:border-white/[0.1]
-                  dark:text-gray-100
-                  dark:placeholder:text-gray-600
-                  dark:focus:border-primary-light/50
-                "
-                placeholder="آدرس کلینیک..."
+                className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
               />
             </div>
           </div>
-
-          {/* Footer Actions */}
-          <div className="mt-6 flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="
-                flex-1
-                rounded-xl
-                border border-gray-200
-                bg-transparent
-                py-2.5
-                text-sm
-                text-gray-600
-                transition
-                hover:bg-gray-50
-                disabled:opacity-50
-                dark:border-white/[0.1]
-                dark:text-gray-300
-                dark:hover:bg-white/[0.05]
-              "
-            >
-              انصراف
-            </button>
-
-            <button
-              type="button"
-              disabled={!isValid}
-              onClick={() =>
-                onSubmit({
-                  name: name.trim(),
-                  slug: slug.trim(),
-                  phone: phone.trim() || undefined,
-                  address: address.trim() || undefined,
-                })
-              }
-              className="
-                flex
-                flex-1
-                items-center
-                justify-center
-                gap-2
-                rounded-xl
-                bg-primary
-                py-2.5
-                text-sm
-                font-medium
-                text-white
-                transition
-                hover:bg-primary-dark
-                disabled:cursor-not-allowed
-                disabled:opacity-50
-                dark:bg-primary
-                dark:hover:bg-primary-light
-              "
-            >
-              {isSubmitting && (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              )}
-
-              {isSubmitting
-                ? "در حال ثبت..."
-                : "ثبت کلینیک"}
-            </button>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-xs text-gray-600">عرض جغرافیایی (Lat)</label>
+              <input
+                value={latitude}
+                onChange={(e) => setLatitude(e.target.value)}
+                dir="ltr"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+                placeholder="35.7219"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-gray-600">طول جغرافیایی (Lng)</label>
+              <input
+                value={longitude}
+                onChange={(e) => setLongitude(e.target.value)}
+                dir="ltr"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+                placeholder="51.3347"
+              />
+            </div>
           </div>
+        </div>
+
+        <div className="mt-5 flex gap-2">
+          <button onClick={onClose} className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm text-gray-600 hover:bg-gray-50">
+            انصراف
+          </button>
+          <button
+            disabled={!name || !slug || isSubmitting}
+            onClick={() =>
+              onSubmit({
+                name,
+                slug,
+                phone: phone || undefined,
+                address: address || undefined,
+                slogan: slogan || undefined,
+                specialty: specialty || undefined,
+                logo_url: logoUrl || undefined,
+                brand_color: brandColor || undefined,
+                latitude: latitude || undefined,
+                longitude: longitude || undefined,
+              })
+            }
+            className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50"
+          >
+            {isSubmitting ? "در حال ثبت..." : "ثبت کلینیک"}
+          </button>
         </div>
       </div>
     </div>

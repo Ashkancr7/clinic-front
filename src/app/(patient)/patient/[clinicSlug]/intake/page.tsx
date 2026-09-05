@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useRef, useState, type ReactNode } from "react";
+import Image from "next/image";
 import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
+
 import SignatureField from "@/components/forms/SignatureField";
 
 import {
@@ -16,7 +18,6 @@ import {
   UserRound,
   Phone,
   Calendar,
-  ChevronDown,
   MapPin,
   Lock,
   Settings2,
@@ -30,13 +31,14 @@ import {
   Droplet,
   StickyNote,
   FileText,
-  Eraser,
-  ShieldCheck,
   Check,
   ClipboardCheck,
+  type LucideIcon,
 } from "lucide-react";
-import Image from "next/image";
 
+/* -------------------------------------------------------------------------- */
+/*                                   DATA                                     */
+/* -------------------------------------------------------------------------- */
 
 const STEPS = [
   { number: 1, label: "اطلاعات شخصی" },
@@ -46,10 +48,26 @@ const STEPS = [
 ];
 
 const SIDEBAR_INFO = [
-  { icon: Lock, title: "اطلاعات محرمانه", desc: "کلیه اطلاعات شما محفوظ و رمزگذاری شده است." },
-  { icon: Settings2, title: "فرآیند هوشمند", desc: "فرم بر اساس پاسخ‌های شما شخصی‌سازی می‌شود." },
-  { icon: Save, title: "دسترسی آسان", desc: "در هر زمان می‌توانید ادامه دهید و ذخیره کنید." },
-  { icon: Clock3, title: "پشتیبانی", desc: "در صورت سوال، تیم ما در کنار شما هستند." },
+  {
+    icon: Lock,
+    title: "اطلاعات محرمانه",
+    desc: "کلیه اطلاعات شما محفوظ و رمزگذاری شده است.",
+  },
+  {
+    icon: Settings2,
+    title: "فرآیند هوشمند",
+    desc: "فرم بر اساس پاسخ‌های شما شخصی‌سازی می‌شود.",
+  },
+  {
+    icon: Save,
+    title: "دسترسی آسان",
+    desc: "در هر زمان می‌توانید ادامه دهید و ذخیره کنید.",
+  },
+  {
+    icon: Clock3,
+    title: "پشتیبانی",
+    desc: "در صورت سوال، تیم ما در کنار شما هستند.",
+  },
 ];
 
 const MEDICAL_QUESTIONS = [
@@ -86,107 +104,157 @@ const MEDICAL_QUESTIONS = [
   {
     icon: Droplet,
     title: "سوابق زیبایی / تزریق",
-    question: "آیا تاکنون عمل، تزریق یا درمان‌های زیبایی انجام داده‌اید؟",
+    question:
+      "آیا تاکنون عمل، تزریق یا درمان‌های زیبایی انجام داده‌اید؟",
     placeholder: "توضیح نوع درمان و زمان آن",
   },
 ];
 
+/* -------------------------------------------------------------------------- */
+/*                                MAIN PAGE                                   */
+/* -------------------------------------------------------------------------- */
+
 export default function PatientIntakePage() {
   const [agreed, setAgreed] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+
   const pickerRef = useRef<any>(null);
 
   const totalSteps = STEPS.length;
 
   const goNext = () => {
-    setCurrentStep((s) => Math.min(s + 1, totalSteps));
-    // اسکرول به بالای فرم برای تجربه بهتر
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setCurrentStep((step) => Math.min(step + 1, totalSteps));
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   };
 
   const goPrev = () => {
-    setCurrentStep((s) => Math.max(s - 1, 1));
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setCurrentStep((step) => Math.max(step - 1, 1));
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   };
 
   return (
-    <div dir="rtl" className="min-h-screen bg-gray-50  text-sm">
-      {/* هدر بالای صفحه */}
-      <header className="sticky top-0 z-50 flex flex-col items-center gap-3 border-b border-gray-100 bg-white px-4 py-3 shadow-sm md:flex-row md:justify-between md:px-8">
-        {/* لوگو */}
-        <div className="flex items-center gap-2 text-center md:text-right">
-          <Leaf className="h-7 w-7 text-emerald-600" />
+    <div
+      dir="rtl"
+      className="min-h-screen bg-background text-foreground"
+    >
+      {/* ============================ HEADER ============================ */}
 
-          <div className="leading-tight">
-            <div className="text-base font-bold text-gray-900">
-              Beauty Clinic CRM
+      <header className="sticky top-0 z-50 border-b border-border bg-card/95 px-4 py-3 shadow-sm backdrop-blur md:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 md:flex-row">
+          {/* Logo */}
+
+          <div className="flex items-center gap-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+              <Leaf className="h-5 w-5 text-primary" />
             </div>
 
-            <div className="text-[11px] text-gray-400">
-              پلتفرم مدیریت کلینیک زیبایی
+            <div className="leading-tight">
+              <div className="text-base font-bold text-foreground">
+                Beauty Clinic CRM
+              </div>
+
+              <div className="mt-0.5 text-[11px] text-muted-foreground">
+                پلتفرم مدیریت کلینیک زیبایی
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* دکمه‌ها */}
-        <div className="flex w-full justify-center gap-2 md:w-auto md:justify-end">
-          <button className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50">
-            <LogOut className="h-4 w-4" />
-            خروج
-          </button>
+          {/* Actions */}
 
-          <button className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50">
-            بازگشت
-            <ArrowLeft className="h-4 w-4" />
-          </button>
+          <div className="flex w-full justify-center gap-2 md:w-auto">
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted"
+            >
+              <LogOut className="h-4 w-4" />
+              خروج
+            </button>
+
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted"
+            >
+              بازگشت
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </header>
 
+      {/* ============================ CONTENT ============================ */}
+
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 md:px-8 lg:flex-row">
-        {/* ستون فرم اصلی */}
-        <main className="w-full  border-2 rounded-lg  lg:flex-1 space-y-6 p-4">
-          {/* استپر */}
-          <div className="overflow-x-auto rounded-2xl border-2 border-gray-100 bg-white p-4">
+        {/* ============================ MAIN ============================ */}
+
+        <main className="min-w-0 flex-1 space-y-6">
+          {/* ============================ STEPPER ============================ */}
+
+          <div className="overflow-x-auto rounded-2xl border border-border bg-card p-4 shadow-sm">
             <div className="flex min-w-max items-center justify-center gap-3 lg:justify-start">
-              {STEPS.map((step, i) => {
+              {STEPS.map((step, index) => {
                 const isCompleted = step.number < currentStep;
                 const isActive = step.number === currentStep;
 
                 return (
-                  <div key={step.number} className="flex items-center gap-3">
-                    {i > 0 && (
+                  <div
+                    key={step.number}
+                    className="flex items-center gap-3"
+                  >
+                    {index > 0 && (
                       <div
                         className={`h-px w-8 transition-colors ${
-                          step.number <= currentStep ? "bg-primary" : "bg-gray-200"
+                          step.number <= currentStep
+                            ? "bg-primary"
+                            : "bg-border"
                         }`}
                       />
                     )}
+
                     <button
                       type="button"
                       onClick={() => {
-                        // اجازه بازگشت به مراحل قبلی که تکمیل شده‌اند
-                        if (isCompleted) setCurrentStep(step.number);
+                        if (isCompleted) {
+                          setCurrentStep(step.number);
+
+                          window.scrollTo({
+                            top: 0,
+                            behavior: "smooth",
+                          });
+                        }
                       }}
                       className="flex flex-col items-center gap-1"
                     >
                       <div
-                        className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-colors ${
+                        className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
                           isCompleted
-                            ? "bg-primary text-white"
+                            ? "bg-primary text-primary-foreground"
                             : isActive
-                            ? "bg-primary text-white ring-4 ring-primary-light/30"
-                            : "border border-gray-200 text-gray-400"
+                              ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
+                              : "border border-border bg-background text-muted-foreground"
                         }`}
                       >
-                        {isCompleted ? <Check className="h-4 w-4" /> : step.number}
+                        {isCompleted ? (
+                          <Check className="h-4 w-4" />
+                        ) : (
+                          step.number
+                        )}
                       </div>
+
                       <span
                         className={`whitespace-nowrap text-[11px] transition-colors ${
                           isActive
-                            ? "font-medium text-primary-dark"
+                            ? "font-medium text-primary"
                             : isCompleted
-                            ? "text-primary"
-                            : "text-gray-400"
+                              ? "text-primary"
+                              : "text-muted-foreground"
                         }`}
                       >
                         {step.label}
@@ -198,28 +266,51 @@ export default function PatientIntakePage() {
             </div>
           </div>
 
-          {/* عنوان صفحه */}
-          <div className="rounded-2xl border-2 border-gray-100 bg-white p-5 md:p-6">
-            <h1 className="flex items-center gap-2 text-lg font-bold text-gray-900 md:text-xl">
+          {/* ============================ PAGE TITLE ============================ */}
+
+          <div className="rounded-2xl border border-border bg-card p-5 shadow-sm md:p-6">
+            <h1 className="flex items-center gap-2 text-lg font-bold text-foreground md:text-xl">
               <Pencil className="h-4 w-4 text-primary" />
               فرم پذیرش و ثبت اطلاعات اولیه بیمار
             </h1>
-            <p className="mt-2 text-xs text-gray-400 md:text-sm">
-              لطفاً اطلاعات خود را با دقت وارد کنید. کلیه اطلاعات محرمانه بوده و صرفاً جهت ارائه
-              خدمات بهتر استفاده می‌شود.
+
+            <p className="mt-2 text-xs leading-6 text-muted-foreground md:text-sm">
+              لطفاً اطلاعات خود را با دقت وارد کنید. کلیه اطلاعات محرمانه
+              بوده و صرفاً جهت ارائه خدمات بهتر استفاده می‌شود.
             </p>
           </div>
 
-          {/* ---------------- مرحله ۱: اطلاعات شخصی ---------------- */}
+          {/* ============================ STEP 1 ============================ */}
+
           {currentStep === 1 && (
             <>
-              <FormSection icon={UserRound} title="اطلاعات شخصی">
+              <FormSection
+                icon={UserRound}
+                title="اطلاعات شخصی"
+              >
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <Field label="نام" required placeholder="نام خود را وارد کنید" />
-                  <Field label="نام خانوادگی" required placeholder="نام خانوادگی خود را وارد کنید" />
-                  <Field label="کد ملی" required placeholder="کد ملی ۱۰ رقمی خود را وارد کنید" />
+                  <Field
+                    label="نام"
+                    required
+                    placeholder="نام خود را وارد کنید"
+                  />
 
-                  <Field label="تاریخ تولد" required  >
+                  <Field
+                    label="نام خانوادگی"
+                    required
+                    placeholder="نام خانوادگی خود را وارد کنید"
+                  />
+
+                  <Field
+                    label="کد ملی"
+                    required
+                    placeholder="کد ملی ۱۰ رقمی خود را وارد کنید"
+                  />
+
+                  <Field
+                    label="تاریخ تولد"
+                    required
+                  >
                     <DatePicker
                       ref={pickerRef}
                       calendar={persian}
@@ -227,13 +318,15 @@ export default function PatientIntakePage() {
                       calendarPosition="bottom-right"
                       editable={false}
                       render={(value, openCalendar) => (
-                        <div className="flex items-center justify-between w-full">
+                        <div className="flex w-full items-center gap-2">
+                          <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
+
                           <input
                             readOnly
                             value={value}
                             onClick={openCalendar}
                             placeholder="انتخاب تاریخ"
-                            className="flex-1 bg-transparent text-xs text-gray-700 outline-none placeholder:text-gray-300 cursor-pointer"
+                            className="w-full cursor-pointer bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
                           />
                         </div>
                       )}
@@ -250,6 +343,7 @@ export default function PatientIntakePage() {
                       { value: "female", label: "زن" },
                     ]}
                   />
+
                   <Field
                     label="وضعیت تأهل"
                     select
@@ -261,6 +355,7 @@ export default function PatientIntakePage() {
                       { value: "widowed", label: "بیوه" },
                     ]}
                   />
+
                   <Field
                     label="شغل"
                     select
@@ -274,87 +369,143 @@ export default function PatientIntakePage() {
                       { value: "other", label: "سایر" },
                     ]}
                   />
-                  <Field label="اشخاص معرفی‌کننده" placeholder="در صورت وجود" />
+
+                  <Field
+                    label="اشخاص معرفی‌کننده"
+                    placeholder="در صورت وجود"
+                  />
                 </div>
               </FormSection>
 
-              <FormSection icon={Phone} title="اطلاعات تماس">
+              <FormSection
+                icon={Phone}
+                title="اطلاعات تماس"
+              >
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <Field label="شماره موبایل" required placeholder="0912 345 6789" />
-                  <Field label="تلفن ثابت" placeholder="مثال: 021-12345678" />
-                  <Field label="ایمیل" placeholder="example@email.com" />
+                  <Field
+                    label="شماره موبایل"
+                    required
+                    placeholder="0912 345 6789"
+                  />
+
+                  <Field
+                    label="تلفن ثابت"
+                    placeholder="مثال: 021-12345678"
+                  />
+
+                  <Field
+                    label="ایمیل"
+                    placeholder="example@email.com"
+                  />
+
                   <Field
                     label="آدرس"
                     placeholder="آدرس دقیق محل سکونت خود را وارد کنید"
                     endIcon={MapPin}
-                    className="sm:col-span-2 lg:col-span-1"
                   />
                 </div>
               </FormSection>
             </>
           )}
 
-          {/* ---------------- مرحله ۲: رضایت‌نامه ---------------- */}
+          {/* ============================ STEP 2 ============================ */}
+
           {currentStep === 2 && (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-              <div className="rounded-2xl border-2 border-gray-100 bg-white p-5">
-                <div className="mb-2 flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-primary-dark" />
-                  <span className="text-sm font-semibold text-primary">رضایت‌نامه و تعهد</span>
+              {/* Consent */}
+
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="mb-3 flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary" />
+
+                  <span className="text-sm font-semibold text-foreground">
+                    رضایت‌نامه و تعهد
+                  </span>
                 </div>
-                <p className="mb-3 text-[11px] leading-relaxed text-gray-400">
-                  اینجانب با آگاهی کامل اعلام می‌کنم که اطلاعات ارائه‌شده صحیح و به‌روز است. با
-                  علم به ماهیت خدمات به‌عمل رفته، بیمار، درمانی و مراقبتی، رضایت خود را جهت انجام
-                  خدمات در کلینیک اعلام می‌دارم. همچنین می‌پذیرم که کلیه شرایط‌وضوابط، مراقبت‌های
-                  خانگی که در درمان به من توضیح داده شده و بعد از درمان برایم توضیح داده خواهد شد را
-                  جهت سوالات خود می‌پذیرم.
+
+                <p className="mb-4 text-[11px] leading-6 text-muted-foreground">
+                  اینجانب با آگاهی کامل اعلام می‌کنم که اطلاعات ارائه‌شده
+                  صحیح و به‌روز است. با علم به ماهیت خدمات درمانی و مراقبتی،
+                  رضایت خود را جهت انجام خدمات در کلینیک اعلام می‌دارم.
+                  همچنین می‌پذیرم که کلیه شرایط و مراقبت‌های لازم قبل و بعد
+                  از درمان برای من توضیح داده شده است.
                 </p>
-                <label className="flex items-start gap-2 text-[11px] text-gray-600">
+
+                <label className="flex cursor-pointer items-start gap-2 text-[11px] leading-5 text-muted-foreground">
                   <input
                     type="checkbox"
                     checked={agreed}
-                    onChange={(e) => setAgreed(e.target.checked)}
-                    className="mt-0.5 h-3.5 w-3.5 rounded border-gray-300 text-primary"
+                    onChange={(event) =>
+                      setAgreed(event.target.checked)
+                    }
+                    className="mt-1 h-4 w-4 rounded border-border accent-primary"
                   />
-                  من ضمن مطالعه کامل، رضایت و تعهد خود را اعلام می‌کنم. *
+
+                  <span>
+                    من ضمن مطالعه کامل، رضایت و تعهد خود را اعلام می‌کنم.
+                  </span>
                 </label>
               </div>
 
-              <SignatureField
-                onChange={(signature) => {
-                  console.log(signature);
-                }}
-              />
+              {/* Signature */}
 
-              <div className="rounded-2xl border-2 border-gray-100 bg-white p-5">
-                <div className="mb-2 flex items-center gap-2">
-                  <Lock className="h-4 w-4 text-primary-dark" />
-                  <span className="text-sm font-semibold text-primary">اطلاعات شما امن است</span>
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <SignatureField
+                  onChange={(signature) => {
+                    console.log(signature);
+                  }}
+                />
+              </div>
+
+              {/* Security */}
+
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="mb-3 flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-primary" />
+
+                  <span className="text-sm font-semibold text-foreground">
+                    اطلاعات شما امن است
+                  </span>
                 </div>
-                <p className="text-xs leading-relaxed text-gray-400">
-                  کلیه اطلاعات شما مطابق با استانداردهای امنیتی رمزگذاری و محافظت می‌شود.
+
+                <p className="text-xs leading-6 text-muted-foreground">
+                  کلیه اطلاعات شما مطابق با استانداردهای امنیتی رمزگذاری و
+                  محافظت می‌شود.
                 </p>
               </div>
             </div>
           )}
 
-          {/* ---------------- مرحله ۳: سوابق پزشکی ---------------- */}
+          {/* ============================ STEP 3 ============================ */}
+
           {currentStep === 3 && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {MEDICAL_QUESTIONS.map((q) => (
-                <MedicalQuestionCard key={q.title} {...q} />
+              {MEDICAL_QUESTIONS.map((question) => (
+                <MedicalQuestionCard
+                  key={question.title}
+                  {...question}
+                />
               ))}
 
-              {/* سبک زندگی */}
-              <div className="rounded-2xl border border-gray-100 bg-white p-4">
-                <div className="mb-2 flex items-center gap-2">
-                  <UserRound className="h-4 w-4 text-primary-dark" />
-                  <span className="text-sm font-semibold text-primary">سبک زندگی</span>
+              {/* Lifestyle */}
+
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <div className="mb-3 flex items-center gap-2">
+                  <UserRound className="h-4 w-4 text-primary" />
+
+                  <span className="text-sm font-semibold text-foreground">
+                    سبک زندگی
+                  </span>
                 </div>
-                <p className="mb-3 text-xs text-gray-500">
+
+                <p className="mb-3 text-xs leading-5 text-muted-foreground">
                   آیا سیگار یا دخانیات مصرف می‌کنید؟
                 </p>
-                <Field label="مصرف الکل" select placeholder="انتخاب کنید"
+
+                <Field
+                  label="مصرف دخانیات"
+                  select
+                  placeholder="انتخاب کنید"
                   options={[
                     { value: "yes", label: "بله" },
                     { value: "no", label: "نه" },
@@ -362,123 +513,176 @@ export default function PatientIntakePage() {
                 />
               </div>
 
-              {/* یادداشت‌های تکمیلی */}
-              <div className="rounded-2xl border border-gray-100 bg-white p-4 sm:col-span-2 lg:col-span-1">
-                <div className="mb-2 flex items-center gap-2">
-                  <StickyNote className="h-4 w-4 text-primary-dark" />
-                  <span className="text-sm font-semibold text-primary">یادداشت‌های تکمیلی</span>
+              {/* Notes */}
+
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:col-span-2 lg:col-span-1">
+                <div className="mb-3 flex items-center gap-2">
+                  <StickyNote className="h-4 w-4 text-primary" />
+
+                  <span className="text-sm font-semibold text-foreground">
+                    یادداشت‌های تکمیلی
+                  </span>
                 </div>
-                <p className="mb-3 text-xs text-gray-500">
+
+                <p className="mb-3 text-xs leading-5 text-muted-foreground">
                   هر نکته‌ای که فکر می‌کنید لازم است بدانیم.
                 </p>
+
                 <textarea
                   placeholder="توضیحات خود را وارد کنید"
-                  rows={3}
-                  className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-700 outline-none placeholder:text-gray-300"
+                  rows={4}
+                  className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2.5 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary"
                 />
               </div>
             </div>
           )}
 
-          {/* ---------------- مرحله ۴: بررسی و تکمیل ---------------- */}
+          {/* ============================ STEP 4 ============================ */}
+
           {currentStep === 4 && (
-            <div className="rounded-2xl border-2 border-gray-100 bg-white p-6 text-center">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary-light/20">
-                <ClipboardCheck className="h-6 w-6 text-primary-dark" />
+            <div className="rounded-2xl border border-border bg-card p-6 text-center shadow-sm">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                <ClipboardCheck className="h-7 w-7 text-primary" />
               </div>
-              <h2 className="text-base font-bold text-gray-900">
+
+              <h2 className="text-base font-bold text-foreground">
                 بررسی نهایی اطلاعات
               </h2>
-              <p className="mx-auto mt-2 max-w-md text-xs text-gray-400">
-                اطلاعات شخصی، رضایت‌نامه و سوابق پزشکی شما تکمیل شده است. پیش از ثبت
-                نهایی، در صورت نیاز می‌توانید به هر مرحله بازگردید و اطلاعات را ویرایش کنید.
+
+              <p className="mx-auto mt-2 max-w-md text-xs leading-6 text-muted-foreground">
+                اطلاعات شخصی، رضایت‌نامه و سوابق پزشکی شما تکمیل شده است.
+                پیش از ثبت نهایی، در صورت نیاز می‌توانید به هر مرحله
+                بازگردید و اطلاعات را ویرایش کنید.
               </p>
             </div>
           )}
 
-          {/* اکشن‌ها */}
-          <div className="flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-col-reverse gap-3 sm:flex-row">
-              {currentStep < totalSteps ? (
-                <button
-                  onClick={goNext}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-medium text-white hover:bg-primary-dark"
-                >
-                  ثبت و ادامه <ArrowLeft className="h-4 w-4" />
-                </button>
-              ) : (
-                <button className="flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-medium text-white hover:bg-primary-dark">
-                  ثبت نهایی <Check className="h-4 w-4" />
-                </button>
-              )}
+          {/* ============================ ACTIONS ============================ */}
 
-              {currentStep > 1 && (
-                <button
-                  onClick={goPrev}
-                  className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-6 py-3 text-sm text-gray-600 hover:bg-gray-50"
-                >
-                  <ArrowRight className="h-4 w-4" /> مرحله قبل
-                </button>
-              )}
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <div className="flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                {currentStep < totalSteps ? (
+                  <button
+                    type="button"
+                    onClick={goNext}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                  >
+                    ثبت و ادامه
+                    <ArrowLeft className="h-4 w-4" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                  >
+                    ثبت نهایی
+                    <Check className="h-4 w-4" />
+                  </button>
+                )}
+
+                {currentStep > 1 && (
+                  <button
+                    type="button"
+                    onClick={goPrev}
+                    className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-6 py-3 text-sm text-muted-foreground transition-colors hover:bg-muted"
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                    مرحله قبل
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-6 py-3 text-sm text-muted-foreground transition-colors hover:bg-muted"
+              >
+                <Save className="h-4 w-4" />
+                ذخیره موقت
+              </button>
             </div>
 
-            <button className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-6 py-3 text-sm text-gray-600 hover:bg-gray-50">
-              <Save className="h-4 w-4" /> ذخیره موقت
-            </button>
+            <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+              <Lock className="h-3.5 w-3.5" />
+              اطلاعات شما نزد ما امن است و به هیچ عنوان در اختیار شخص ثالث
+              قرار نمی‌گیرد.
+            </p>
           </div>
-
-          <p className="flex items-center justify-center gap-1.5 text-center text-xs text-gray-400">
-            <Lock className="h-3.5 w-3.5" />
-            اطلاعات شما نزد ما امن است و به هیچ عنوان در اختیار شخص ثالث قرار نمی‌گیرد.
-          </p>
         </main>
 
-        {/* ستون کناری - مخفی در موبایل */}
-        <aside className="hidden w-full border-2 rounded-lg lg:block lg:w-80 shrink-0 space-y-4 p-4 bg-gradient-to-bl from-primary-light/15 via-primary-light/10 to-white/50">
-          {/* تصویر */}
-          <div className="rounded-2xl border-2 border-gray-100 p-6 text-center">
+        {/* ============================ SIDEBAR ============================ */}
 
+        <aside className="hidden w-full shrink-0 space-y-4 rounded-2xl border border-border bg-card/60 p-4 shadow-sm lg:block lg:w-80">
+          {/* Image */}
+
+          <div className="rounded-2xl border border-border bg-card p-5 text-center">
             <Image
               src="/image/rigester.png"
-              alt="نمای دشبورد و پنل مدیریت کلینیک"
+              alt="نمای داشبورد و پنل مدیریت کلینیک"
               width={800}
               height={800}
               unoptimized
-              className="w-full max-w-lg object-contain rounded-lg "
+              className="mx-auto mb-4 w-full max-w-[230px] rounded-xl object-contain"
             />
-            <div className="font-semibold text-gray-800">تکمیل سریع و امن</div>
-            <p className="mt-1 text-xs leading-relaxed text-gray-400">
-              با تکمیل این فرم، روند ارائه خدمات برای شما سریع‌تر، آسان‌تر و دقیق‌تر خواهد بود.
+
+            <div className="font-semibold text-foreground">
+              تکمیل سریع و امن
+            </div>
+
+            <p className="mt-2 text-xs leading-6 text-muted-foreground">
+              با تکمیل این فرم، روند ارائه خدمات برای شما سریع‌تر، آسان‌تر
+              و دقیق‌تر خواهد بود.
             </p>
           </div>
 
-          {/* لیست اطلاعات */}
+          {/* Info List */}
+
           <div className="space-y-2">
-            {SIDEBAR_INFO.map((item) => (
-              <div key={item.title} className="flex items-center gap-3 rounded-xl border-2 border-gray-100 bg-white p-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-light/20">
-                  <item.icon className="h-4 w-4 text-primary-dark" />
+            {SIDEBAR_INFO.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <div
+                  key={item.title}
+                  className="flex items-center gap-3 rounded-xl border border-border bg-card p-3"
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                    <Icon className="h-4 w-4 text-primary" />
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold text-foreground">
+                      {item.title}
+                    </div>
+
+                    <div className="mt-1 text-[11px] leading-5 text-muted-foreground">
+                      {item.desc}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-xs font-semibold text-gray-700">{item.title}</div>
-                  <div className="text-[11px] text-gray-400">{item.desc}</div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          {/* راهنمایی */}
-          <div className="rounded-2xl border-2 border-gray-100 bg-white p-4">
+          {/* Help */}
+
+          <div className="rounded-2xl border border-border bg-card p-4">
             <div className="mb-2 flex items-center gap-2">
-              <Headset className="h-4 w-4 text-primary-dark" />
-              <span className="text-xs font-semibold text-gray-700">نیاز به راهنمایی دارید؟</span>
+              <Headset className="h-4 w-4 text-primary" />
+
+              <span className="text-xs font-semibold text-foreground">
+                نیاز به راهنمایی دارید؟
+              </span>
             </div>
-            <p className="mb-2 text-[11px] text-gray-400">
+
+            <p className="mb-3 text-[11px] leading-5 text-muted-foreground">
               پشتیبانی ما آماده پاسخگویی به سوالات شماست.
             </p>
+
             <a
               href="tel:02112345678"
-              className="block rounded-lg bg-gray-50 py-2 text-center text-xs font-medium text-gray-600"
+              dir="ltr"
+              className="block rounded-xl bg-muted py-2.5 text-center text-xs font-medium text-foreground transition-colors hover:bg-muted/80"
             >
               021-12345678
             </a>
@@ -489,31 +693,51 @@ export default function PatientIntakePage() {
   );
 }
 
-/* ---------- کامپوننت‌های کمکی محلی ---------- */
+/* -------------------------------------------------------------------------- */
+/*                            HELPER COMPONENTS                               */
+/* -------------------------------------------------------------------------- */
 
 function FormSection({
   icon: Icon,
   title,
   children,
 }: {
-  icon: typeof UserRound;
+  icon: LucideIcon;
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border-2 border-gray-100 bg-white p-5 md:p-6">
-      <div className="mb-4 flex items-center gap-2">
-        <Icon className="h-4 w-4 text-primary-dark" />
-        <h2 className="text-sm font-bold text-primary">{title}</h2>
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm md:p-6">
+      <div className="mb-5 flex items-center gap-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+          <Icon className="h-4 w-4 text-primary" />
+        </div>
+
+        <h2 className="text-sm font-bold text-foreground">
+          {title}
+        </h2>
       </div>
+
       {children}
-    </div>
+    </section>
   );
 }
 
 interface Option {
   value: string;
   label: string;
+}
+
+interface FieldProps {
+  label: string;
+  required?: boolean;
+  placeholder?: string;
+  select?: boolean;
+  options?: Option[];
+  endIcon?: LucideIcon;
+  bare?: boolean;
+  className?: string;
+  children?: ReactNode;
 }
 
 function Field({
@@ -526,39 +750,42 @@ function Field({
   bare,
   className = "",
   children,
-}: {
-  label: string;
-  required?: boolean;
-  placeholder?: string;
-  select?: boolean;
-  options?: Option[];
-  endIcon?: typeof Calendar;
-  bare?: boolean;
-  className?: string;
-  children?: React.ReactNode;
-}) {
+}: FieldProps) {
   const inputClasses =
-    "w-full bg-transparent text-xs text-gray-700 outline-none placeholder:text-gray-300";
+    "w-full bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground";
 
   return (
     <div className={className}>
       {!bare && (
-        <label className="mb-1.5 block text-xs text-black">
-          {label} {required && <span className="text-danger">*</span>}
+        <label className="mb-1.5 block text-xs font-medium text-foreground">
+          {label}
+
+          {required && (
+            <span className="mr-1 text-destructive">*</span>
+          )}
         </label>
       )}
 
-      <div className="flex items-center rounded-lg border border-gray-200 px-3 py-2.5">
+      <div className="flex min-h-[42px] items-center rounded-xl border border-border bg-background px-3 py-2.5 transition-colors focus-within:border-primary">
         {children ? (
-          children
+          <div className="w-full">{children}</div>
         ) : select ? (
-          <select className={inputClasses} defaultValue="">
-            <option value="" disabled>
+          <select
+            className={`${inputClasses} cursor-pointer`}
+            defaultValue=""
+          >
+            <option
+              value=""
+              disabled
+            >
               {placeholder}
             </option>
 
             {options.map((option) => (
-              <option key={option.value} value={option.value}>
+              <option
+                key={option.value}
+                value={option.value}
+              >
                 {option.label}
               </option>
             ))}
@@ -570,8 +797,9 @@ function Field({
               placeholder={placeholder}
               className={inputClasses}
             />
+
             {EndIcon && (
-              <EndIcon className="h-3.5 w-3.5 shrink-0 text-gray-300" />
+              <EndIcon className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
             )}
           </>
         )}
@@ -580,38 +808,70 @@ function Field({
   );
 }
 
-
-
 function MedicalQuestionCard({
   icon: Icon,
   title,
   question,
   placeholder,
 }: {
-  icon: typeof HeartPulse;
+  icon: LucideIcon;
   title: string;
   question: string;
   placeholder: string;
 }) {
+  const [answer, setAnswer] = useState<"yes" | "no">("no");
+
   return (
-    <div className="rounded-2xl border-2 border-gray-100 bg-white p-4">
-      <div className="mb-2 flex items-center gap-2">
-        <Icon className="h-4 w-4 text-primary-dark" />
-        <span className="text-sm font-semibold text-primary">{title}</span>
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+      <div className="mb-3 flex items-center gap-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+          <Icon className="h-4 w-4 text-primary" />
+        </div>
+
+        <span className="text-sm font-semibold text-foreground">
+          {title}
+        </span>
       </div>
-      <p className="mb-2 text-xs text-gray-500">{question}</p>
-      <div className="mb-2 flex items-center gap-4 text-xs text-gray-600">
-        <label className="flex items-center gap-1.5">
-          <input type="radio" name={title} className="h-3.5 w-3.5 text-primary" /> بله
+
+      <p className="mb-3 text-xs leading-5 text-muted-foreground">
+        {question}
+      </p>
+
+      <div className="mb-3 flex items-center gap-4 text-xs text-muted-foreground">
+        <label className="flex cursor-pointer items-center gap-1.5">
+          <input
+            type="radio"
+            name={title}
+            checked={answer === "yes"}
+            onChange={() => setAnswer("yes")}
+            className="h-3.5 w-3.5 accent-primary"
+          />
+
+          بله
         </label>
-        <label className="flex items-center gap-1.5">
-          <input type="radio" name={title} className="h-3.5 w-3.5 text-primary" defaultChecked /> خیر
+
+        <label className="flex cursor-pointer items-center gap-1.5">
+          <input
+            type="radio"
+            name={title}
+            checked={answer === "no"}
+            onChange={() => setAnswer("no")}
+            className="h-3.5 w-3.5 accent-primary"
+          />
+
+          خیر
         </label>
       </div>
+
       <input
         type="text"
-        placeholder={placeholder}
-        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-700 outline-none placeholder:text-gray-300"
+        disabled={answer === "no"}
+        placeholder={
+          answer === "yes"
+            ? placeholder
+            : "در صورت انتخاب «بله» فعال می‌شود"
+        }
+        className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary disabled:cursor-not-allowed disabled:opacity-50"
       />
     </div>
   );

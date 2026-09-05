@@ -109,36 +109,7 @@ const STATUS_LEGEND = [
   },
 ];
 
-const STATUS_HISTORY = [
-  {
-    title: "تایید شده",
-    tone: "text-primary-dark dark:text-primary-light",
-    dot: "bg-primary dark:bg-primary-light",
-    by: "توسط دکتر سارا محمدی",
-    time: null,
-  },
-  {
-    title: "تغییر زمان",
-    tone: "text-purple-600 dark:text-purple-300",
-    dot: "bg-purple-500 dark:bg-purple-400",
-    by: "توسط اپراتور پریسا احمدی",
-    time: "از ۱۰:۰۰ به ۱۱:۳۰",
-  },
-  {
-    title: "در انتظار تایید",
-    tone: "text-warning dark:text-amber-300",
-    dot: "bg-warning dark:bg-amber-400",
-    by: "توسط اپراتور پریسا احمدی",
-    time: null,
-  },
-  {
-    title: "درخواست ثبت شده",
-    tone: "text-gray-500 dark:text-gray-400",
-    dot: "bg-gray-300 dark:bg-gray-600",
-    by: "از طریق وب‌سایت",
-    time: null,
-  },
-];
+
 
 const REMINDERS = [
   {
@@ -229,6 +200,27 @@ function formatTime(iso: string) {
   }
 }
 
+function calculateAge(birthDate?: string | null) {
+  if (!birthDate) return null;
+
+  const birth = new Date(birthDate);
+  const today = new Date();
+
+  let age = today.getFullYear() - birth.getFullYear();
+
+  const monthDiff = today.getMonth() - birth.getMonth();
+
+  if (
+    monthDiff < 0 ||
+    (monthDiff === 0 &&
+      today.getDate() < birth.getDate())
+  ) {
+    age--;
+  }
+
+  return age;
+}
+
 export default function AppointmentDetailPage({
   params,
 }: {
@@ -245,6 +237,7 @@ export default function AppointmentDetailPage({
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
 
+
   const {
     data: appt,
     isLoading,
@@ -258,6 +251,25 @@ export default function AppointmentDetailPage({
     enabled: !!clinicSlug && !!appointmentId,
   });
 
+  const patient = appt?.patient;
+
+  const patientName = patient
+    ? `${patient.first_name} ${patient.last_name}`
+    : appt?.patientName ?? "—";
+
+  const patientPhone =
+    patient?.phone ?? appt?.patientPhone ?? "—";
+
+  const patientNationalId =
+    patient?.national_id ?? "—";
+
+  const patientBirthDate = patient?.birth_date
+    ? new Date(patient.birth_date).toLocaleDateString("fa-IR")
+    : "—";
+
+
+  const statusHistory = appt?.statusHistory ?? [];
+
   const { data: patientDetail } = useQuery({
     queryKey: queryKeys.patients.detail(
       clinicSlug,
@@ -267,6 +279,9 @@ export default function AppointmentDetailPage({
       getPatientDetail(clinicSlug, appt!.patientId!),
     enabled: !!clinicSlug && !!appt?.patientId,
   });
+
+  const patientAge = calculateAge(patient?.birth_date);
+
 
   const { data: debt } = useQuery({
     queryKey: [
@@ -409,7 +424,7 @@ export default function AppointmentDetailPage({
 
       const newEnd = new Date(
         new Date(newStart).getTime() +
-          durationMin * 60000
+        durationMin * 60000
       ).toISOString();
 
       return rescheduleAppointment(
@@ -504,7 +519,7 @@ export default function AppointmentDetailPage({
     {
       icon: Video,
       label: "شروع ویزیت آنلاین",
-      onClick: () => {},
+      onClick: () => { },
       disabled: true,
     },
   ];
@@ -572,8 +587,8 @@ export default function AppointmentDetailPage({
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
           <SummaryItem
             label="مراجع (بیمار)"
-            value={appt.patientName}
-            sub={appt.patientPhone || "—"}
+            value={patientName}
+            sub={patientPhone}
             avatar
             action="مشاهده پروفایل"
           />
@@ -581,14 +596,13 @@ export default function AppointmentDetailPage({
           <SummaryItem
             icon={Stethoscope}
             label="پزشک / اپراتور"
-            value={appt.doctorName}
-            avatar
+            value={appt.doctor?.full_name ?? appt.doctorName ?? "—"}
           />
 
           <SummaryItem
             icon={Sparkles}
             label="خدمت"
-            value={appt.serviceName}
+            value={appt.service?.name ?? appt.serviceName ?? "—"}
           />
 
           <SummaryItem
@@ -602,22 +616,20 @@ export default function AppointmentDetailPage({
           <SummaryItem
             icon={Clock3}
             label="ساعت"
-            value={`${formatTime(appt.startTime)}${
-              durationMin
-                ? ` - ${durationMin.toLocaleString(
-                    "fa-IR"
-                  )} دقیقه`
-                : ""
-            }`}
+            value={`${formatTime(appt.startTime)}${durationMin
+              ? ` - ${durationMin.toLocaleString(
+                "fa-IR"
+              )} دقیقه`
+              : ""
+              }`}
           />
 
           <SummaryItem
             custom={
               <span
-                className={`rounded-full px-2.5 py-1 text-[11px] ${
-                  STATUS_BADGE[appt.status] ??
+                className={`rounded-full px-2.5 py-1 text-[11px] ${STATUS_BADGE[appt.status] ??
                   "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400"
-                }`}
+                  }`}
               >
                 {STATUS_TEXT[appt.status] ??
                   appt.status}
@@ -641,7 +653,7 @@ export default function AppointmentDetailPage({
             value={
               appt.source
                 ? SOURCE_LABEL[appt.source] ??
-                  appt.source
+                appt.source
                 : "—"
             }
           />
@@ -656,18 +668,16 @@ export default function AppointmentDetailPage({
             type="button"
             onClick={a.onClick}
             disabled={a.disabled}
-            className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-[11px] whitespace-nowrap transition disabled:opacity-40 ${
-              a.danger
-                ? "border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20"
-                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-300 dark:hover:bg-white/10"
-            }`}
+            className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-[11px] whitespace-nowrap transition disabled:opacity-40 ${a.danger
+              ? "border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20"
+              : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-300 dark:hover:bg-white/10"
+              }`}
           >
             <a.icon
-              className={`h-3.5 w-3.5 shrink-0 ${
-                a.danger
-                  ? "text-red-500 dark:text-red-300"
-                  : "text-primary-dark dark:text-primary-light"
-              }`}
+              className={`h-3.5 w-3.5 shrink-0 ${a.danger
+                ? "text-red-500 dark:text-red-300"
+                : "text-primary-dark dark:text-primary-light"
+                }`}
             />
 
             <span>{a.label}</span>
@@ -698,13 +708,12 @@ export default function AppointmentDetailPage({
 
               <div>
                 <div className="text-sm font-bold text-gray-900 dark:text-gray-100">
-                  {appt.patientName}
+                  {patientName}
                 </div>
 
                 <div className="text-[10px] text-gray-400 dark:text-gray-500">
                   کد ملی:{" "}
-                  {patientDetail?.patient
-                    .nationalId ?? "—"}
+                  {patientNationalId}
                 </div>
               </div>
             </div>
@@ -713,20 +722,15 @@ export default function AppointmentDetailPage({
               <div className="flex items-center gap-1.5">
                 <CalendarDays className="h-3 w-3 text-gray-300 dark:text-gray-600" />
 
-                تاریخ تولد:{" "}
-                {patientDetail?.patient
-                  .birthDate
-                  ? `${new Date(
-                      patientDetail.patient.birthDate
-                    ).toLocaleDateString("fa-IR")}${
-                      patientDetail.patient.age !=
-                      null
-                        ? ` (${patientDetail.patient.age.toLocaleString(
-                            "fa-IR"
-                          )} سال)`
-                        : ""
-                    }`
-                  : "—"}
+                تاریخ تولد:
+
+                {patientBirthDate}
+
+                {patientAge !== null && (
+                  <span>
+                    ({patientAge.toLocaleString("fa-IR")} سال)
+                  </span>
+                )}
               </div>
 
               <div
@@ -745,8 +749,8 @@ export default function AppointmentDetailPage({
               موجودی حساب:{" "}
               {debt != null
                 ? `${debt.toLocaleString(
-                    "fa-IR"
-                  )} تومان`
+                  "fa-IR"
+                )} تومان`
                 : "—"}
 
               <Pencil className="h-3 w-3 text-gray-300 dark:text-gray-600" />
@@ -816,32 +820,59 @@ export default function AppointmentDetailPage({
             </h3>
 
             <div className="relative space-y-4 border-r-2 border-gray-100 pr-4 dark:border-white/10">
-              {STATUS_HISTORY.map((h, i) => (
-                <div
-                  key={i}
-                  className="relative"
-                >
-                  <span
-                    className={`absolute -right-[21px] top-1 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-[#18201e] ${h.dot}`}
-                  />
+              {statusHistory.length > 0 ? (
+                statusHistory.map((history, index) => {
+                  const status = history.to_status ?? history.status;
 
-                  <div
-                    className={`text-xs font-semibold ${h.tone}`}
-                  >
-                    {h.title}
-                  </div>
+                  return (
+                    <div
+                      key={history.id ?? `${status}-${index}`}
+                      className="relative pr-6"
+                    >
+                      {/* نقطه تایم‌لاین */}
+                      <div className="absolute right-[-7px] top-1.5 h-3 w-3 rounded-full border-2 border-white bg-primary-500 dark:border-slate-900" />
 
-                  <div className="text-[10px] text-gray-400 dark:text-gray-500">
-                    {h.by}
-                  </div>
+                      <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="font-semibold text-slate-800 dark:text-white">
+                            {STATUS_TEXT[status] ?? status}
+                          </span>
 
-                  {h.time && (
-                    <div className="text-[10px] text-gray-400 dark:text-gray-500">
-                      {h.time}
+                          {history.created_at && (
+                            <span className="text-xs text-slate-400">
+                              {new Date(history.created_at).toLocaleString("fa-IR")}
+                            </span>
+                          )}
+                        </div>
+
+                        {history.changed_by?.full_name && (
+                          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                            توسط {history.changed_by.full_name}
+                          </p>
+                        )}
+
+                        {history.reason && (
+                          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                            دلیل: {history.reason}
+                          </p>
+                        )}
+
+                        {history.notes && (
+                          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                            {history.notes}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  )}
+                  );
+                })
+              ) : (
+                <div className="py-8 text-center">
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    تاریخچه‌ای برای این نوبت ثبت نشده است.
+                  </p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
@@ -853,8 +884,7 @@ export default function AppointmentDetailPage({
             </h3>
 
             <p className="rounded-xl bg-gray-50 p-3 text-xs leading-relaxed text-gray-600 dark:bg-white/[0.04] dark:text-gray-300">
-              {appt.notes ||
-                "بیمار سابقه حساسیت به رتینول دارد. در جلسه قبل واکنش خاصی مشاهده نشد."}
+              {appt.notes || "یادداشتی برای این نوبت ثبت نشده است."}
             </p>
 
             <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-gray-300 dark:text-gray-600">
@@ -1187,12 +1217,11 @@ function RescheduleModal({
                 onClick={() =>
                   setSelectedSlot(slot)
                 }
-                className={`rounded-xl border py-2 text-xs transition ${
-                  selectedSlot?.start ===
+                className={`rounded-xl border py-2 text-xs transition ${selectedSlot?.start ===
                   slot.start
-                    ? "border-primary bg-primary-light/10 font-medium text-primary-dark dark:border-primary-light dark:bg-primary-light/10 dark:text-primary-light"
-                    : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/10"
-                }`}
+                  ? "border-primary bg-primary-light/10 font-medium text-primary-dark dark:border-primary-light dark:bg-primary-light/10 dark:text-primary-light"
+                  : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/10"
+                  }`}
               >
                 {extractTimeLabel(slot.start)}
 
