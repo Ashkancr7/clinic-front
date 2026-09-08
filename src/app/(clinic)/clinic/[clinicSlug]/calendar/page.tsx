@@ -274,8 +274,7 @@ export default function CalendarPage({
         </div>
 
         {/* Filters */}
-        {/* Filters */}
-        {/* Filters */}
+      
         <div className="flex flex-wrap items-center gap-2">
           {!isDoctor && (
             <select

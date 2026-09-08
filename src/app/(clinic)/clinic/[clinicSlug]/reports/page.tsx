@@ -242,11 +242,11 @@ export default function ReportsPage({
 
   const avgCostPerService =
     financeReport &&
-    totalServicesCount > 0
+      totalServicesCount > 0
       ? Math.round(
-          financeReport.totalRevenue /
-            totalServicesCount
-        )
+        financeReport.totalRevenue /
+        totalServicesCount
+      )
       : null;
 
   const totalAppointments = useMemo(
@@ -347,10 +347,11 @@ export default function ReportsPage({
 
           <DatePicker
             value={fromDate}
-            onChange={(v) =>
-              v &&
-              setFromDate(v as DateObject)
-            }
+            onChange={(v) => {
+              if (v) {
+                setFromDate(v as DateObject);
+              }
+            }}
             calendar={persian}
             locale={persian_fa}
             calendarPosition="bottom-right"
@@ -373,11 +374,12 @@ export default function ReportsPage({
           </span>
 
           <DatePicker
-            value={toDate}
-            onChange={(v) =>
-              v &&
-              setToDate(v as DateObject)
-            }
+            value={fromDate}
+            onChange={(v) => {
+              if (v) {
+                setFromDate(v);
+              }
+            }}
             calendar={persian}
             locale={persian_fa}
             calendarPosition="bottom-right"
@@ -387,7 +389,7 @@ export default function ReportsPage({
                 onClick={openCalendar}
                 className="font-medium text-gray-700 transition-colors hover:text-primary dark:text-gray-200 dark:hover:text-primary"
               >
-                {toDate.format("YYYY/MM/DD")}
+                {fromDate.format("YYYY/MM/DD")}
               </button>
             )}
           />
@@ -422,18 +424,16 @@ export default function ReportsPage({
                 onClick={() =>
                   setTab(t.key)
                 }
-                className={`flex items-center gap-2 whitespace-nowrap border-b-2 py-3 transition-all ${
-                  isActive
-                    ? "border-primary font-medium text-primary-dark dark:text-primary"
-                    : "border-transparent text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
-                }`}
+                className={`flex items-center gap-2 whitespace-nowrap border-b-2 py-3 transition-all ${isActive
+                  ? "border-primary font-medium text-primary-dark dark:text-primary"
+                  : "border-transparent text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                  }`}
               >
                 <Icon
-                  className={`h-4 w-4 ${
-                    isActive
-                      ? "text-primary"
-                      : "text-gray-400 dark:text-gray-500"
-                  }`}
+                  className={`h-4 w-4 ${isActive
+                    ? "text-primary"
+                    : "text-gray-400 dark:text-gray-500"
+                    }`}
                 />
 
                 <span>{t.label}</span>
@@ -468,8 +468,8 @@ export default function ReportsPage({
               <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
                 {k.value != null
                   ? k.value.toLocaleString(
-                      "fa-IR"
-                    )
+                    "fa-IR"
+                  )
                   : "—"}
               </div>
 
@@ -524,11 +524,10 @@ export default function ReportsPage({
                         <div
                           className="h-full rounded-full bg-primary"
                           style={{
-                            width: `${
-                              (s.totalCount /
-                                max) *
+                            width: `${(s.totalCount /
+                              max) *
                               100
-                            }%`,
+                              }%`,
                           }}
                         />
                       </div>
@@ -630,15 +629,15 @@ export default function ReportsPage({
 
                 {doctorsReport.length ===
                   0 && (
-                  <tr>
-                    <td
-                      colSpan={2}
-                      className="py-6 text-center text-gray-300 dark:text-gray-600"
-                    >
-                      داده‌ای یافت نشد.
-                    </td>
-                  </tr>
-                )}
+                    <tr>
+                      <td
+                        colSpan={2}
+                        className="py-6 text-center text-gray-300 dark:text-gray-600"
+                      >
+                        داده‌ای یافت نشد.
+                      </td>
+                    </tr>
+                  )}
               </tbody>
             </table>
           </div>
@@ -670,7 +669,7 @@ export default function ReportsPage({
                       style={{
                         backgroundColor:
                           STATUS_COLOR[
-                            a.status
+                          a.status
                           ] ??
                           "#D1D5DB",
                       }}
@@ -685,17 +684,16 @@ export default function ReportsPage({
                     <div
                       className="h-full rounded-full"
                       style={{
-                        width: `${
-                          totalAppointments >
+                        width: `${totalAppointments >
                           0
-                            ? (a.totalCount /
-                                totalAppointments) *
-                              100
-                            : 0
-                        }%`,
+                          ? (a.totalCount /
+                            totalAppointments) *
+                          100
+                          : 0
+                          }%`,
                         backgroundColor:
                           STATUS_COLOR[
-                            a.status
+                          a.status
                           ] ??
                           "#D1D5DB",
                       }}
@@ -713,10 +711,10 @@ export default function ReportsPage({
 
             {appointmentStatuses.length ===
               0 && (
-              <div className="py-6 text-center text-xs text-gray-300 dark:text-gray-600">
-                نوبتی ثبت نشده.
-              </div>
-            )}
+                <div className="py-6 text-center text-xs text-gray-300 dark:text-gray-600">
+                  نوبتی ثبت نشده.
+                </div>
+              )}
           </div>
         </div>
       )}
@@ -803,7 +801,7 @@ export default function ReportsPage({
                     style={{
                       backgroundColor:
                         STATUS_COLOR[
-                          s.status
+                        s.status
                         ] ?? "#D1D5DB",
                     }}
                   />
