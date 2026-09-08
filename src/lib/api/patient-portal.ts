@@ -27,6 +27,20 @@ function unwrapObject<T>(res: unknown): T {
 }
 
 // --- خلاصه داشبورد بیمار — فرمت واقعی تأیید شده ---
+export interface PatientVisitService {
+  description: string | null;
+  serviceName: string;
+}
+
+export interface PatientVisit {
+  id: string;
+  visitDate: string;
+  status: string;
+  clinicalSummary: string | null;
+  patientRecommendation: string | null;
+  services: PatientVisitService[];
+}
+
 export interface PatientDashboardSummary {
   fullName: string | null;
   completedVisitsCount: number;
@@ -34,6 +48,25 @@ export interface PatientDashboardSummary {
   visibleImagesCount: number;
   signedConsentsCount: number;
   nextAppointment: PatientAppointment | null;
+  recentVisits: PatientVisit[];
+}
+
+function mapPatientVisit(v: Record<string, unknown>): PatientVisit {
+  const servicesRaw = (v.services as Record<string, unknown>[]) ?? [];
+  return {
+    id: String(v.id ?? ""),
+    visitDate: String(v.visit_date ?? ""),
+    status: String(v.status ?? ""),
+    clinicalSummary: (v.clinical_summary as string | null | undefined) ?? null,
+    patientRecommendation: (v.patient_recommendation as string | null | undefined) ?? null,
+    services: servicesRaw.map((vs) => {
+      const service = vs.service as Record<string, unknown> | undefined;
+      return {
+        description: (vs.description as string | null | undefined) ?? null,
+        serviceName: (service?.name as string | undefined) ?? "-",
+      };
+    }),
+  };
 }
 
 export async function getPatientDashboardSummary(clinicSlug: string): Promise<PatientDashboardSummary> {
@@ -44,6 +77,7 @@ export async function getPatientDashboardSummary(clinicSlug: string): Promise<Pa
   const data = unwrapObject<Record<string, unknown>>(res);
   const patient = (data.patient as Record<string, unknown>) ?? {};
   const nextAppointmentRaw = data.next_appointment as Record<string, unknown> | null;
+  const recentVisitsRaw = (data.recent_visits as Record<string, unknown>[]) ?? [];
 
   return {
     fullName: (patient.full_name as string | undefined) ?? null,
@@ -52,29 +86,38 @@ export async function getPatientDashboardSummary(clinicSlug: string): Promise<Pa
     visibleImagesCount: Number(data.visible_images_count ?? 0),
     signedConsentsCount: Number(data.signed_consents_count ?? 0),
     nextAppointment: nextAppointmentRaw ? mapPatientAppointment(nextAppointmentRaw) : null,
+    recentVisits: recentVisitsRaw.map(mapPatientVisit),
   };
 }
 
-// --- نوبت‌های بیمار ---
+// --- نوبت‌های بیمار — فرمت واقعی تأیید شده (paginator داخل envelope) ---
 export interface PatientAppointment {
   id: string;
+  serviceId: string;
   startTime: string;
   endTime: string;
   serviceName: string;
   doctorName: string;
   status: string;
+  appointmentType: string;
+  notes: string | null;
+  cancellationReason: string | null;
 }
 
 function mapPatientAppointment(a: Record<string, unknown>): PatientAppointment {
   const service = a.service as Record<string, unknown> | undefined;
-  const doctor = (a.doctor ?? a.doctor_user) as Record<string, unknown> | undefined;
+  const doctor = a.doctor as Record<string, unknown> | undefined;
   return {
     id: String(a.id ?? ""),
+    serviceId: String(service?.id ?? a.service_id ?? ""),
     startTime: String(a.start_time ?? ""),
     endTime: String(a.end_time ?? ""),
     serviceName: (service?.name as string | undefined) ?? "-",
     doctorName: (doctor?.full_name as string | undefined) ?? "-",
     status: String(a.status ?? ""),
+    appointmentType: String(a.appointment_type ?? "in_person"),
+    notes: (a.notes as string | null | undefined) ?? null,
+    cancellationReason: (a.cancellation_reason as string | null | undefined) ?? null,
   };
 }
 
@@ -86,11 +129,51 @@ export async function getPatientAppointments(clinicSlug: string): Promise<Patien
   return unwrapList<Record<string, unknown>>(res).map(mapPatientAppointment);
 }
 
-// --- تصاویر قبل/بعد مجاز برای نمایش به بیمار ---
+export interface RequestAppointmentPayload {
+  serviceId: string;
+  startTime: string; // ISO, e.g. new Date(...).toISOString()
+  notes?: string;
+}
+
+export async function requestPatientAppointment(
+  clinicSlug: string,
+  payload: RequestAppointmentPayload
+): Promise<PatientAppointment> {
+  const res = await apiClient<LaravelEnvelope<Record<string, unknown>>>("/patient-portal/appointments", {
+    clinicSlug,
+    method: "POST",
+    body: JSON.stringify({
+      service_id: payload.serviceId,
+      start_time: payload.startTime,
+      notes: payload.notes ?? "",
+    }),
+  });
+  // پاسخ POST فلت است (بدون nested service/doctor)، پس مپینگ کامل نمی‌کنیم
+  const data = unwrapObject<Record<string, unknown>>(res);
+  return {
+    id: String(data.id ?? ""),
+    serviceId: String(data.service_id ?? payload.serviceId ?? ""),
+    startTime: String(data.start_time ?? ""),
+    endTime: String(data.end_time ?? ""),
+    serviceName: "-",
+    doctorName: "-",
+    status: String(data.status ?? "pending"),
+    appointmentType: "in_person",
+    notes: (data.notes as string | null | undefined) ?? null,
+    cancellationReason: null,
+  };
+}
+
+// --- تصاویر قبل/بعد مجاز برای نمایش به بیمار — هر رکورد یک تصویر است (before یا after) ---
 export interface PatientGalleryImage {
   id: string;
-  title: string;
+  imageType: "before" | "after" | string;
+  bodyArea: string | null;
   createdAt: string | null;
+  visitServiceId: string | null;
+  // توجه: بک‌اند فقط storage_key می‌دهد نه یک URL قابل نمایش مستقیم؛
+  // تا معلوم شدن endpoint سرو فایل، این فیلد را نمی‌توان مستقیم در <img> استفاده کرد
+  fileStorageKey: string | null;
 }
 
 export async function getPatientImages(clinicSlug: string): Promise<PatientGalleryImage[]> {
@@ -98,18 +181,39 @@ export async function getPatientImages(clinicSlug: string): Promise<PatientGalle
     "/patient-portal/images",
     { clinicSlug }
   );
-  return unwrapList<Record<string, unknown>>(res).map((img) => ({
-    id: String(img.id ?? ""),
-    title: (img.body_area as string | undefined) ?? (img.image_type as string | undefined) ?? "تصویر",
-    createdAt: (img.created_at as string | null) ?? null,
-  }));
+  return unwrapList<Record<string, unknown>>(res).map((img) => {
+    const file = img.file as Record<string, unknown> | undefined;
+    return {
+      id: String(img.id ?? ""),
+      imageType: (img.image_type as string | undefined) ?? "before",
+      bodyArea: (img.body_area as string | undefined) ?? null,
+      createdAt: (img.created_at as string | null) ?? null,
+      visitServiceId: (img.visit_service_id as string | null | undefined) ?? null,
+      fileStorageKey: (file?.storage_key as string | undefined) ?? null,
+    };
+  });
 }
 
-// --- رضایت‌نامه‌های امضاشده ---
+/** تصاویر before/after مربوط به یک visit_service را کنار هم جفت می‌کند برای نمایش در گالری */
+export function groupImagesByVisitService(images: PatientGalleryImage[]) {
+  const groups = new Map<string, { before?: PatientGalleryImage; after?: PatientGalleryImage }>();
+  for (const img of images) {
+    const key = img.visitServiceId ?? img.id;
+    const entry = groups.get(key) ?? {};
+    if (img.imageType === "before") entry.before = img;
+    else if (img.imageType === "after") entry.after = img;
+    groups.set(key, entry);
+  }
+  return Array.from(groups.entries()).map(([key, pair]) => ({ key, ...pair }));
+}
+
+// --- رضایت‌نامه‌های امضاشده — فرمت واقعی تأیید شده ---
 export interface PatientConsentItem {
   id: string;
   title: string;
+  content: string | null;
   signedAt: string | null;
+  accepted: boolean;
 }
 
 export async function getPatientConsents(clinicSlug: string): Promise<PatientConsentItem[]> {
@@ -118,12 +222,85 @@ export async function getPatientConsents(clinicSlug: string): Promise<PatientCon
     { clinicSlug }
   );
   return unwrapList<Record<string, unknown>>(res).map((c) => {
-    const version = c.consent_version as Record<string, unknown> | undefined;
-    const template = version?.consent_template as Record<string, unknown> | undefined;
+    const version = c.version as Record<string, unknown> | undefined;
+    const template = version?.template as Record<string, unknown> | undefined;
     return {
       id: String(c.id ?? ""),
       title: (template?.title as string | undefined) ?? "رضایت‌نامه",
+      content: (version?.content as string | undefined) ?? null,
       signedAt: (c.signed_at as string | null) ?? null,
+      accepted: Boolean(c.accepted),
     };
   });
+}
+
+// --- کلینیک‌هایی که بیمار در آن‌ها پرونده دارد — فرمت واقعی تأیید شده ---
+export interface PatientClinicMembership {
+  slug: string;
+  name: string;
+  logoUrl: string | null;
+  brandColor: string | null;
+  status: string;
+}
+
+export async function getPatientClinics(): Promise<PatientClinicMembership[]> {
+  const res = await apiClient<LaravelEnvelope<Record<string, unknown>[]> | Record<string, unknown>[]>(
+    "/patient-portal/clinics"
+  );
+  return unwrapList<Record<string, unknown>>(res).map((m) => {
+    const clinic = m.clinic as Record<string, unknown> | undefined;
+    return {
+      slug: (clinic?.slug as string | undefined) ?? "",
+      name: (clinic?.name as string | undefined) ?? "-",
+      logoUrl: (clinic?.logo_url as string | null | undefined) ?? null,
+      brandColor: (clinic?.brand_color as string | null | undefined) ?? null,
+      status: (m.status as string | undefined) ?? "active",
+    };
+  });
+}
+
+// --- گفتگوهای بیمار با کلینیک ---
+// توجه: در تست واقعی، آرایه خالی برگشت (بیمار هنوز پیامی نداشته)، پس شکل دقیق یک
+// گفتگوی غیرخالی هنوز تأیید نشده؛ این مپینگ محافظه‌کارانه با fallback نوشته شده.
+export interface PatientConversation {
+  id: string;
+  lastMessageBody: string | null;
+  lastMessageAt: string | null;
+  unreadCount: number;
+}
+
+export async function getPatientConversations(clinicSlug: string): Promise<PatientConversation[]> {
+  const res = await apiClient<LaravelEnvelope<Record<string, unknown>[]> | Record<string, unknown>[]>(
+    "/patient-portal/conversations",
+    { clinicSlug }
+  );
+  return unwrapList<Record<string, unknown>>(res).map((c) => ({
+    id: String(c.id ?? ""),
+    lastMessageBody: (c.last_message_body as string | undefined) ?? (c.body as string | undefined) ?? null,
+    lastMessageAt: (c.last_message_at as string | null | undefined) ?? (c.created_at as string | null | undefined) ?? null,
+    unreadCount: Number(c.unread_count ?? 0),
+  }));
+}
+
+// --- ارسال پیام — فرمت واقعی تأیید شده: فقط body لازم است، گفتگو خودکار ساخته می‌شود ---
+export interface SentPatientMessage {
+  id: string;
+  conversationId: string;
+  body: string;
+  status: string;
+}
+
+export async function sendPatientMessage(clinicSlug: string, body: string): Promise<SentPatientMessage> {
+  const res = await apiClient<LaravelEnvelope<Record<string, unknown>>>("/patient-portal/conversations/messages", {
+    clinicSlug,
+    method: "POST",
+    body: JSON.stringify({ body }),
+  });
+  const data = unwrapObject<Record<string, unknown>>(res);
+  return {
+    id: String(data.id ?? ""),
+    conversationId: String(data.conversation_id ?? ""),
+    body: String(data.body ?? ""),
+    status: String(data.status ?? "sent"),
+  };
 }

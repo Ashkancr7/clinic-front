@@ -35,7 +35,7 @@ export const queryKeys = {
     },
   },
 
-    dashboard: {
+  dashboard: {
     clinic: (clinicSlug: string) => ["dashboard", clinicSlug, "clinic"] as const,
     upcomingAppointments: (clinicSlug: string) => ["dashboard", clinicSlug, "upcoming-appointments"] as const,
   },
@@ -43,7 +43,7 @@ export const queryKeys = {
     list: (clinicSlug: string) => ["modules", clinicSlug, "list"] as const,
   },
 
-    appointmentsCalendar: {
+  appointmentsCalendar: {
     list: (clinicSlug: string, date: string, doctorId?: number) =>
       ["appointments-calendar", clinicSlug, "list", date, doctorId] as const,
     detail: (clinicSlug: string, appointmentId: string) =>
@@ -56,22 +56,42 @@ export const queryKeys = {
     list: (clinicSlug: string) => ["services", clinicSlug, "list"] as const,
   },
 
-    session: {
+  session: {
     currentUser: (clinicSlug: string) => ["session", clinicSlug, "current-user"] as const,
   },
   notifications: {
     unreadCount: () => ["notifications", "unread-count"] as const,
   },
 
-    patientPortal: {
+  patientPortal: {
     dashboard: (clinicSlug: string) => ["patient-portal", clinicSlug, "dashboard"] as const,
     appointments: (clinicSlug: string) => ["patient-portal", clinicSlug, "appointments"] as const,
     images: (clinicSlug: string) => ["patient-portal", clinicSlug, "images"] as const,
     consents: (clinicSlug: string) => ["patient-portal", clinicSlug, "consents"] as const,
+    clinics: () => ["patient-portal", "clinics"] as const,
+    conversations: (clinicSlug: string) => ["patient-portal", clinicSlug, "conversations"] as const,
   },
 
-    superAdminModules: {
+  superAdminModules: {
     list: (clinicId: string) => ["super-admin", "modules", clinicId] as const,
+  },
+
+  reports: {
+    services: (clinicSlug: string, from: string, to: string) => ["reports", clinicSlug, "services", from, to] as const,
+    appointments: (clinicSlug: string, from: string, to: string) => ["reports", clinicSlug, "appointments", from, to] as const,
+    patients: (clinicSlug: string, from: string, to: string) => ["reports", clinicSlug, "patients", from, to] as const,
+    doctors: (clinicSlug: string, from: string, to: string) => ["reports", clinicSlug, "doctors", from, to] as const,
+    returnRate: (clinicSlug: string, from: string, to: string) => ["reports", clinicSlug, "return-rate", from, to] as const,
+    sms: (clinicSlug: string) => ["reports", clinicSlug, "sms"] as const,
+    finance: (clinicSlug: string) => ["reports", clinicSlug, "finance"] as const,
+  },
+
+  serviceDetail: {
+    detail: (clinicSlug: string, serviceId: string) => ["service-detail", clinicSlug, serviceId] as const,
+  },
+
+  notificationsList: {
+    all: () => ["notifications", "list"] as const,
   },
 
 };

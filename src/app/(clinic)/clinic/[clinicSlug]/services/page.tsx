@@ -14,6 +14,8 @@ import {
   X,
 } from "lucide-react";
 
+import Link from "next/link";
+
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -109,16 +111,24 @@ export default function ServicesManagementPage({
   });
 
   // ساخت دسته‌بندی‌ها از داده‌های موجود
+  // چون endpoint مستقلی برای دسته‌بندی‌ها نیست، لیست دسته‌ها را از خودِ داده می‌سازیم
   const categories = useMemo(() => {
     const names = new Set<string>();
+    services.forEach((s) => {
+      if (s.categoryName) names.add(s.categoryName);
+    });
+    return ["همه", ...Array.from(names)];
+  }, [services]);
 
-    services.forEach((service) => {
-      if (service.categoryName) {
-        names.add(service.categoryName);
+  // لیست {id, name, color} یکتا برای دراپ‌داون انتخاب دسته‌بندی در فرم افزودن/ویرایش خدمت
+  const categoryOptions = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; color: string | null }>();
+    services.forEach((s) => {
+      if (s.categoryId && s.categoryName && !map.has(s.categoryId)) {
+        map.set(s.categoryId, { id: s.categoryId, name: s.categoryName, color: s.categoryColor });
       }
     });
-
-    return ["همه", ...Array.from(names)];
+    return Array.from(map.values());
   }, [services]);
 
   const filtered = services.filter((service) => {
@@ -214,10 +224,9 @@ export default function ServicesManagementPage({
                 px-4 py-1.5
                 text-xs
                 transition
-                ${
-                  category === c
-                    ? "bg-primary text-white shadow-sm"
-                    : `
+                ${category === c
+                  ? "bg-primary text-white shadow-sm"
+                  : `
                       border border-gray-200
                       bg-white
                       text-gray-500
@@ -266,8 +275,9 @@ export default function ServicesManagementPage({
             const tone = TONES[index % TONES.length];
 
             return (
-              <div
+              <Link
                 key={service.id}
+                href={`/clinic/${clinicSlug}/services/${service.id}`}
                 className="
                   overflow-hidden
                   rounded-2xl
@@ -315,10 +325,9 @@ export default function ServicesManagementPage({
                         h-2 w-2
                         shrink-0
                         rounded-full
-                        ${
-                          service.isActive
-                            ? "bg-primary shadow-[0_0_0_3px_rgba(14,165,164,0.12)]"
-                            : "bg-gray-300 dark:bg-gray-600"
+                        ${service.isActive
+                          ? "bg-primary shadow-[0_0_0_3px_rgba(14,165,164,0.12)]"
+                          : "bg-gray-300 dark:bg-gray-600"
                         }
                       `}
                     />
@@ -360,15 +369,18 @@ export default function ServicesManagementPage({
                     >
                       {service.basePrice != null
                         ? `${service.basePrice.toLocaleString(
-                            "fa-IR"
-                          )} تومان`
+                          "fa-IR"
+                        )} تومان`
                         : "—"}
                     </span>
 
                     <div className="flex gap-1">
                       {/* Edit */}
                       <button
-                        onClick={() => setEditingService(service)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setEditingService(service);
+                        }}
                         className="
                           rounded-lg
                           border border-gray-200
@@ -392,12 +404,10 @@ export default function ServicesManagementPage({
 
                       {/* Activate / Deactivate */}
                       <button
-                        onClick={() =>
-                          statusMutation.mutate({
-                            id: service.id,
-                            isActive: !service.isActive,
-                          })
-                        }
+                        onClick={(e) => {
+                          e.preventDefault();
+                          statusMutation.mutate({ id: service.id, isActive: !service.isActive });
+                        }}
                         disabled={statusMutation.isPending}
                         title={
                           service.isActive
@@ -429,7 +439,7 @@ export default function ServicesManagementPage({
                     </div>
                   </div>
                 </div>
-              </div>
+              </Link>
             );
           })}
 
@@ -456,38 +466,26 @@ export default function ServicesManagementPage({
       )}
 
       {/* Create Modal */}
-      {showCreateModal && (
+            {showCreateModal && (
         <ServiceFormModal
           title="افزودن خدمت جدید"
+          categoryOptions={categoryOptions}
           onClose={() => setShowCreateModal(false)}
           onSubmit={(payload) => createMutation.mutate(payload)}
           isSubmitting={createMutation.isPending}
-          error={
-            createMutation.error instanceof Error
-              ? createMutation.error.message
-              : null
-          }
+          error={createMutation.error instanceof Error ? createMutation.error.message : null}
         />
       )}
 
-      {/* Edit Modal */}
       {editingService && (
         <ServiceFormModal
           title="ویرایش خدمت"
           initial={editingService}
+          categoryOptions={categoryOptions}
           onClose={() => setEditingService(null)}
-          onSubmit={(payload) =>
-            updateMutation.mutate({
-              id: editingService.id,
-              payload,
-            })
-          }
+          onSubmit={(payload) => updateMutation.mutate({ id: editingService.id, payload })}
           isSubmitting={updateMutation.isPending}
-          error={
-            updateMutation.error instanceof Error
-              ? updateMutation.error.message
-              : null
-          }
+          error={updateMutation.error instanceof Error ? updateMutation.error.message : null}
         />
       )}
     </div>
@@ -501,6 +499,7 @@ export default function ServicesManagementPage({
 function ServiceFormModal({
   title,
   initial,
+  categoryOptions,
   onClose,
   onSubmit,
   isSubmitting,
@@ -508,10 +507,12 @@ function ServiceFormModal({
 }: {
   title: string;
   initial?: ClinicService;
+  categoryOptions: { id: string; name: string; color: string | null }[];
   onClose: () => void;
   onSubmit: (payload: {
     name: string;
     description?: string;
+    category_id?: string;
     default_duration_minutes: number;
     base_price?: number;
     requires_consent?: boolean;
@@ -522,440 +523,124 @@ function ServiceFormModal({
   error: string | null;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
-
-  const [description, setDescription] = useState(
-    initial?.description ?? ""
-  );
-
-  const [duration, setDuration] = useState(
-    String(initial?.defaultDurationMinutes ?? 30)
-  );
-
-  const [price, setPrice] = useState(
-    initial?.basePrice?.toString() ?? ""
-  );
-
-  const [requiresConsent, setRequiresConsent] = useState(
-    initial?.requiresConsent ?? false
-  );
-
-  const [requiresImages, setRequiresImages] = useState(
-    initial?.requiresBeforeAfterImages ?? false
-  );
-
-  const [requiresFollowup, setRequiresFollowup] = useState(
-    initial?.requiresFollowup ?? false
-  );
-
-  const handleSubmit = () => {
-    if (!name.trim() || !duration) return;
-
-    onSubmit({
-      name: name.trim(),
-      description: description.trim() || undefined,
-      default_duration_minutes: Number(duration),
-      base_price: price ? Number(price) : undefined,
-      requires_consent: requiresConsent,
-      requires_before_after_images: requiresImages,
-      requires_followup: requiresFollowup,
-    });
-  };
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [categoryId, setCategoryId] = useState(initial?.categoryId ?? "");
+  const [duration, setDuration] = useState(String(initial?.defaultDurationMinutes ?? 30));
+  const [price, setPrice] = useState(initial?.basePrice?.toString() ?? "");
+  const [requiresConsent, setRequiresConsent] = useState(initial?.requiresConsent ?? false);
+  const [requiresImages, setRequiresImages] = useState(initial?.requiresBeforeAfterImages ?? false);
+  const [requiresFollowup, setRequiresFollowup] = useState(initial?.requiresFollowup ?? false);
 
   return (
-    <div
-      className="
-        fixed inset-0
-        z-50
-        flex items-center justify-center
-        bg-black/40
-        p-4
-        backdrop-blur-sm
-      "
-    >
-      <div
-        className="
-          max-h-[90vh]
-          w-full
-          max-w-md
-          overflow-y-auto
-          rounded-2xl
-          border border-gray-100
-          bg-white
-          p-6
-          shadow-2xl
-          dark:border-gray-800
-          dark:bg-gray-900
-          dark:shadow-black/50
-        "
-      >
-        {/* Modal Header */}
-        <div className="mb-5 flex items-center justify-between">
-          <h2
-            className="
-              text-base
-              font-bold
-              text-gray-900
-              dark:text-gray-100
-            "
-          >
-            {title}
-          </h2>
-
-          <button
-            onClick={onClose}
-            className="
-              rounded-lg
-              p-1.5
-              text-gray-400
-              transition
-              hover:bg-gray-100
-              hover:text-gray-600
-              dark:text-gray-500
-              dark:hover:bg-gray-800
-              dark:hover:text-gray-300
-            "
-            aria-label="بستن"
-          >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-bold text-gray-900">{title}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Error */}
-        {error && (
-          <p
-            className="
-              mb-4
-              rounded-xl
-              border border-red-100
-              bg-red-50
-              px-3 py-2.5
-              text-xs
-              text-red-500
-              dark:border-red-900/40
-              dark:bg-red-950/30
-              dark:text-red-400
-            "
-          >
-            {error}
-          </p>
-        )}
+        {error && <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-500">{error}</p>}
 
-        <div className="space-y-4">
-          {/* Name */}
+        <div className="space-y-3">
           <div>
-            <label
-              className="
-                mb-1.5
-                block
-                text-xs
-                font-medium
-                text-gray-600
-                dark:text-gray-400
-              "
-            >
-              نام خدمت
-            </label>
-
+            <label className="mb-1 block text-xs text-gray-600">نام خدمت</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="مثلاً بوتاکس"
-              className="
-                w-full
-                rounded-xl
-                border border-gray-200
-                bg-white
-                px-3 py-2.5
-                text-sm
-                text-gray-800
-                outline-none
-                transition
-                placeholder:text-gray-300
-                focus:border-primary
-                focus:ring-2
-                focus:ring-primary/10
-                dark:border-gray-700
-                dark:bg-gray-800
-                dark:text-gray-100
-                dark:placeholder:text-gray-600
-                dark:focus:border-primary
-              "
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
             />
           </div>
 
-          {/* Description */}
           <div>
-            <label
-              className="
-                mb-1.5
-                block
-                text-xs
-                font-medium
-                text-gray-600
-                dark:text-gray-400
-              "
-            >
-              توضیحات (اختیاری)
+            <label className="mb-1 block text-xs text-gray-600">
+              دسته‌بندی <span className="text-danger">*</span>
             </label>
+            <select
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+            >
+              <option value="">انتخاب دسته‌بندی</option>
+              {categoryOptions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            {categoryOptions.length === 0 && (
+              <p className="mt-1 text-[10px] text-amber-600">
+                هنوز هیچ دسته‌بندی‌ای در سیستم ثبت نشده (بک‌اند راهی برای ساخت دسته‌بندی جدید از این فرم فراهم نکرده است).
+              </p>
+            )}
+          </div>
 
+          <div>
+            <label className="mb-1 block text-xs text-gray-600">توضیحات (اختیاری)</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              placeholder="توضیحات مربوط به خدمت..."
-              className="
-                w-full
-                resize-none
-                rounded-xl
-                border border-gray-200
-                bg-white
-                px-3 py-2.5
-                text-sm
-                text-gray-800
-                outline-none
-                transition
-                placeholder:text-gray-300
-                focus:border-primary
-                focus:ring-2
-                focus:ring-primary/10
-                dark:border-gray-700
-                dark:bg-gray-800
-                dark:text-gray-100
-                dark:placeholder:text-gray-600
-                dark:focus:border-primary
-              "
+              rows={2}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
             />
           </div>
-
-          {/* Duration + Price */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label
-                className="
-                  mb-1.5
-                  block
-                  text-xs
-                  font-medium
-                  text-gray-600
-                  dark:text-gray-400
-                "
-              >
-                مدت‌زمان (دقیقه)
-              </label>
-
+              <label className="mb-1 block text-xs text-gray-600">مدت‌زمان (دقیقه)</label>
               <input
                 type="number"
-                min="1"
                 value={duration}
                 onChange={(e) => setDuration(e.target.value)}
-                className="
-                  w-full
-                  rounded-xl
-                  border border-gray-200
-                  bg-white
-                  px-3 py-2.5
-                  text-sm
-                  text-gray-800
-                  outline-none
-                  transition
-                  focus:border-primary
-                  focus:ring-2
-                  focus:ring-primary/10
-                  dark:border-gray-700
-                  dark:bg-gray-800
-                  dark:text-gray-100
-                  dark:focus:border-primary
-                "
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
               />
             </div>
-
             <div>
-              <label
-                className="
-                  mb-1.5
-                  block
-                  text-xs
-                  font-medium
-                  text-gray-600
-                  dark:text-gray-400
-                "
-              >
-                قیمت پایه (تومان)
-              </label>
-
+              <label className="mb-1 block text-xs text-gray-600">قیمت پایه (تومان)</label>
               <input
                 type="number"
-                min="0"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                placeholder="اختیاری"
-                className="
-                  w-full
-                  rounded-xl
-                  border border-gray-200
-                  bg-white
-                  px-3 py-2.5
-                  text-sm
-                  text-gray-800
-                  outline-none
-                  transition
-                  placeholder:text-gray-300
-                  focus:border-primary
-                  focus:ring-2
-                  focus:ring-primary/10
-                  dark:border-gray-700
-                  dark:bg-gray-800
-                  dark:text-gray-100
-                  dark:placeholder:text-gray-600
-                  dark:focus:border-primary
-                "
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
               />
             </div>
           </div>
 
-          {/* Options */}
-          <div
-            className="
-              space-y-2.5
-              rounded-xl
-              border border-gray-100
-              bg-gray-50/70
-              p-3
-              dark:border-gray-800
-              dark:bg-gray-800/50
-            "
-          >
-            <label
-              className="
-                flex
-                cursor-pointer
-                items-center
-                gap-2.5
-                text-xs
-                text-gray-600
-                dark:text-gray-400
-              "
-            >
-              <input
-                type="checkbox"
-                checked={requiresConsent}
-                onChange={(e) =>
-                  setRequiresConsent(e.target.checked)
-                }
-                className="
-                  h-4 w-4
-                  rounded
-                  border-gray-300
-                  accent-primary
-                  dark:border-gray-600
-                "
-              />
-
-              <span>نیازمند رضایت‌نامه</span>
+          <div className="space-y-2 pt-1">
+            <label className="flex items-center gap-2 text-xs text-gray-600">
+              <input type="checkbox" checked={requiresConsent} onChange={(e) => setRequiresConsent(e.target.checked)} />
+              نیازمند رضایت‌نامه
             </label>
-
-            <label
-              className="
-                flex
-                cursor-pointer
-                items-center
-                gap-2.5
-                text-xs
-                text-gray-600
-                dark:text-gray-400
-              "
-            >
-              <input
-                type="checkbox"
-                checked={requiresImages}
-                onChange={(e) =>
-                  setRequiresImages(e.target.checked)
-                }
-                className="
-                  h-4 w-4
-                  rounded
-                  border-gray-300
-                  accent-primary
-                  dark:border-gray-600
-                "
-              />
-
-              <span>نیازمند تصاویر قبل/بعد</span>
+            <label className="flex items-center gap-2 text-xs text-gray-600">
+              <input type="checkbox" checked={requiresImages} onChange={(e) => setRequiresImages(e.target.checked)} />
+              نیازمند تصاویر قبل/بعد
             </label>
-
-            <label
-              className="
-                flex
-                cursor-pointer
-                items-center
-                gap-2.5
-                text-xs
-                text-gray-600
-                dark:text-gray-400
-              "
-            >
-              <input
-                type="checkbox"
-                checked={requiresFollowup}
-                onChange={(e) =>
-                  setRequiresFollowup(e.target.checked)
-                }
-                className="
-                  h-4 w-4
-                  rounded
-                  border-gray-300
-                  accent-primary
-                  dark:border-gray-600
-                "
-              />
-
-              <span>نیازمند نوبت پیگیری</span>
+            <label className="flex items-center gap-2 text-xs text-gray-600">
+              <input type="checkbox" checked={requiresFollowup} onChange={(e) => setRequiresFollowup(e.target.checked)} />
+              نیازمند نوبت پیگیری
             </label>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="mt-6 flex gap-2">
-          <button
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="
-              flex-1
-              rounded-xl
-              border border-gray-200
-              bg-white
-              py-2.5
-              text-sm
-              font-medium
-              text-gray-600
-              transition
-              hover:bg-gray-50
-              disabled:opacity-50
-              dark:border-gray-700
-              dark:bg-gray-800
-              dark:text-gray-300
-              dark:hover:bg-gray-750
-            "
-          >
+        <div className="mt-5 flex gap-2">
+          <button onClick={onClose} className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm text-gray-600 hover:bg-gray-50">
             انصراف
           </button>
-
           <button
-            disabled={!name.trim() || !duration || isSubmitting}
-            onClick={handleSubmit}
-            className="
-              flex-1
-              rounded-xl
-              bg-primary
-              py-2.5
-              text-sm
-              font-medium
-              text-white
-              transition
-              hover:bg-primary-dark
-              disabled:cursor-not-allowed
-              disabled:opacity-50
-            "
+            disabled={!name || !duration || !categoryId || isSubmitting}
+            onClick={() =>
+              onSubmit({
+                name,
+                description: description || undefined,
+                category_id: categoryId,
+                default_duration_minutes: Number(duration),
+                base_price: price ? Number(price) : undefined,
+                requires_consent: requiresConsent,
+                requires_before_after_images: requiresImages,
+                requires_followup: requiresFollowup,
+              })
+            }
+            className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50"
           >
             {isSubmitting ? "در حال ذخیره..." : "ذخیره"}
           </button>

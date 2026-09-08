@@ -9,6 +9,7 @@ import {
   Settings,
 } from "lucide-react";
 import { ReactNode, useEffect, useRef, useState } from "react";
+import { NotificationsDropdown } from "./NotificationsDropdown";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -125,14 +126,7 @@ export function ClinicTopbar({
           </button>
         )}
 
-        <button className="relative flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-50 hover:text-primary dark:text-gray-300 dark:hover:bg-white/[0.08] dark:hover:text-primary-light">
-          <Bell className="h-5 w-5" />
-          {notificationCount > 0 && (
-            <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-pink-500 text-[9px] font-medium text-white ring-2 ring-white dark:ring-abyss-900">
-              {notificationCount.toLocaleString("fa-IR")}
-            </span>
-          )}
-        </button>
+                <NotificationsDropdown />
       </div>
 
       {/* اطلاعات کاربر - دراپ‌داون واقعی */}

@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell, ChevronDown, Leaf, LogOut, Menu, MessageSquare, Settings, UserRound, X } from "lucide-react";
 import Image from "next/image";
+import { NotificationsDropdown } from "./NotificationsDropdown";
 
 import { getPatientDashboardSummary } from "@/lib/api/patient-portal";
 import { getUnreadNotificationCount } from "@/lib/api/notifications";
@@ -113,17 +114,7 @@ export function PatientHeader({ clinicSlug }: { clinicSlug: string }) {
         </nav>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
-          <button
-            aria-label="اعلان‌ها"
-            className="relative flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-50 hover:text-primary dark:text-gray-300 dark:hover:bg-white/[0.08] dark:hover:text-primary-light"
-          >
-            <Bell className="h-5 w-5" />
-            {unreadCount > 0 && (
-              <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-[9px] text-white ring-2 ring-white dark:ring-abyss-900">
-                {unreadCount.toLocaleString("fa-IR")}
-              </span>
-            )}
-          </button>
+                  <NotificationsDropdown />
 
           <Link
             href={`/patient/${clinicSlug}/chat`}

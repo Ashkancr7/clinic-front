@@ -20,6 +20,7 @@ import {
   Headset,
   Gift,
   Lock,
+  Info,
 } from "lucide-react";
 import { PatientHeader } from "@/components/layout/PatientHeader";
 import Image from "next/image";
@@ -29,6 +30,7 @@ import {
   getPatientAppointments,
   getPatientImages,
   getPatientConsents,
+  groupImagesByVisitService,
 } from "@/lib/api/patient-portal";
 import { queryKeys } from "@/lib/query/keys";
 
@@ -40,8 +42,7 @@ const TABS = [
   { key: "files", label: "فایل‌ها", icon: FileText },
 ];
 
-// این بخش‌ها هنوز منبع API مطمئنی ندارند (نه endpoint فایل عمومی برای بیمار، نه
-// مفهوم مشخصی برای «پرونده‌های پزشکی» جدا از سوابق بالینی) — mock می‌مانند
+// این بخش هنوز منبع API ندارد (هیچ endpoint فایل عمومی برای بیمار وجود ندارد) — mock می‌ماند
 const FILES = [
   { name: "گزارش آخرین جلسه مزوتراپی", type: "PDF", size: "۱.۲ مگابایت", date: "۱۴۰۳/۰۳/۲۸" },
   { name: "عکس راهنمای مراقبت بعد از تزریق", type: "JPG", size: "۸۰۰ کیلوبایت", date: "۱۴۰۳/۰۳/۲۸" },
@@ -87,10 +88,25 @@ const QUICK_ACTIONS = [
   },
 ];
 
+const STATUS_LABEL: Record<string, string> = {
+  pending: "در انتظار تایید",
+  confirmed: "تایید شده",
+  completed: "انجام‌شده",
+  canceled: "لغوشده",
+};
+
 function formatJalaliDate(iso: string | null) {
   if (!iso) return "—";
   try {
     return new Date(iso).toLocaleDateString("fa-IR", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  } catch {
+    return "—";
+  }
+}
+function formatShortJalaliDate(iso: string | null) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" });
   } catch {
     return "—";
   }
@@ -133,6 +149,8 @@ export default function PatientDashboardPage({ params }: { params: Promise<{ cli
 
   const completed = useMemo(() => appointments.filter((a) => a.status === "completed"), [appointments]);
   const nextAppointment = summary?.nextAppointment ?? null;
+  const imageGroups = useMemo(() => groupImagesByVisitService(images), [images]);
+  const recentVisits = summary?.recentVisits ?? [];
 
   const STATS = [
     {
@@ -241,7 +259,7 @@ export default function PatientDashboardPage({ params }: { params: Promise<{ cli
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="space-y-4">
-            {/* خلاصه اطلاعات من — منبع مطمئن ندارد، فعلاً دست‌نخورده mock */}
+            {/* خلاصه اطلاعات من — فقط فیلدهایی که واقعاً از API داریم */}
             <div className="rounded-2xl border border-gray-100 bg-white p-5 dark:border-white/10 dark:bg-white/[0.06]">
               <div className="mb-4 flex items-center gap-2">
                 <UserRound className="h-4 w-4 text-primary-dark dark:text-primary-light" />
@@ -332,26 +350,39 @@ export default function PatientDashboardPage({ params }: { params: Promise<{ cli
                   <div className="py-6 text-center text-xs text-gray-400 dark:text-gray-500">در حال بارگذاری...</div>
                 )}
 
+                {/*
+                  توجه: بک‌اند فقط storage_key می‌دهد نه یک URL قابل نمایش مستقیم در <img>،
+                  برای همین فعلاً به‌جای عکس واقعی از یک باکس رنگی placeholder استفاده می‌کنیم
+                  ولی برچسب‌های «قبل»/«بعد» واقعی هستند (بر اساس image_type واقعی هر گروه).
+                */}
                 {!imagesLoading && (
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                    {images.map((g, i) => (
-                      <div key={g.id}>
+                    {imageGroups.map((g, i) => (
+                      <div key={g.key}>
                         <div
                           className={`relative h-28 overflow-hidden rounded-xl bg-gradient-to-br ${GALLERY_TONES[i % GALLERY_TONES.length]}`}
                         >
-                          <span className="absolute right-1.5 top-1.5 rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] text-gray-600">
-                            قبل
-                          </span>
-                          <span className="absolute left-1.5 top-1.5 rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] text-gray-600">
-                            بعد
-                          </span>
+                          {g.before && (
+                            <span className="absolute right-1.5 top-1.5 rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] text-gray-600">
+                              قبل
+                            </span>
+                          )}
+                          {g.after && (
+                            <span className="absolute left-1.5 top-1.5 rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] text-gray-600">
+                              بعد
+                            </span>
+                          )}
                           <Images className="absolute bottom-2 left-1/2 h-5 w-5 -translate-x-1/2 text-white/70" />
                         </div>
-                        <div className="mt-1.5 text-xs font-medium text-gray-700 dark:text-gray-200">{g.title}</div>
-                        <div className="text-[10px] text-gray-400">{formatJalaliDate(g.createdAt)}</div>
+                        <div className="mt-1.5 text-xs font-medium text-gray-700 dark:text-gray-200">
+                          {(g.before ?? g.after)?.bodyArea ?? "تصویر"}
+                        </div>
+                        <div className="text-[10px] text-gray-400">
+                          {formatJalaliDate((g.before ?? g.after)?.createdAt ?? null)}
+                        </div>
                       </div>
                     ))}
-                    {images.length === 0 && (
+                    {imageGroups.length === 0 && (
                       <div className="col-span-full py-6 text-center text-xs text-gray-300 dark:text-gray-500">
                         تصویری ثبت نشده.
                       </div>
@@ -377,7 +408,7 @@ export default function PatientDashboardPage({ params }: { params: Promise<{ cli
                         </div>
                       </div>
                       <span className="rounded-full bg-primary-light/20 px-2 py-0.5 text-[10px] text-primary-dark dark:text-primary-light">
-                        {a.status}
+                        {STATUS_LABEL[a.status] ?? a.status}
                       </span>
                     </div>
                   ))}
@@ -408,9 +439,43 @@ export default function PatientDashboardPage({ params }: { params: Promise<{ cli
               </div>
             )}
 
-            {(activeTab === "records" || activeTab === "files") && (
+            {/* پرونده پزشکی — از recent_visits واقعی (خلاصه؛ نسخه‌ی کامل در صفحه‌ی /records) */}
+            {activeTab === "records" && (
+              <div className="rounded-2xl border border-gray-100 bg-white p-5 dark:border-white/10 dark:bg-white/[0.06]">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-sm font-bold text-primary dark:text-primary-light">پرونده پزشکی</h2>
+                  <Link
+                    href={`/patient/${clinicSlug}/records`}
+                    className="text-[11px] font-medium text-primary-dark dark:text-primary-light"
+                  >
+                    مشاهده کامل
+                  </Link>
+                </div>
+                <div className="space-y-3">
+                  {recentVisits.map((v) => (
+                    <div key={v.id} className="rounded-xl border border-gray-50 p-3 text-xs dark:border-white/10">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-gray-700 dark:text-gray-200">
+                          {v.services.map((s) => s.serviceName).join("، ") || "ویزیت"}
+                        </span>
+                        <span className="text-[10px] text-gray-400">{formatShortJalaliDate(v.visitDate)}</span>
+                      </div>
+                      {v.clinicalSummary && <p className="mt-1 text-[11px] text-gray-400">{v.clinicalSummary}</p>}
+                    </div>
+                  ))}
+                  {recentVisits.length === 0 && (
+                    <div className="py-6 text-center text-xs text-gray-300 dark:text-gray-500">ویزیتی ثبت نشده.</div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === "files" && (
               <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-sm text-gray-400 dark:border-white/10 dark:bg-white/[0.06]">
-                محتوای «{TABS.find((t) => t.key === activeTab)?.label}» به‌زودی اینجا نمایش داده می‌شود.
+                <div className="mx-auto flex max-w-sm items-start gap-2 text-right text-[11px] text-gray-400 dark:text-gray-500">
+                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>این بخش هنوز به بک‌اند وصل نشده — endpoint فایل عمومی برای بیمار در لیست موجود نبود.</span>
+                </div>
               </div>
             )}
 

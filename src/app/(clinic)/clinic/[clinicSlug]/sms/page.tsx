@@ -141,7 +141,6 @@ return ( <div className="flex h-[calc(100vh-90px)] flex-col">
 {/* Header */} <div className="mb-4 flex items-center justify-between"> <div> <h1 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-gray-100"> <MessageCircle className="h-5 w-5 text-primary dark:text-primary-light" />
 مرکز پیام‌ها / چت </h1>
 
-```
       <p className="mt-1 text-sm text-gray-400 dark:text-gray-500">
         گفتگوها، پیام‌ها و ارتباطات با مراجعین
       </p>

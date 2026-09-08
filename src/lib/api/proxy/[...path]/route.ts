@@ -44,7 +44,7 @@ async function forward(req: NextRequest, pathParts: string[]) {
       headers: { "Content-Type": "application/json" },
     });
     res.cookies.delete("access_token");
-    res.cookies.delete("user_type");
+    res.cookies.delete("user_type"); 
     res.cookies.delete("clinics");
     return res;
   }
