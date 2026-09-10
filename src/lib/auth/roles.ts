@@ -1,5 +1,6 @@
 import { apiClient } from "../api/client";
 
+
 interface LaravelEnvelope<T> {
   success: boolean;
   message: string;
@@ -59,6 +60,45 @@ export async function getRoles(clinicSlug: string): Promise<Role[]> {
     { clinicSlug }
   );
   return unwrapList<Record<string, unknown>>(res).map(mapRole);
+}
+
+// --- ایجاد نقش سفارشی مخصوص کلینیک ---
+export interface CreateRolePayload {
+  name: string;
+  key: string;
+  description?: string;
+  permissions: number[];
+}
+
+export async function createRole(clinicSlug: string, payload: CreateRolePayload): Promise<Role> {
+  const res = await apiClient<LaravelEnvelope<Record<string, unknown>> | Record<string, unknown>>(
+    "/clinics/current/roles",
+    { method: "POST", body: JSON.stringify(payload), clinicSlug }
+  );
+  const data =
+    res && typeof res === "object" && "data" in (res as Record<string, unknown>)
+      ? (res as { data: Record<string, unknown> }).data
+      : (res as Record<string, unknown>);
+  return mapRole(data);
+}
+
+// --- ویرایش نقش سفارشی (نقش سیستمی قابل ویرایش نیست) ---
+export interface UpdateRolePayload {
+  name?: string;
+  description?: string;
+  permissions?: number[];
+}
+
+export async function updateRole(clinicSlug: string, roleId: number, payload: UpdateRolePayload): Promise<Role> {
+  const res = await apiClient<LaravelEnvelope<Record<string, unknown>> | Record<string, unknown>>(
+    `/clinics/current/roles/${roleId}`,
+    { method: "PATCH", body: JSON.stringify(payload), clinicSlug }
+  );
+  const data =
+    res && typeof res === "object" && "data" in (res as Record<string, unknown>)
+      ? (res as { data: Record<string, unknown> }).data
+      : (res as Record<string, unknown>);
+  return mapRole(data);
 }
 
 // --- لیست تمام مجوزهای قابل تخصیص در سیستم ---

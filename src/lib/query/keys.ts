@@ -120,4 +120,14 @@ export const queryKeys = {
       ["finance", clinicSlug, "payments", status ?? "all"] as const,
   },
 
+    smsTemplates: {
+    list: (clinicSlug: string) => ["sms-templates", clinicSlug, "list"] as const,
+  },
+  smsRules: {
+    list: (clinicSlug: string) => ["sms-rules", clinicSlug, "list"] as const,
+  },
+  smsMessages: {
+    list: (clinicSlug: string) => ["sms-messages", clinicSlug, "list"] as const,
+  },
+
 };

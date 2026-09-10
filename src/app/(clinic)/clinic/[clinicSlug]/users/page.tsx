@@ -2,6 +2,8 @@
 
 import { use, useMemo, useState } from "react";
 
+import Link from "next/link";
+
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -360,9 +362,12 @@ export default function UsersRolesPage({
             </div>
           )}
 
-          <p className="mt-3 text-[10px] text-gray-300 dark:text-gray-600">
-            ویرایش دقیق مجوزهای هر نقش، بخش جداگانه‌ای است که هنوز وصل نشده.
-          </p>
+          <Link
+            href={`/clinic/${clinicSlug}/settings/roles`}
+            className="mt-3 block text-[10px] text-primary-dark hover:underline dark:text-primary-light"
+          >
+            ویرایش دقیق مجوزهای هر نقش
+          </Link>
         </div>
       </div>
 
