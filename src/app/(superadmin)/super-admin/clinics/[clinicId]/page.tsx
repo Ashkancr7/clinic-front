@@ -2,123 +2,342 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Pencil, Ban, Phone, MapPin, Info, X } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  ArrowRight,
+  Pencil,
+  Ban,
+  Phone,
+  MapPin,
+  Info,
+  X,
+} from "lucide-react";
 
 import { superAdminApi, type Clinic } from "@/lib/api/super-admin";
 import { queryKeys } from "@/lib/query/keys";
 
-const STATUS_LABELS: Record<Clinic["status"], { label: string; tone: string }> = {
-  active: { label: "فعال", tone: "bg-primary-light/20 text-primary-dark" },
-  inactive: { label: "غیرفعال", tone: "bg-gray-100 text-gray-500" },
-  suspended: { label: "معلق", tone: "bg-red-50 text-danger" },
+const STATUS_LABELS: Record<
+  Clinic["status"],
+  { label: string; tone: string }
+> = {
+  active: {
+    label: "فعال",
+    tone: "bg-primary-light/20 text-primary-dark dark:bg-primary/10 dark:text-primary",
+  },
+  inactive: {
+    label: "غیرفعال",
+    tone: "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400",
+  },
+  suspended: {
+    label: "معلق",
+    tone: "bg-red-50 text-danger dark:bg-red-500/10 dark:text-red-400",
+  },
 };
 
-export default function ClinicDetailPage({ params }: { params: Promise<{ clinicId: string }> }) {
+export default function ClinicDetailPage({
+  params,
+}: {
+  params: Promise<{ clinicId: string }>;
+}) {
   const { clinicId } = use(params);
   const queryClient = useQueryClient();
+
   const [showEditModal, setShowEditModal] = useState(false);
 
-  const { data: clinic, isLoading, error } = useQuery({
+  const {
+    data: clinic,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: queryKeys.superAdmin.clinics.detail(clinicId),
     queryFn: () => superAdminApi.getClinic(clinicId),
   });
 
   const statusMutation = useMutation({
-    mutationFn: (status: Clinic["status"]) => superAdminApi.updateClinicStatus(clinicId, status),
+    mutationFn: (status: Clinic["status"]) =>
+      superAdminApi.updateClinicStatus(clinicId, status),
+
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.superAdmin.clinics.detail(clinicId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.superAdmin.clinics.list() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.superAdmin.clinics.detail(clinicId),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.superAdmin.clinics.list(),
+      });
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: (payload: Parameters<typeof superAdminApi.updateClinic>[1]) =>
-      superAdminApi.updateClinic(clinicId, payload),
+    mutationFn: (
+      payload: Parameters<typeof superAdminApi.updateClinic>[1]
+    ) => superAdminApi.updateClinic(clinicId, payload),
+
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.superAdmin.clinics.detail(clinicId) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.superAdmin.clinics.detail(clinicId),
+      });
+
       setShowEditModal(false);
     },
   });
 
   if (isLoading) {
-    return <div className="py-20 text-center text-sm text-gray-400">در حال بارگذاری...</div>;
+    return (
+      <div className="py-20 text-center text-sm text-gray-400 dark:text-gray-500">
+        در حال بارگذاری...
+      </div>
+    );
   }
 
   if (error || !clinic) {
-    return <div className="py-20 text-center text-sm text-danger">کلینیک یافت نشد.</div>;
+    return (
+      <div className="py-20 text-center text-sm text-danger dark:text-red-400">
+        کلینیک یافت نشد.
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      <Link href="/super-admin/clinics" className="flex w-fit items-center gap-1.5 text-sm text-gray-500 hover:text-primary-dark">
-        <ArrowRight className="h-4 w-4" /> بازگشت به لیست کلینیک‌ها
+      {/* بازگشت */}
+      <Link
+        href="/super-admin/clinics"
+        className="
+          flex w-fit items-center gap-1.5
+          text-sm text-gray-500
+          transition-colors
+          hover:text-primary
+          dark:text-gray-400
+          dark:hover:text-primary
+        "
+      >
+        <ArrowRight className="h-4 w-4" />
+        بازگشت به لیست کلینیک‌ها
       </Link>
 
-      <div className="flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
+      {/* هدر کلینیک */}
+      <div
+        className="
+          flex flex-col gap-4
+          rounded-2xl
+          border border-gray-100
+          bg-white
+          p-5
+          transition-colors
+          dark:border-white/10
+          dark:bg-white/[0.06]
+          sm:flex-row
+          sm:items-center
+          sm:justify-between
+        "
+      >
         <div className="flex items-center gap-3">
-          <div className="h-14 w-14 shrink-0 rounded-full bg-gray-100" />
+          {/* Avatar */}
+          <div
+            className="
+              flex h-14 w-14 shrink-0 items-center justify-center
+              rounded-full
+              bg-gray-100
+              text-gray-400
+              dark:bg-white/10
+              dark:text-gray-500
+            "
+          >
+            <MapPin className="h-5 w-5" />
+          </div>
+
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold text-gray-900">{clinic.name}</h1>
-              <span className={`rounded-full px-2.5 py-0.5 text-[11px] ${STATUS_LABELS[clinic.status].tone}`}>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                {clinic.name}
+              </h1>
+
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${STATUS_LABELS[clinic.status].tone}`}
+              >
                 {STATUS_LABELS[clinic.status].label}
               </span>
             </div>
-            <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-400" dir="ltr">
-              <span dir="rtl">شناسه:</span> {clinic.slug}
+
+            <div
+              className="
+                mt-1 flex items-center gap-1.5
+                text-xs text-gray-400
+                dark:text-gray-500
+              "
+              dir="ltr"
+            >
+              <span dir="rtl">شناسه:</span>
+              {clinic.slug}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Actions */}
+        <div className="flex flex-wrap items-center gap-2">
           <button
+            type="button"
             onClick={() => setShowEditModal(true)}
-            className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-4 py-2 text-xs text-gray-600 hover:bg-gray-50"
+            className="
+              flex items-center gap-1.5
+              rounded-xl
+              border border-gray-200
+              bg-white
+              px-4 py-2
+              text-xs text-gray-600
+              transition-all
+              hover:bg-gray-50
+              dark:border-white/10
+              dark:bg-white/[0.04]
+              dark:text-gray-300
+              dark:hover:bg-white/10
+            "
           >
-            <Pencil className="h-3.5 w-3.5" /> ویرایش اطلاعات
+            <Pencil className="h-3.5 w-3.5" />
+            ویرایش اطلاعات
           </button>
+
           <button
-            onClick={() => statusMutation.mutate(clinic.status === "suspended" ? "active" : "suspended")}
+            type="button"
+            onClick={() =>
+              statusMutation.mutate(
+                clinic.status === "suspended" ? "active" : "suspended"
+              )
+            }
             disabled={statusMutation.isPending}
-            className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-medium disabled:opacity-50 ${
-              clinic.status === "suspended"
-                ? "bg-primary text-white hover:bg-primary-dark"
-                : "bg-red-50 text-danger hover:bg-red-100"
-            }`}
+            className={`
+              flex items-center gap-1.5
+              rounded-xl
+              px-4 py-2
+              text-xs font-medium
+              transition-all
+              disabled:cursor-not-allowed
+              disabled:opacity-50
+              ${
+                clinic.status === "suspended"
+                  ? "bg-primary text-white hover:bg-primary-dark"
+                  : "bg-red-50 text-danger hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
+              }
+            `}
           >
-            <Ban className="h-3.5 w-3.5" /> {clinic.status === "suspended" ? "فعال‌سازی مجدد" : "تعلیق کلینیک"}
+            <Ban className="h-3.5 w-3.5" />
+
+            {clinic.status === "suspended"
+              ? "فعال‌سازی مجدد"
+              : "تعلیق کلینیک"}
           </button>
         </div>
       </div>
 
-            <div className="rounded-2xl border border-gray-100 bg-white p-5">
-        <h2 className="mb-4 text-sm font-bold text-gray-800">اطلاعات کلی</h2>
+      {/* اطلاعات کلی */}
+      <div
+        className="
+          rounded-2xl
+          border border-gray-100
+          bg-white
+          p-5
+          transition-colors
+          dark:border-white/10
+          dark:bg-white/[0.06]
+        "
+      >
+        <h2 className="mb-4 text-sm font-bold text-gray-800 dark:text-gray-100">
+          اطلاعات کلی
+        </h2>
+
         <div className="space-y-3 text-xs">
-          <InfoRow icon={Phone} label="تلفن" value={clinic.phone ?? "ثبت نشده"} dir="ltr" />
-          <InfoRow icon={MapPin} label="آدرس" value={clinic.address ?? "ثبت نشده"} />
-          <InfoRow icon={Info} label="تخصص" value={clinic.specialty ?? "ثبت نشده"} />
-          <InfoRow icon={Info} label="شعار" value={clinic.slogan ?? "ثبت نشده"} />
+          <InfoRow
+            icon={Phone}
+            label="تلفن"
+            value={clinic.phone ?? "ثبت نشده"}
+            dir="ltr"
+          />
+
+          <InfoRow
+            icon={MapPin}
+            label="آدرس"
+            value={clinic.address ?? "ثبت نشده"}
+          />
+
+          <InfoRow
+            icon={Info}
+            label="تخصص"
+            value={clinic.specialty ?? "ثبت نشده"}
+          />
+
+          <InfoRow
+            icon={Info}
+            label="شعار"
+            value={clinic.slogan ?? "ثبت نشده"}
+          />
+
+          {/* Brand Color */}
           <div className="flex items-start justify-between gap-3">
-            <span className="flex items-center gap-1.5 text-gray-400">
-              <Info className="h-3.5 w-3.5" /> رنگ برند
+            <span className="flex items-center gap-1.5 text-gray-400 dark:text-gray-500">
+              <Info className="h-3.5 w-3.5" />
+              رنگ برند
             </span>
+
             {clinic.brand_color ? (
               <span className="flex items-center gap-1.5">
-                <span className="h-4 w-4 rounded-full border border-gray-200" style={{ backgroundColor: clinic.brand_color }} />
-                <span className="text-gray-700" dir="ltr">{clinic.brand_color}</span>
+                <span
+                  className="
+                    h-4 w-4 rounded-full
+                    border border-gray-200
+                    dark:border-white/20
+                  "
+                  style={{
+                    backgroundColor: clinic.brand_color,
+                  }}
+                />
+
+                <span
+                  className="text-gray-700 dark:text-gray-300"
+                  dir="ltr"
+                >
+                  {clinic.brand_color}
+                </span>
               </span>
             ) : (
-              <span className="text-gray-700">ثبت نشده</span>
+              <span className="text-gray-700 dark:text-gray-300">
+                ثبت نشده
+              </span>
             )}
           </div>
-          <InfoRow icon={MapPin} label="مختصات (Lat, Lng)" value={clinic.latitude && clinic.longitude ? `${clinic.latitude}, ${clinic.longitude}` : "ثبت نشده"} dir="ltr" />
+
+          {/* Coordinates */}
+          <InfoRow
+            icon={MapPin}
+            label="مختصات (Lat, Lng)"
+            value={
+              clinic.latitude && clinic.longitude
+                ? `${clinic.latitude}, ${clinic.longitude}`
+                : "ثبت نشده"
+            }
+            dir="ltr"
+          />
+
+          {/* Logo */}
           {clinic.logo_url && (
             <div className="flex items-start justify-between gap-3">
-              <span className="flex items-center gap-1.5 text-gray-400">
-                <Info className="h-3.5 w-3.5" /> لوگو
+              <span className="flex items-center gap-1.5 text-gray-400 dark:text-gray-500">
+                <Info className="h-3.5 w-3.5" />
+                لوگو
               </span>
-              <a href={clinic.logo_url} target="_blank" rel="noreferrer" className="max-w-[200px] truncate text-primary-dark hover:underline" dir="ltr">
+
+              <a
+                href={clinic.logo_url}
+                target="_blank"
+                rel="noreferrer"
+                className="
+                  max-w-[200px]
+                  truncate
+                  text-primary
+                  hover:underline
+                "
+                dir="ltr"
+              >
                 {clinic.logo_url}
               </a>
             </div>
@@ -126,18 +345,27 @@ export default function ClinicDetailPage({ params }: { params: Promise<{ clinicI
         </div>
       </div>
 
+      {/* Edit Modal */}
       {showEditModal && (
         <EditClinicModal
           clinic={clinic}
           onClose={() => setShowEditModal(false)}
           onSubmit={(payload) => updateMutation.mutate(payload)}
           isSubmitting={updateMutation.isPending}
-          error={updateMutation.error instanceof Error ? updateMutation.error.message : null}
+          error={
+            updateMutation.error instanceof Error
+              ? updateMutation.error.message
+              : null
+          }
         />
       )}
     </div>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Info Row                                                                    */
+/* -------------------------------------------------------------------------- */
 
 function InfoRow({
   icon: Icon,
@@ -152,15 +380,24 @@ function InfoRow({
 }) {
   return (
     <div className="flex items-start justify-between gap-3">
-      <span className="flex items-center gap-1.5 text-gray-400">
-        <Icon className="h-3.5 w-3.5" /> {label}
+      <span className="flex items-center gap-1.5 text-gray-400 dark:text-gray-500">
+        <Icon className="h-3.5 w-3.5" />
+        {label}
       </span>
-      <span className="text-left text-gray-700" dir={dir}>
+
+      <span
+        className="max-w-[65%] text-left text-gray-700 dark:text-gray-300"
+        dir={dir}
+      >
         {value}
       </span>
     </div>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Edit Clinic Modal                                                           */
+/* -------------------------------------------------------------------------- */
 
 function EditClinicModal({
   clinic,
@@ -170,7 +407,9 @@ function EditClinicModal({
   error,
 }: {
   clinic: Clinic;
+
   onClose: () => void;
+
   onSubmit: (payload: {
     name: string;
     phone?: string;
@@ -182,6 +421,7 @@ function EditClinicModal({
     latitude?: string;
     longitude?: string;
   }) => void;
+
   isSubmitting: boolean;
   error: string | null;
 }) {
@@ -191,122 +431,215 @@ function EditClinicModal({
   const [slogan, setSlogan] = useState(clinic.slogan ?? "");
   const [specialty, setSpecialty] = useState(clinic.specialty ?? "");
   const [logoUrl, setLogoUrl] = useState(clinic.logo_url ?? "");
-  const [brandColor, setBrandColor] = useState(clinic.brand_color ?? "#0EA5A4");
+  const [brandColor, setBrandColor] = useState(
+    clinic.brand_color ?? "#0EA5A4"
+  );
   const [latitude, setLatitude] = useState(clinic.latitude ?? "");
   const [longitude, setLongitude] = useState(clinic.longitude ?? "");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6">
+    <div
+      className="
+        fixed inset-0 z-50
+        flex items-center justify-center
+        bg-black/40
+        p-4
+        backdrop-blur-sm
+      "
+    >
+      <div
+        className="
+          max-h-[90vh]
+          w-full max-w-lg
+          overflow-y-auto
+          rounded-2xl
+          border border-gray-100
+          bg-white
+          p-6
+          shadow-2xl
+          dark:border-white/10
+          dark:bg-[#11161d]
+        "
+      >
+        {/* Modal Header */}
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-bold text-gray-900">ویرایش اطلاعات کلینیک</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+            ویرایش اطلاعات کلینیک
+          </h2>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="
+              rounded-lg
+              p-1.5
+              text-gray-400
+              transition-colors
+              hover:bg-gray-100
+              hover:text-gray-600
+              dark:hover:bg-white/10
+              dark:hover:text-gray-200
+            "
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {error && <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-500">{error}</p>}
+        {/* Error */}
+        {error && (
+          <p
+            className="
+              mb-3
+              rounded-lg
+              border border-red-100
+              bg-red-50
+              px-3 py-2
+              text-xs text-red-500
+              dark:border-red-500/20
+              dark:bg-red-500/10
+              dark:text-red-400
+            "
+          >
+            {error}
+          </p>
+        )}
 
         <div className="space-y-3">
-          <div>
-            <label className="mb-1 block text-xs text-gray-600">نام کلینیک</label>
+          {/* Name */}
+          <FormField label="نام کلینیک">
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+              className={INPUT_CLASS}
             />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-gray-600">شعار کلینیک</label>
+          </FormField>
+
+          {/* Slogan */}
+          <FormField label="شعار کلینیک">
             <input
               value={slogan}
               onChange={(e) => setSlogan(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+              className={INPUT_CLASS}
             />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-gray-600">تخصص</label>
+          </FormField>
+
+          {/* Specialty */}
+          <FormField label="تخصص">
             <input
               value={specialty}
               onChange={(e) => setSpecialty(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+              className={INPUT_CLASS}
             />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-gray-600">تلفن</label>
+          </FormField>
+
+          {/* Phone */}
+          <FormField label="تلفن">
             <input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               dir="ltr"
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+              className={INPUT_CLASS}
             />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-gray-600">آدرس</label>
+          </FormField>
+
+          {/* Address */}
+          <FormField label="آدرس">
             <textarea
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               rows={2}
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+              className={`${INPUT_CLASS} resize-none`}
             />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-gray-600">آدرس لوگو (URL)</label>
+          </FormField>
+
+          {/* Logo URL */}
+          <FormField label="آدرس لوگو (URL)">
             <input
               value={logoUrl}
               onChange={(e) => setLogoUrl(e.target.value)}
               dir="ltr"
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+              className={INPUT_CLASS}
             />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-gray-600">رنگ برند</label>
+          </FormField>
+
+          {/* Brand Color */}
+          <FormField label="رنگ برند">
             <div className="flex items-center gap-2">
               <input
                 type="color"
                 value={brandColor}
                 onChange={(e) => setBrandColor(e.target.value)}
-                className="h-9 w-12 rounded-lg border border-gray-200"
+                className="
+                  h-10 w-12
+                  cursor-pointer
+                  rounded-lg
+                  border border-gray-200
+                  bg-transparent
+                  p-1
+                  dark:border-white/10
+                "
               />
+
               <input
                 value={brandColor}
                 onChange={(e) => setBrandColor(e.target.value)}
                 dir="ltr"
-                className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+                className={`flex-1 ${INPUT_CLASS}`}
               />
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-xs text-gray-600">عرض جغرافیایی (Lat)</label>
+          </FormField>
+
+          {/* Coordinates */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <FormField label="عرض جغرافیایی (Lat)">
               <input
                 value={latitude}
                 onChange={(e) => setLatitude(e.target.value)}
                 dir="ltr"
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+                className={INPUT_CLASS}
               />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-gray-600">طول جغرافیایی (Lng)</label>
+            </FormField>
+
+            <FormField label="طول جغرافیایی (Lng)">
               <input
                 value={longitude}
                 onChange={(e) => setLongitude(e.target.value)}
                 dir="ltr"
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+                className={INPUT_CLASS}
               />
-            </div>
+            </FormField>
           </div>
         </div>
 
+        {/* Actions */}
         <div className="mt-5 flex gap-2">
-          <button onClick={onClose} className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm text-gray-600 hover:bg-gray-50">
+          <button
+            type="button"
+            onClick={onClose}
+            className="
+              flex-1
+              rounded-xl
+              border border-gray-200
+              bg-white
+              py-2.5
+              text-sm text-gray-600
+              transition-colors
+              hover:bg-gray-50
+              dark:border-white/10
+              dark:bg-white/[0.04]
+              dark:text-gray-300
+              dark:hover:bg-white/10
+            "
+          >
             انصراف
           </button>
+
           <button
-            disabled={!name || isSubmitting}
+            type="button"
+            disabled={!name.trim() || isSubmitting}
             onClick={() =>
               onSubmit({
-                name,
+                name: name.trim(),
                 phone: phone || undefined,
                 address: address || undefined,
                 slogan: slogan || undefined,
@@ -317,12 +650,66 @@ function EditClinicModal({
                 longitude: longitude || undefined,
               })
             }
-            className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50"
+            className="
+              flex-1
+              rounded-xl
+              bg-primary
+              py-2.5
+              text-sm font-medium
+              text-white
+              transition-all
+              hover:bg-primary-dark
+              hover:shadow-lg
+              disabled:cursor-not-allowed
+              disabled:opacity-50
+            "
           >
             {isSubmitting ? "در حال ذخیره..." : "ذخیره تغییرات"}
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Form Helpers                                                                */
+/* -------------------------------------------------------------------------- */
+
+const INPUT_CLASS = `
+  w-full
+  rounded-xl
+  border border-gray-200
+  bg-white
+  px-3 py-2
+  text-sm
+  text-gray-800
+  outline-none
+  transition-colors
+  placeholder:text-gray-400
+  focus:border-primary
+  focus:ring-2
+  focus:ring-primary/10
+  dark:border-white/10
+  dark:bg-white/[0.04]
+  dark:text-gray-100
+  dark:placeholder:text-gray-500
+`;
+
+function FormField({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">
+        {label}
+      </label>
+
+      {children}
     </div>
   );
 }

@@ -94,4 +94,30 @@ export const queryKeys = {
     all: () => ["notifications", "list"] as const,
   },
 
+  visits: {
+    listByPatient: (clinicSlug: string, patientId: string) =>
+      ["visits", clinicSlug, "by-patient", patientId] as const,
+    detail: (clinicSlug: string, visitId: string) => ["visits", clinicSlug, "detail", visitId] as const,
+  },
+
+  staff: {
+    list: (clinicSlug: string) => ["staff", clinicSlug, "list"] as const,
+    assignedDoctors: (clinicSlug: string, userId: number) =>
+      ["staff", clinicSlug, "assigned-doctors", userId] as const,
+    myAssignedDoctors: (clinicSlug: string) => ["staff", clinicSlug, "my-assigned-doctors"] as const,
+  },
+
+  roles: {
+    list: (clinicSlug: string) => ["roles", clinicSlug, "list"] as const,
+  },
+
+  finance: {
+    invoices: (clinicSlug: string, status?: string, patientId?: string) =>
+      ["finance", clinicSlug, "invoices", status ?? "all", patientId ?? "all"] as const,
+    invoiceDetail: (clinicSlug: string, invoiceId: string) =>
+      ["finance", clinicSlug, "invoice-detail", invoiceId] as const,
+    payments: (clinicSlug: string, status?: string) =>
+      ["finance", clinicSlug, "payments", status ?? "all"] as const,
+  },
+
 };

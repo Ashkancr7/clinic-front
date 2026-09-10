@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import { getInvoices } from "./finance";
 
 interface LaravelEnvelope<T> {
   success: boolean;
@@ -187,19 +188,11 @@ export async function getPatientDetail(
 
 // جمع بدهی جاری از فاکتورهای صادرشده/پرداخت‌نشده‌ی این بیمار
 export async function getPatientDebt(clinicSlug: string, patientId: string): Promise<number> {
-  const res = await apiClient<LaravelEnvelope<Record<string, unknown>[]> | Record<string, unknown>[]>(
-    `/invoices?patient_id=${patientId}`,
-    { clinicSlug }
-  );
-  const invoices = unwrapList<Record<string, unknown>>(res);
-
-    console.log("RAW /invoices?patient_id= response:", JSON.stringify(invoices, null, 2));
+  const invoices = await getInvoices(clinicSlug, { patientId });
 
   return invoices.reduce((sum, inv) => {
-    const status = inv.status as string;
-    if (status === "cancelled" || status === "draft") return sum;
-    const remaining = Number(inv.remaining_amount ?? 0);
-    return sum + (Number.isNaN(remaining) ? 0 : remaining);
+    if (inv.status === "cancelled" || inv.status === "draft") return sum;
+    return sum + inv.remainingAmount;
   }, 0);
 }
 

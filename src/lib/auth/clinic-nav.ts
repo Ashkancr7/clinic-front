@@ -44,6 +44,7 @@ export const CLINIC_NAV_ITEMS: ClinicNavItem[] = [
   { href: "calendar", label: "نوبت‌ها", icon: CalendarClock, roles: ["clinic_admin", "doctor", "receptionist"] },
   { href: "patients", label: "مراجعین", icon: Users, roles: ["clinic_admin", "doctor", "receptionist"] },
   { href: "records", label: "پرونده‌ها", icon: Folder, roles: ["clinic_admin", "doctor"] },
+  { href: "users", label: "کاربران سیستمی", icon: Users, roles: ["clinic_admin",] },
   { href: "services", label: "خدمات", icon: Briefcase, roles: ["clinic_admin"] },
   {
     href: "finance",
