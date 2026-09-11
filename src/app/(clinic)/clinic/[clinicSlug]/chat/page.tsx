@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -17,6 +17,7 @@ import {
   Share2,
   ChevronDown,
   StickyNote,
+  Download,
 } from "lucide-react";
 
 import {
@@ -31,6 +32,7 @@ import {
   sendMessage,
   markMessageRead,
   deleteMessage,
+  addMessageAttachment,
   type ConversationStatus,
   type MessageVisibility,
 } from "@/lib/api/chat";
@@ -38,6 +40,7 @@ import {
 import { getCurrentClinicUser } from "@/lib/api/session";
 import { getStaffMembers } from "@/lib/api/staff";
 import { searchPatients, type PatientSearchResult } from "@/lib/api/patients";
+import { uploadFile, getFileSignedUrl } from "@/lib/api/files";
 import { queryKeys } from "@/lib/query/keys";
 
 const STATUS_LABEL: Record<ConversationStatus, string> = {
@@ -197,6 +200,43 @@ export default function ClinicChatPage({
     },
     onError: (e) => setActionError(e instanceof Error ? e.message : "حذف پیام ناموفق بود"),
   });
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const sendFileMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (!conversation) throw new Error("گفتگویی انتخاب نشده.");
+      const uploaded = await uploadFile(
+        clinicSlug,
+        file,
+        file.type.startsWith("image/") ? "image" : "document",
+        "patient_visible"
+      );
+      const msg = await sendMessage(clinicSlug, conversation.id, {
+        body: uploaded.originalName,
+        message_type: uploaded.fileType === "image" ? "image" : "file",
+        visibility,
+      });
+      await addMessageAttachment(clinicSlug, msg.id, uploaded.id);
+      return msg;
+    },
+    onSuccess: () => {
+      setActionError(null);
+      invalidateMessages();
+      invalidateConversations();
+    },
+    onError: (e) => setActionError(e instanceof Error ? e.message : "ارسال فایل ناموفق بود"),
+  });
+
+  async function handleDownloadAttachment(fileId: string) {
+    try {
+      const url = await getFileSignedUrl(clinicSlug, fileId);
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+      else setActionError("لینک دانلود در دسترس نیست.");
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "دریافت لینک فایل ناموفق بود");
+    }
+  }
 
   const handleSend = () => {
     if (!messageText.trim() || sendMutation.isPending) return;
@@ -382,6 +422,25 @@ export default function ClinicChatPage({
                           </div>
                         )}
                         {m.body}
+                        {m.attachments.length > 0 && (
+                          <div className="mt-1.5 space-y-1">
+                            {m.attachments.map((a) => (
+                              <button
+                                key={a.id}
+                                type="button"
+                                onClick={() => handleDownloadAttachment(a.fileId)}
+                                className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[10px] transition ${
+                                  isMine && !isNote
+                                    ? "bg-white/15 hover:bg-white/25"
+                                    : "bg-gray-50 hover:bg-gray-100 dark:bg-white/10 dark:hover:bg-white/20"
+                                }`}
+                              >
+                                <Download className="h-3 w-3" />
+                                {a.originalName ?? "پیوست"}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                         <div className="mt-1 flex items-center gap-2">
                           <span
                             className={`text-[9px] ${
@@ -436,13 +495,28 @@ export default function ClinicChatPage({
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) sendFileMutation.mutate(file);
+                      e.target.value = "";
+                    }}
+                  />
                   <button
                     type="button"
-                    disabled
-                    title="پیوست فایل نیازمند اتصال ماژول فایل‌ها است"
-                    className="flex h-10 w-10 shrink-0 cursor-not-allowed items-center justify-center rounded-xl border border-gray-200 text-gray-300 dark:border-white/10 dark:text-gray-600"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={sendFileMutation.isPending}
+                    title="پیوست فایل"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 text-gray-400 transition hover:bg-gray-50 hover:text-gray-600 disabled:opacity-50 dark:border-white/10 dark:text-gray-500 dark:hover:bg-white/10 dark:hover:text-gray-300"
                   >
-                    <Paperclip className="h-4 w-4" />
+                    {sendFileMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Paperclip className="h-4 w-4" />
+                    )}
                   </button>
                   <input
                     type="text"

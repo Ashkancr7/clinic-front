@@ -32,6 +32,8 @@ import {
   Plus,
   X,
   Loader2,
+  Download,
+  Image as ImageIcon,
 } from "lucide-react";
 
 import Image from "next/image";
@@ -50,6 +52,15 @@ import {
   signPatientConsent,
   type ConsentTemplate,
 } from "@/lib/api/consents";
+
+import {
+  getPatientImages,
+  uploadFile,
+  addVisitFile,
+  getFileSignedUrl,
+  type PatientImage,
+  type ImageType,
+} from "@/lib/api/files";
 
 import { queryKeys } from "@/lib/query/keys";
 
@@ -81,23 +92,12 @@ const VISIT_STATUS_TONE: Record<ClinicVisit["status"], string> = {
   cancelled: "bg-red-50 text-danger dark:bg-red-500/10 dark:text-red-300",
 };
 
-const GALLERY = [
-  {
-    title: "فیلر لب",
-    date: "۱۴۰۳/۰۱/۲۸",
-    tone: "from-pink-200 to-pink-100 dark:from-pink-900/40 dark:to-pink-950/20",
-  },
-  {
-    title: "بوتاکس",
-    date: "۱۴۰۳/۰۲/۱۵",
-    tone: "from-primary-light/60 to-primary-light/20 dark:from-primary/30 dark:to-primary/10",
-  },
-  {
-    title: "مزوتراپی مو",
-    date: "۱۴۰۳/۰۳/۲۱",
-    tone: "from-secondary-purple/60 to-secondary-purple/20 dark:from-purple-900/40 dark:to-purple-950/20",
-  },
-];
+const IMAGE_TYPE_LABEL: Record<ImageType, string> = {
+  before: "قبل",
+  after: "بعد",
+  during: "حین انجام",
+  other: "سایر",
+};
 
 const CHAT_MESSAGES = [
   {
@@ -182,6 +182,8 @@ export default function PatientProfilePage({
   const [activeTab, setActiveTab] = useState("info");
   const [showSignConsent, setShowSignConsent] = useState(false);
   const [consentsError, setConsentsError] = useState<string | null>(null);
+  const [showUploadImage, setShowUploadImage] = useState(false);
+  const [imagesError, setImagesError] = useState<string | null>(null);
 
   const [note, setNote] = useState(
     "مزوتراپی مو با کوکتل رشد مو انجام شد. پوست سر قبل از تزریق با لیدوکائین موضعی بی‌حس شد. بیمار رضایت قبل از دارد. توصیه شد مصرف مکمل بیوتین ادامه یابد و شستشوی ملایم انجام شود."
@@ -231,6 +233,26 @@ export default function PatientProfilePage({
     queryFn: () => getConsentTemplates(clinicSlug),
     enabled: !!clinicSlug && activeTab === "consents",
   });
+
+  const { data: patientImages = [], isLoading: imagesLoading } = useQuery({
+    queryKey: queryKeys.files.byPatient(clinicSlug, patientId),
+    queryFn: () => getPatientImages(clinicSlug, patientId),
+    enabled: !!clinicSlug && !!patientId,
+  });
+
+  function invalidateImages() {
+    queryClient.invalidateQueries({ queryKey: queryKeys.files.byPatient(clinicSlug, patientId) });
+  }
+
+  async function handleViewImage(fileId: string) {
+    try {
+      const url = await getFileSignedUrl(clinicSlug, fileId);
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+      else setImagesError("لینک تصویر در دسترس نیست.");
+    } catch (e) {
+      setImagesError(e instanceof Error ? e.message : "دریافت لینک تصویر ناموفق بود");
+    }
+  }
 
   const signConsentMutation = useMutation({
     mutationFn: (payload: { consentVersionId: string; serviceId?: string; accepted: boolean }) =>
@@ -699,35 +721,51 @@ export default function PatientProfilePage({
                   تصاویر قبل و بعد
                 </h3>
 
-                <div className="grid grid-cols-3 gap-3">
-                  {GALLERY.map((g) => (
-                    <div key={g.title}>
-                      <div
-                        className={`relative h-16 overflow-hidden rounded-lg bg-gradient-to-br ${g.tone}`}
+                {imagesLoading ? (
+                  <p className="py-4 text-center text-[11px] text-gray-400 dark:text-gray-500">
+                    در حال بارگذاری...
+                  </p>
+                ) : patientImages.length === 0 ? (
+                  <p className="py-4 text-center text-[11px] text-gray-400 dark:text-gray-500">
+                    هنوز تصویری ثبت نشده است.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-3">
+                    {patientImages.slice(0, 3).map((img) => (
+                      <button
+                        key={img.id}
+                        type="button"
+                        onClick={() => handleViewImage(img.fileId)}
+                        className="text-right"
                       >
-                        <span className="absolute right-1 top-1 rounded bg-white/90 px-1 text-[8px] text-gray-600 dark:bg-gray-900/80 dark:text-gray-300">
-                          قبل
-                        </span>
+                        <div className="relative flex h-16 items-center justify-center overflow-hidden rounded-lg bg-gray-100 dark:bg-white/[0.06]">
+                          <ImageIcon className="h-5 w-5 text-gray-300 dark:text-gray-600" />
+                          <span className="absolute right-1 top-1 rounded bg-white/90 px-1 text-[8px] text-gray-600 dark:bg-gray-900/80 dark:text-gray-300">
+                            {IMAGE_TYPE_LABEL[img.imageType]}
+                          </span>
+                        </div>
+                        <div className="mt-1 truncate text-[10px] font-medium text-gray-600 dark:text-gray-300">
+                          {img.file?.originalName ?? "تصویر"}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
 
-                        <span className="absolute left-1 top-1 rounded bg-white/90 px-1 text-[8px] text-gray-600 dark:bg-gray-900/80 dark:text-gray-300">
-                          بعد
-                        </span>
-                      </div>
-
-                      <div className="mt-1 text-[10px] font-medium text-gray-600 dark:text-gray-300">
-                        {g.title}
-                      </div>
-
-                      <div className="text-[9px] text-gray-400 dark:text-gray-500">
-                        {g.date}
-                      </div>
-                    </div>
-                  ))}
+                <div className="mt-3 flex items-center justify-between">
+                  <button
+                    onClick={() => setActiveTab("gallery")}
+                    className="text-[11px] text-primary-dark dark:text-primary"
+                  >
+                    مشاهده همه تصاویر
+                  </button>
+                  <button
+                    onClick={() => setShowUploadImage(true)}
+                    className="flex items-center gap-1 text-[11px] text-primary-dark dark:text-primary"
+                  >
+                    <Plus className="h-3 w-3" /> افزودن
+                  </button>
                 </div>
-
-                <button className="mt-3 text-[11px] text-primary-dark dark:text-primary">
-                  مشاهده همه تصاویر
-                </button>
               </div>
             </div>
 
@@ -898,6 +936,64 @@ export default function PatientProfilePage({
             )}
           </div>
         </div>
+      ) : activeTab === "gallery" ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-gray-800 dark:text-gray-100">تصاویر قبل و بعد</h3>
+            <button
+              type="button"
+              onClick={() => setShowUploadImage(true)}
+              className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-medium text-white transition hover:bg-primary-dark"
+            >
+              <Plus className="h-3.5 w-3.5" /> افزودن تصویر
+            </button>
+          </div>
+
+          {imagesError && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-500 dark:bg-red-500/10 dark:text-red-300">
+              {imagesError}
+            </p>
+          )}
+
+          <div className="rounded-2xl border border-gray-100 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+            {imagesLoading ? (
+              <p className="py-10 text-center text-xs text-gray-400 dark:text-gray-500">در حال بارگذاری...</p>
+            ) : patientImages.length === 0 ? (
+              <p className="py-10 text-center text-xs text-gray-400 dark:text-gray-500">
+                هنوز تصویری برای این بیمار ثبت نشده است.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                {patientImages.map((img) => (
+                  <button
+                    key={img.id}
+                    type="button"
+                    onClick={() => handleViewImage(img.fileId)}
+                    className="text-right"
+                  >
+                    <div className="relative flex h-24 items-center justify-center overflow-hidden rounded-xl bg-gray-100 dark:bg-white/[0.06]">
+                      <ImageIcon className="h-6 w-6 text-gray-300 dark:text-gray-600" />
+                      <span className="absolute right-1.5 top-1.5 rounded bg-white/90 px-1.5 py-0.5 text-[9px] text-gray-600 dark:bg-gray-900/80 dark:text-gray-300">
+                        {IMAGE_TYPE_LABEL[img.imageType]}
+                      </span>
+                      {img.isVisibleToPatient && (
+                        <span className="absolute left-1.5 top-1.5 rounded bg-primary-light/90 px-1.5 py-0.5 text-[9px] text-primary-dark dark:bg-primary/80 dark:text-white">
+                          قابل مشاهده
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1.5 truncate text-[11px] font-medium text-gray-700 dark:text-gray-200">
+                      {img.file?.originalName ?? "تصویر"}
+                    </div>
+                    {img.bodyArea && (
+                      <div className="truncate text-[10px] text-gray-400 dark:text-gray-500">{img.bodyArea}</div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       ) : (
         <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-sm text-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-500">
           محتوای «
@@ -912,6 +1008,19 @@ export default function PatientProfilePage({
           onClose={() => setShowSignConsent(false)}
           onSign={(payload) => signConsentMutation.mutate(payload)}
           isSubmitting={signConsentMutation.isPending}
+        />
+      )}
+
+      {showUploadImage && (
+        <UploadImageModal
+          clinicSlug={clinicSlug}
+          visits={sortedVisits}
+          onClose={() => setShowUploadImage(false)}
+          onUploaded={() => {
+            setShowUploadImage(false);
+            setImagesError(null);
+            invalidateImages();
+          }}
         />
       )}
     </div>
@@ -1108,6 +1217,155 @@ function SignConsentModal({
           >
             {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
             {isSubmitting ? "در حال ثبت..." : "ثبت رضایت‌نامه"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UploadImageModal({
+  clinicSlug,
+  visits,
+  onClose,
+  onUploaded,
+}: {
+  clinicSlug: string;
+  visits: ClinicVisit[];
+  onClose: () => void;
+  onUploaded: () => void;
+}) {
+  const [visitId, setVisitId] = useState(visits[0]?.id ?? "");
+  const [imageType, setImageType] = useState<ImageType>("before");
+  const [bodyArea, setBodyArea] = useState("");
+  const [isVisibleToPatient, setIsVisibleToPatient] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      if (!visitId) throw new Error("ابتدا باید یک جلسه‌ی درمان برای این بیمار ثبت شده باشد.");
+      if (!file) throw new Error("لطفاً یک فایل انتخاب کنید.");
+
+      const uploaded = await uploadFile(clinicSlug, file, "image", isVisibleToPatient ? "patient_visible" : "internal");
+
+      return addVisitFile(clinicSlug, visitId, {
+        file_id: uploaded.id,
+        image_type: imageType,
+        body_area: bodyArea || undefined,
+        is_visible_to_patient: isVisibleToPatient,
+      });
+    },
+    onSuccess: () => onUploaded(),
+    onError: (e) => setFormError(e instanceof Error ? e.message : "آپلود تصویر ناموفق بود"),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-[1px] dark:bg-black/60">
+      <div className="w-full max-w-sm rounded-2xl border border-gray-100 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-[#18201e]">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-bold text-gray-900 dark:text-white">افزودن تصویر</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 text-gray-400 transition hover:bg-gray-50 hover:text-gray-600 dark:hover:bg-white/10 dark:hover:text-gray-300"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {formError && (
+          <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-500 dark:bg-red-500/10 dark:text-red-300">
+            {formError}
+          </p>
+        )}
+
+        {visits.length === 0 ? (
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            برای افزودن تصویر، ابتدا باید یک جلسه‌ی درمان برای این بیمار ثبت شده باشد.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">جلسه‌ی مربوطه</label>
+              <select
+                value={visitId}
+                onChange={(e) => setVisitId(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+              >
+                {visits.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {formatJalaliDate(v.visitDate)}
+                    {v.services[0]?.serviceName ? ` — ${v.services[0].serviceName}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">نوع تصویر</label>
+              <select
+                value={imageType}
+                onChange={(e) => setImageType(e.target.value as ImageType)}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+              >
+                <option value="before">قبل</option>
+                <option value="after">بعد</option>
+                <option value="during">حین انجام</option>
+                <option value="other">سایر</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">
+                ناحیه‌ی بدن (اختیاری)
+              </label>
+              <input
+                value={bodyArea}
+                onChange={(e) => setBodyArea(e.target.value)}
+                placeholder="مثلاً: گونه چپ"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">فایل تصویر</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                className="w-full text-xs text-gray-500 file:ml-2 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-[11px] dark:text-gray-400 dark:file:bg-white/10"
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+              <input
+                type="checkbox"
+                checked={isVisibleToPatient}
+                onChange={(e) => setIsVisibleToPatient(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-gray-300"
+              />
+              برای بیمار هم قابل مشاهده باشد
+            </label>
+          </div>
+        )}
+
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm text-gray-600 transition hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/10"
+          >
+            انصراف
+          </button>
+          <button
+            type="button"
+            disabled={mutation.isPending || visits.length === 0}
+            onClick={() => mutation.mutate()}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-medium text-white transition hover:bg-primary-dark disabled:opacity-60"
+          >
+            {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            {mutation.isPending ? "در حال آپلود..." : "آپلود تصویر"}
           </button>
         </div>
       </div>

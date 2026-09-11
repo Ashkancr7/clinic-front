@@ -1,146 +1,603 @@
 /**
  * تمام کلیدهای React Query باید از این فکتوری ساخته شوند، نه دستی نوشته شوند.
- * دلیل: اگر clinicSlug فراموش شود، ممکن است بعد از سوییچ کلینیک،
- * داده‌ی کلینیک قبلی همچنان از کش نمایش داده شود (باگ جدی حریم خصوصی داده).
+ *
+ * دلیل:
+ * اگر clinicSlug فراموش شود، ممکن است بعد از سوییچ کلینیک،
+ * داده‌ی کلینیک قبلی همچنان از کش نمایش داده شود
+ * (باگ جدی حریم خصوصی داده).
+ *
+ * نکته:
+ * - تمام Query Keyهای وابسته به کلینیک باید clinicSlug داشته باشند.
+ * - Query Keyهای SuperAdmin بر اساس clinicId هستند.
+ * - Query Keyهای عمومی مثل notifications و memberships
+ *   عمداً clinicSlug ندارند.
  */
+
 export const queryKeys = {
+  // =========================================================
+  // Patients
+  // =========================================================
   patients: {
-    list: (clinicSlug: string, filters?: Record<string, unknown>) =>
+    list: (
+      clinicSlug: string,
+      filters?: Record<string, unknown>
+    ) =>
       ["patients", clinicSlug, "list", filters] as const,
-    detail: (clinicSlug: string, patientId: string) =>
+
+    detail: (
+      clinicSlug: string,
+      patientId: string
+    ) =>
       ["patients", clinicSlug, "detail", patientId] as const,
-    lookup: (phone: string) => ["patients", "lookup", phone] as const,
+
+    lookup: (phone: string) =>
+      ["patients", "lookup", phone] as const,
   },
+
+  // =========================================================
+  // Appointments
+  // =========================================================
   appointments: {
-    list: (clinicSlug: string, date?: string) =>
+    list: (
+      clinicSlug: string,
+      date?: string
+    ) =>
       ["appointments", clinicSlug, "list", date] as const,
-    detail: (clinicSlug: string, appointmentId: string) =>
+
+    detail: (
+      clinicSlug: string,
+      appointmentId: string
+    ) =>
       ["appointments", clinicSlug, "detail", appointmentId] as const,
   },
+
+  // =========================================================
+  // Clinics
+  // =========================================================
   clinics: {
-    myMemberships: () => ["clinics", "my-memberships"] as const,
-    detail: (clinicSlug: string) => ["clinics", clinicSlug, "detail"] as const,
-    services: (clinicSlug: string) => ["clinics", clinicSlug, "services"] as const,
+    myMemberships: () =>
+      ["clinics", "my-memberships"] as const,
+
+    detail: (clinicSlug: string) =>
+      ["clinics", clinicSlug, "detail"] as const,
+
+    services: (clinicSlug: string) =>
+      ["clinics", clinicSlug, "services"] as const,
   },
+
+  // =========================================================
+  // Chat
+  // =========================================================
   chat: {
-    conversations: (clinicSlug: string) => ["chat", clinicSlug, "conversations"] as const,
-    conversationDetail: (clinicSlug: string, conversationId: string) =>
-      ["chat", clinicSlug, "conversation-detail", conversationId] as const,
-    messages: (clinicSlug: string, conversationId: string) =>
-      ["chat", clinicSlug, "messages", conversationId] as const,
-    shares: (clinicSlug: string, conversationId: string) =>
-      ["chat", clinicSlug, "shares", conversationId] as const,
+    conversations: (clinicSlug: string) =>
+      ["chat", clinicSlug, "conversations"] as const,
+
+    conversationDetail: (
+      clinicSlug: string,
+      conversationId: string
+    ) =>
+      [
+        "chat",
+        clinicSlug,
+        "conversation-detail",
+        conversationId,
+      ] as const,
+
+    messages: (
+      clinicSlug: string,
+      conversationId: string
+    ) =>
+      [
+        "chat",
+        clinicSlug,
+        "messages",
+        conversationId,
+      ] as const,
+
+    shares: (
+      clinicSlug: string,
+      conversationId: string
+    ) =>
+      [
+        "chat",
+        clinicSlug,
+        "shares",
+        conversationId,
+      ] as const,
   },
+
+  // =========================================================
+  // Files
+  // =========================================================
+  files: {
+    byPatient: (
+      clinicSlug: string,
+      patientId: string
+    ) =>
+      [
+        "files",
+        clinicSlug,
+        "by-patient",
+        patientId,
+      ] as const,
+
+    byVisit: (
+      clinicSlug: string,
+      visitId: string
+    ) =>
+      [
+        "files",
+        clinicSlug,
+        "by-visit",
+        visitId,
+      ] as const,
+  },
+
+  // =========================================================
+  // Super Admin
+  // =========================================================
   superAdmin: {
     clinics: {
-      list: () => ["super-admin", "clinics", "list"] as const,
-      detail: (clinicId: string) => ["super-admin", "clinics", "detail", clinicId] as const,
+      list: () =>
+        ["super-admin", "clinics", "list"] as const,
+
+      detail: (clinicId: string) =>
+        [
+          "super-admin",
+          "clinics",
+          "detail",
+          clinicId,
+        ] as const,
     },
+
     plans: {
-      list: () => ["super-admin", "plans", "list"] as const,
+      list: () =>
+        ["super-admin", "plans", "list"] as const,
     },
   },
 
+  // =========================================================
+  // Dashboard
+  // =========================================================
   dashboard: {
-    clinic: (clinicSlug: string) => ["dashboard", clinicSlug, "clinic"] as const,
-    upcomingAppointments: (clinicSlug: string) => ["dashboard", clinicSlug, "upcoming-appointments"] as const,
+    clinic: (clinicSlug: string) =>
+      [
+        "dashboard",
+        clinicSlug,
+        "clinic",
+      ] as const,
+
+    upcomingAppointments: (clinicSlug: string) =>
+      [
+        "dashboard",
+        clinicSlug,
+        "upcoming-appointments",
+      ] as const,
   },
+
+  // =========================================================
+  // Modules
+  // =========================================================
   modules: {
-    list: (clinicSlug: string) => ["modules", clinicSlug, "list"] as const,
+    list: (clinicSlug: string) =>
+      ["modules", clinicSlug, "list"] as const,
   },
 
+  // =========================================================
+  // Appointments Calendar
+  // =========================================================
   appointmentsCalendar: {
-    list: (clinicSlug: string, date: string, doctorId?: number) =>
-      ["appointments-calendar", clinicSlug, "list", date, doctorId] as const,
-    detail: (clinicSlug: string, appointmentId: string) =>
-      ["appointments-calendar", clinicSlug, "detail", appointmentId] as const,
-    doctors: (clinicSlug: string) => ["appointments-calendar", clinicSlug, "doctors"] as const,
-    availability: (clinicSlug: string, doctorId: number, date: string) =>
-      ["appointments-calendar", clinicSlug, "availability", doctorId, date] as const,
+    list: (
+      clinicSlug: string,
+      date: string,
+      doctorId?: number
+    ) =>
+      [
+        "appointments-calendar",
+        clinicSlug,
+        "list",
+        date,
+        doctorId,
+      ] as const,
+
+    detail: (
+      clinicSlug: string,
+      appointmentId: string
+    ) =>
+      [
+        "appointments-calendar",
+        clinicSlug,
+        "detail",
+        appointmentId,
+      ] as const,
+
+    doctors: (clinicSlug: string) =>
+      [
+        "appointments-calendar",
+        clinicSlug,
+        "doctors",
+      ] as const,
+
+    availability: (
+      clinicSlug: string,
+      doctorId: number,
+      date: string
+    ) =>
+      [
+        "appointments-calendar",
+        clinicSlug,
+        "availability",
+        doctorId,
+        date,
+      ] as const,
   },
+
+  // =========================================================
+  // Services
+  // =========================================================
   services: {
-    list: (clinicSlug: string) => ["services", clinicSlug, "list"] as const,
+    list: (clinicSlug: string) =>
+      ["services", clinicSlug, "list"] as const,
   },
 
+  // =========================================================
+  // Session
+  // =========================================================
   session: {
-    currentUser: (clinicSlug: string) => ["session", clinicSlug, "current-user"] as const,
+    currentUser: (clinicSlug: string) =>
+      [
+        "session",
+        clinicSlug,
+        "current-user",
+      ] as const,
   },
+
+  // =========================================================
+  // Notifications
+  // =========================================================
   notifications: {
-    unreadCount: () => ["notifications", "unread-count"] as const,
-  },
-
-  patientPortal: {
-    dashboard: (clinicSlug: string) => ["patient-portal", clinicSlug, "dashboard"] as const,
-    appointments: (clinicSlug: string) => ["patient-portal", clinicSlug, "appointments"] as const,
-    images: (clinicSlug: string) => ["patient-portal", clinicSlug, "images"] as const,
-    consents: (clinicSlug: string) => ["patient-portal", clinicSlug, "consents"] as const,
-    clinics: () => ["patient-portal", "clinics"] as const,
-    conversations: (clinicSlug: string) => ["patient-portal", clinicSlug, "conversations"] as const,
-  },
-
-  superAdminModules: {
-    list: (clinicId: string) => ["super-admin", "modules", clinicId] as const,
-  },
-
-  reports: {
-    services: (clinicSlug: string, from: string, to: string) => ["reports", clinicSlug, "services", from, to] as const,
-    appointments: (clinicSlug: string, from: string, to: string) => ["reports", clinicSlug, "appointments", from, to] as const,
-    patients: (clinicSlug: string, from: string, to: string) => ["reports", clinicSlug, "patients", from, to] as const,
-    doctors: (clinicSlug: string, from: string, to: string) => ["reports", clinicSlug, "doctors", from, to] as const,
-    returnRate: (clinicSlug: string, from: string, to: string) => ["reports", clinicSlug, "return-rate", from, to] as const,
-    sms: (clinicSlug: string) => ["reports", clinicSlug, "sms"] as const,
-    finance: (clinicSlug: string) => ["reports", clinicSlug, "finance"] as const,
-  },
-
-  serviceDetail: {
-    detail: (clinicSlug: string, serviceId: string) => ["service-detail", clinicSlug, serviceId] as const,
+    unreadCount: () =>
+      ["notifications", "unread-count"] as const,
   },
 
   notificationsList: {
-    all: () => ["notifications", "list"] as const,
+    all: () =>
+      ["notifications", "list"] as const,
   },
 
+  // =========================================================
+  // Patient Portal
+  // =========================================================
+  patientPortal: {
+    dashboard: (clinicSlug: string) =>
+      [
+        "patient-portal",
+        clinicSlug,
+        "dashboard",
+      ] as const,
+
+    appointments: (clinicSlug: string) =>
+      [
+        "patient-portal",
+        clinicSlug,
+        "appointments",
+      ] as const,
+
+    images: (clinicSlug: string) =>
+      [
+        "patient-portal",
+        clinicSlug,
+        "images",
+      ] as const,
+
+    consents: (clinicSlug: string) =>
+      [
+        "patient-portal",
+        clinicSlug,
+        "consents",
+      ] as const,
+
+    clinics: () =>
+      [
+        "patient-portal",
+        "clinics",
+      ] as const,
+
+    conversations: (clinicSlug: string) =>
+      [
+        "patient-portal",
+        clinicSlug,
+        "conversations",
+      ] as const,
+  },
+
+  // =========================================================
+  // Super Admin Modules
+  // =========================================================
+  superAdminModules: {
+    list: (clinicId: string) =>
+      [
+        "super-admin",
+        "modules",
+        clinicId,
+      ] as const,
+  },
+
+  // =========================================================
+  // Reports
+  // =========================================================
+  reports: {
+    services: (
+      clinicSlug: string,
+      from: string,
+      to: string
+    ) =>
+      [
+        "reports",
+        clinicSlug,
+        "services",
+        from,
+        to,
+      ] as const,
+
+    appointments: (
+      clinicSlug: string,
+      from: string,
+      to: string
+    ) =>
+      [
+        "reports",
+        clinicSlug,
+        "appointments",
+        from,
+        to,
+      ] as const,
+
+    patients: (
+      clinicSlug: string,
+      from: string,
+      to: string
+    ) =>
+      [
+        "reports",
+        clinicSlug,
+        "patients",
+        from,
+        to,
+      ] as const,
+
+    doctors: (
+      clinicSlug: string,
+      from: string,
+      to: string
+    ) =>
+      [
+        "reports",
+        clinicSlug,
+        "doctors",
+        from,
+        to,
+      ] as const,
+
+    returnRate: (
+      clinicSlug: string,
+      from: string,
+      to: string
+    ) =>
+      [
+        "reports",
+        clinicSlug,
+        "return-rate",
+        from,
+        to,
+      ] as const,
+
+    sms: (clinicSlug: string) =>
+      [
+        "reports",
+        clinicSlug,
+        "sms",
+      ] as const,
+
+    finance: (clinicSlug: string) =>
+      [
+        "reports",
+        clinicSlug,
+        "finance",
+      ] as const,
+  },
+
+  // =========================================================
+  // Service Detail
+  // =========================================================
+  serviceDetail: {
+    detail: (
+      clinicSlug: string,
+      serviceId: string
+    ) =>
+      [
+        "service-detail",
+        clinicSlug,
+        serviceId,
+      ] as const,
+  },
+
+  // =========================================================
+  // Visits
+  // =========================================================
   visits: {
-    listByPatient: (clinicSlug: string, patientId: string) =>
-      ["visits", clinicSlug, "by-patient", patientId] as const,
-    detail: (clinicSlug: string, visitId: string) => ["visits", clinicSlug, "detail", visitId] as const,
+    listByPatient: (
+      clinicSlug: string,
+      patientId: string
+    ) =>
+      [
+        "visits",
+        clinicSlug,
+        "by-patient",
+        patientId,
+      ] as const,
+
+    detail: (
+      clinicSlug: string,
+      visitId: string
+    ) =>
+      [
+        "visits",
+        clinicSlug,
+        "detail",
+        visitId,
+      ] as const,
   },
 
+  // =========================================================
+  // Staff
+  // =========================================================
   staff: {
-    list: (clinicSlug: string) => ["staff", clinicSlug, "list"] as const,
-    assignedDoctors: (clinicSlug: string, userId: number) =>
-      ["staff", clinicSlug, "assigned-doctors", userId] as const,
-    myAssignedDoctors: (clinicSlug: string) => ["staff", clinicSlug, "my-assigned-doctors"] as const,
+    list: (clinicSlug: string) =>
+      [
+        "staff",
+        clinicSlug,
+        "list",
+      ] as const,
+
+    assignedDoctors: (
+      clinicSlug: string,
+      userId: number
+    ) =>
+      [
+        "staff",
+        clinicSlug,
+        "assigned-doctors",
+        userId,
+      ] as const,
+
+    myAssignedDoctors: (clinicSlug: string) =>
+      [
+        "staff",
+        clinicSlug,
+        "my-assigned-doctors",
+      ] as const,
   },
 
+  // =========================================================
+  // Roles
+  // =========================================================
   roles: {
-    list: (clinicSlug: string) => ["roles", clinicSlug, "list"] as const,
+    list: (clinicSlug: string) =>
+      [
+        "roles",
+        clinicSlug,
+        "list",
+      ] as const,
   },
 
+  // =========================================================
+  // Finance
+  // =========================================================
   finance: {
-    invoices: (clinicSlug: string, status?: string, patientId?: string) =>
-      ["finance", clinicSlug, "invoices", status ?? "all", patientId ?? "all"] as const,
-    invoiceDetail: (clinicSlug: string, invoiceId: string) =>
-      ["finance", clinicSlug, "invoice-detail", invoiceId] as const,
-    payments: (clinicSlug: string, status?: string) =>
-      ["finance", clinicSlug, "payments", status ?? "all"] as const,
+    invoices: (
+      clinicSlug: string,
+      status?: string,
+      patientId?: string
+    ) =>
+      [
+        "finance",
+        clinicSlug,
+        "invoices",
+        status ?? "all",
+        patientId ?? "all",
+      ] as const,
+
+    invoiceDetail: (
+      clinicSlug: string,
+      invoiceId: string
+    ) =>
+      [
+        "finance",
+        clinicSlug,
+        "invoice-detail",
+        invoiceId,
+      ] as const,
+
+    payments: (
+      clinicSlug: string,
+      status?: string
+    ) =>
+      [
+        "finance",
+        clinicSlug,
+        "payments",
+        status ?? "all",
+      ] as const,
   },
 
-    smsTemplates: {
-    list: (clinicSlug: string) => ["sms-templates", clinicSlug, "list"] as const,
+  // =========================================================
+  // SMS Templates
+  // =========================================================
+  smsTemplates: {
+    list: (clinicSlug: string) =>
+      [
+        "sms-templates",
+        clinicSlug,
+        "list",
+      ] as const,
   },
+
+  // =========================================================
+  // SMS Rules
+  // =========================================================
   smsRules: {
-    list: (clinicSlug: string) => ["sms-rules", clinicSlug, "list"] as const,
-  },
-  smsMessages: {
-    list: (clinicSlug: string) => ["sms-messages", clinicSlug, "list"] as const,
-  },
-   consents: {
-    templates: (clinicSlug: string) => ["consents", clinicSlug, "templates"] as const,
-    versions: (clinicSlug: string, templateId: string) =>
-      ["consents", clinicSlug, "versions", templateId] as const,
-    byPatient: (clinicSlug: string, patientId: string) =>
-      ["consents", clinicSlug, "by-patient", patientId] as const,
+    list: (clinicSlug: string) =>
+      [
+        "sms-rules",
+        clinicSlug,
+        "list",
+      ] as const,
   },
 
+  // =========================================================
+  // SMS Messages
+  // =========================================================
+  smsMessages: {
+    list: (clinicSlug: string) =>
+      [
+        "sms-messages",
+        clinicSlug,
+        "list",
+      ] as const,
+  },
+
+  // =========================================================
+  // Consents
+  // =========================================================
+  consents: {
+    templates: (clinicSlug: string) =>
+      [
+        "consents",
+        clinicSlug,
+        "templates",
+      ] as const,
+
+    versions: (
+      clinicSlug: string,
+      templateId: string
+    ) =>
+      [
+        "consents",
+        clinicSlug,
+        "versions",
+        templateId,
+      ] as const,
+
+    byPatient: (
+      clinicSlug: string,
+      patientId: string
+    ) =>
+      [
+        "consents",
+        clinicSlug,
+        "by-patient",
+        patientId,
+      ] as const,
+  },
 };
