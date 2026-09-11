@@ -24,6 +24,12 @@ export const queryKeys = {
   },
   chat: {
     conversations: (clinicSlug: string) => ["chat", clinicSlug, "conversations"] as const,
+    conversationDetail: (clinicSlug: string, conversationId: string) =>
+      ["chat", clinicSlug, "conversation-detail", conversationId] as const,
+    messages: (clinicSlug: string, conversationId: string) =>
+      ["chat", clinicSlug, "messages", conversationId] as const,
+    shares: (clinicSlug: string, conversationId: string) =>
+      ["chat", clinicSlug, "shares", conversationId] as const,
   },
   superAdmin: {
     clinics: {
@@ -128,6 +134,13 @@ export const queryKeys = {
   },
   smsMessages: {
     list: (clinicSlug: string) => ["sms-messages", clinicSlug, "list"] as const,
+  },
+   consents: {
+    templates: (clinicSlug: string) => ["consents", clinicSlug, "templates"] as const,
+    versions: (clinicSlug: string, templateId: string) =>
+      ["consents", clinicSlug, "versions", templateId] as const,
+    byPatient: (clinicSlug: string, patientId: string) =>
+      ["consents", clinicSlug, "by-patient", patientId] as const,
   },
 
 };

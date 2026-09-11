@@ -1,7 +1,8 @@
-
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { use, useState, type ReactNode } from "react";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   Save,
@@ -36,7 +37,21 @@ import {
   Info,
   GripVertical,
   Eye,
+  X,
+  Loader2,
 } from "lucide-react";
+
+import {
+  getConsentTemplates,
+  getConsentVersions,
+  createConsentTemplate,
+  updateConsentTemplate,
+  createConsentVersion,
+  type ConsentTemplate,
+} from "@/lib/api/consents";
+
+import { getServices } from "@/lib/api/services";
+import { queryKeys } from "@/lib/query/keys";
 
 const FIELD_LIBRARY = {
   "اطلاعات پایه": [
@@ -70,69 +85,53 @@ const FIELD_LIBRARY = {
   ],
 };
 
-const CONSENT_TEMPLATES = [
-  {
-    name: "رضایت‌نامه عکاسی و استفاده از تصاویر",
-    version: "نسخه ۲",
-  },
-  {
-    name: "رضایت‌نامه تزریقات زیبایی",
-    version: "نسخه ۳",
-    active: true,
-  },
-  {
-    name: "رضایت‌نامه لیزر و دستگاه‌های انرژی‌محور",
-    version: "نسخه ۱",
-  },
-  {
-    name: "رضایت‌نامه جراحی‌های زیبایی",
-    version: "نسخه ۱",
-  },
-];
+export default function FormBuilderPage({
+  params,
+}: {
+  params: Promise<{ clinicSlug: string }>;
+}) {
+  const { clinicSlug } = use(params);
 
-const CONSENT_VERSIONS = [
-  {
-    number: "۳",
-    version: "بروزرسانی بند عوارض و مراقبت‌ها",
-    createdBy: "دکتر سارا محمدی",
-    date: "۱۴۰۳/۰۳/۲۱",
-    status: "فعال",
-    statusTone:
-      "bg-primary-light/20 text-primary-dark dark:bg-primary/15 dark:text-primary-light",
-  },
-  {
-    number: "۲",
-    version: "افزودن توضیحات دقیق‌تر",
-    createdBy: "دکتر سارا محمدی",
-    date: "۱۴۰۳/۰۱/۱۵",
-    status: "غیرفعال",
-    statusTone:
-      "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
-  },
-  {
-    number: "۱",
-    version: "نسخه اولیه",
-    createdBy: "دکتر سارا محمدی",
-    date: "۱۴۰۲/۱۱/۰۲",
-    status: "غیرفعال",
-    statusTone:
-      "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
-  },
-];
-
-const CONNECTED_SERVICES = [
-  { name: "تزریق ژل", checked: true },
-  { name: "بوتاکس", checked: true },
-  { name: "مزوتراپی", checked: true },
-  { name: "فیلر زیر چشم", checked: false },
-];
-
-export default function FormBuilderPage() {
   const [activeTab, setActiveTab] = useState<"intake" | "consents">(
     "intake",
   );
 
   const [fieldEnabled, setFieldEnabled] = useState(true);
+
+  const queryClient = useQueryClient();
+
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [showCreateTemplate, setShowCreateTemplate] = useState(false);
+  const [showEditTemplateInfo, setShowEditTemplateInfo] = useState(false);
+  const [showNewVersion, setShowNewVersion] = useState(false);
+  const [consentsError, setConsentsError] = useState<string | null>(null);
+
+  const { data: templates = [], isLoading: templatesLoading } = useQuery({
+    queryKey: queryKeys.consents.templates(clinicSlug),
+    queryFn: () => getConsentTemplates(clinicSlug),
+    enabled: !!clinicSlug && activeTab === "consents",
+  });
+
+  const selectedTemplate: ConsentTemplate | null =
+    templates.find((t) => t.id === selectedTemplateId) ?? templates[0] ?? null;
+
+  const { data: versions = [], isLoading: versionsLoading } = useQuery({
+    queryKey: queryKeys.consents.versions(clinicSlug, selectedTemplate?.id ?? ""),
+    queryFn: () => getConsentVersions(clinicSlug, selectedTemplate!.id),
+    enabled: !!clinicSlug && !!selectedTemplate,
+  });
+
+  function invalidateTemplates() {
+    queryClient.invalidateQueries({ queryKey: queryKeys.consents.templates(clinicSlug) });
+  }
+
+  function invalidateVersions() {
+    if (selectedTemplate) {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.consents.versions(clinicSlug, selectedTemplate.id),
+      });
+    }
+  }
 
   return (
     <div className="space-y-4 text-gray-900 dark:text-gray-100">
@@ -528,199 +527,545 @@ export default function FormBuilderPage() {
 
       {/* Consents */}
       {activeTab === "consents" && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
-          {/* Connected Services */}
-          <div
-            className="
-              rounded-2xl border border-gray-100 bg-white p-4
-              dark:border-gray-800 dark:bg-gray-900
-            "
-          >
-            <h3 className="mb-3 text-xs font-bold text-gray-800 dark:text-gray-100">
-              اتصال به خدمات
-            </h3>
-
-            <p className="mb-2 text-[10px] text-gray-400 dark:text-gray-500">
-              خدماتی که این رضایت‌نامه در آن‌ها نمایش داده شود.
+        <div className="space-y-4">
+          {consentsError && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-500 dark:bg-red-500/10 dark:text-red-300">
+              {consentsError}
             </p>
+          )}
 
-            <div className="space-y-2 text-[11px]">
-              {CONNECTED_SERVICES.map((service) => (
-                <label
-                  key={service.name}
-                  className="flex items-center justify-between text-gray-600 dark:text-gray-300"
-                >
-                  {service.name}
-
-                  <input
-                    type="checkbox"
-                    defaultChecked={service.checked}
-                    className="h-3.5 w-3.5 rounded text-primary"
-                  />
-                </label>
-              ))}
+          {templatesLoading ? (
+            <div className="rounded-2xl border border-gray-100 bg-white p-10 text-center text-xs text-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-500">
+              در حال بارگذاری...
             </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+              {/* Template info */}
+              <div className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+                <h3 className="mb-3 text-xs font-bold text-gray-800 dark:text-gray-100">
+                  اطلاعات قالب
+                </h3>
 
-            <button className="mt-3 text-[10px] text-primary-dark dark:text-primary-light">
-              انتخاب همه
-            </button>
-          </div>
+                {!selectedTemplate ? (
+                  <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                    ابتدا یک قالب رضایت‌نامه بسازید.
+                  </p>
+                ) : (
+                  <>
+                    <div className="text-[11px] text-gray-500 dark:text-gray-400">خدمت مرتبط</div>
+                    <div className="mt-1 text-xs font-medium text-gray-700 dark:text-gray-200">
+                      {selectedTemplate.serviceName ?? "بدون خدمت خاص (عمومی)"}
+                    </div>
 
-          {/* Versions */}
-          <div
-            className="
-              rounded-2xl border border-gray-100 bg-white p-4
-              dark:border-gray-800 dark:bg-gray-900
-              lg:col-span-2
-            "
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-xs font-bold text-gray-800 dark:text-gray-100">
-                رضایت‌نامه تزریقات زیبایی
-              </h3>
-
-              <PenLine className="h-3.5 w-3.5 text-gray-300 dark:text-gray-600" />
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-right text-[10px]">
-                <thead>
-                  <tr className="border-b border-gray-100 text-gray-400 dark:border-gray-800">
-                    <th className="pb-2 font-medium">نسخه</th>
-                    <th className="pb-2 font-medium">وضعیت</th>
-                    <th className="pb-2 font-medium">تاریخ ایجاد</th>
-                    <th className="pb-2 font-medium">
-                      ایجاد شده توسط
-                    </th>
-                    <th className="pb-2 font-medium">
-                      تغییرات متصل
-                    </th>
-                    <th className="pb-2 font-medium">عملیات</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {CONSENT_VERSIONS.map((version) => (
-                    <tr
-                      key={version.number}
-                      className="border-b border-gray-50 dark:border-gray-800"
+                    <div className="mt-3 text-[11px] text-gray-500 dark:text-gray-400">وضعیت قالب</div>
+                    <span
+                      className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] ${
+                        selectedTemplate.status === "active"
+                          ? "bg-primary-light/20 text-primary-dark dark:bg-primary/15 dark:text-primary-light"
+                          : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                      }`}
                     >
-                      <td className="py-2 text-gray-700 dark:text-gray-200">
-                        {version.number}
-                      </td>
+                      {selectedTemplate.status === "active"
+                        ? "فعال"
+                        : selectedTemplate.status === "draft"
+                          ? "پیش‌نویس"
+                          : "غیرفعال"}
+                    </span>
 
-                      <td className="py-2">
-                        <span
-                          className={`rounded-full px-2 py-0.5 ${version.statusTone}`}
-                        >
-                          {version.status}
-                        </span>
-                      </td>
+                    <button
+                      type="button"
+                      onClick={() => setShowEditTemplateInfo(true)}
+                      className="mt-3 flex items-center gap-1 text-[10px] text-primary-dark dark:text-primary-light"
+                    >
+                      <PenLine className="h-3 w-3" />
+                      ویرایش عنوان / خدمت
+                    </button>
+                  </>
+                )}
+              </div>
 
-                      <td className="py-2 text-gray-500 dark:text-gray-400">
-                        {version.date}
-                      </td>
-
-                      <td className="py-2 text-gray-500 dark:text-gray-400">
-                        {version.createdBy}
-                      </td>
-
-                      <td className="py-2 text-gray-500 dark:text-gray-400">
-                        {version.version}
-                      </td>
-
-                      <td className="py-2">
-                        <div className="flex gap-1">
-                          <button className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300">
-                            <Copy className="h-3 w-3" />
-                          </button>
-
-                          <button className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300">
-                            <Eye className="h-3 w-3" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="mt-3 flex items-center justify-between">
-              <button
-                className="
-                  flex items-center gap-1 rounded-lg
-                  bg-primary px-3 py-1.5
-                  text-[10px] font-medium text-white
-                  hover:bg-primary-dark
-                "
-              >
-                <Eye className="h-3 w-3" />
-                پیش‌نمایش قالب
-              </button>
-
-              <button className="text-[10px] text-primary-dark dark:text-primary-light">
-                مشاهده همه نسخه‌ها
-              </button>
-            </div>
-          </div>
-
-          {/* Templates */}
-          <div
-            className="
-              rounded-2xl border border-gray-100 bg-white p-4
-              dark:border-gray-800 dark:bg-gray-900
-            "
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-xs font-bold text-gray-800 dark:text-gray-100">
-                قالب‌های رضایت‌نامه
-              </h3>
-
-              <button
-                className="
-                  flex items-center gap-1 rounded-lg
-                  bg-primary-light/15 px-2 py-1
-                  text-[10px] text-primary-dark
-                  dark:bg-primary/10 dark:text-primary-light
-                "
-              >
-                <Plus className="h-3 w-3" />
-                قالب جدید
-              </button>
-            </div>
-
-            <div className="space-y-1.5">
-              {CONSENT_TEMPLATES.map((template) => (
-                <div
-                  key={template.name}
-                  className={`
-                    rounded-xl border p-2.5 transition
-                    ${
-                      template.active
-                        ? "border-primary bg-primary-light/5 dark:bg-primary/10"
-                        : "border-gray-100 dark:border-gray-800"
-                    }
-                  `}
-                >
-                  <div className="text-[11px] font-medium text-gray-700 dark:text-gray-200">
-                    {template.name}
-                  </div>
-
-                  <div className="text-[9px] text-gray-400 dark:text-gray-500">
-                    {template.version}
-                  </div>
+              {/* Versions */}
+              <div className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-900 lg:col-span-2">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-gray-800 dark:text-gray-100">
+                    {selectedTemplate ? selectedTemplate.title : "نسخه‌ها"}
+                  </h3>
                 </div>
-              ))}
-            </div>
 
-            <button className="mt-3 flex items-center gap-1 text-[10px] text-primary-dark dark:text-primary-light">
-              <SlidersHorizontal className="h-3 w-3" />
-              مشاهده همه قالب‌ها
-            </button>
-          </div>
+                {!selectedTemplate ? (
+                  <p className="text-[11px] text-gray-400 dark:text-gray-500">قالبی انتخاب نشده.</p>
+                ) : versionsLoading ? (
+                  <p className="py-6 text-center text-[11px] text-gray-400 dark:text-gray-500">
+                    در حال بارگذاری...
+                  </p>
+                ) : versions.length === 0 ? (
+                  <p className="py-6 text-center text-[11px] text-gray-400 dark:text-gray-500">
+                    نسخه‌ای برای این قالب ثبت نشده.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-right text-[10px]">
+                      <thead>
+                        <tr className="border-b border-gray-100 text-gray-400 dark:border-gray-800">
+                          <th className="pb-2 font-medium">نسخه</th>
+                          <th className="pb-2 font-medium">وضعیت</th>
+                          <th className="pb-2 font-medium">متن</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...versions]
+                          .sort((a, b) => b.versionNumber - a.versionNumber)
+                          .map((v) => (
+                            <tr key={v.id} className="border-b border-gray-50 dark:border-gray-800">
+                              <td className="py-2 text-gray-700 dark:text-gray-200">
+                                {v.versionNumber.toLocaleString("fa-IR")}
+                              </td>
+                              <td className="py-2">
+                                <span
+                                  className={`rounded-full px-2 py-0.5 ${
+                                    v.status === "active"
+                                      ? "bg-primary-light/20 text-primary-dark dark:bg-primary/15 dark:text-primary-light"
+                                      : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                                  }`}
+                                >
+                                  {v.status === "active" ? "فعال" : v.status === "draft" ? "پیش‌نویس" : "بایگانی"}
+                                </span>
+                              </td>
+                              <td className="max-w-[220px] truncate py-2 text-gray-500 dark:text-gray-400">
+                                {v.content}
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                <div className="mt-3 flex items-center justify-end">
+                  <button
+                    type="button"
+                    disabled={!selectedTemplate}
+                    onClick={() => setShowNewVersion(true)}
+                    className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-[10px] font-medium text-white transition hover:bg-primary-dark disabled:opacity-50"
+                  >
+                    <Plus className="h-3 w-3" />
+                    نسخه جدید
+                  </button>
+                </div>
+              </div>
+
+              {/* Templates list */}
+              <div className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-gray-800 dark:text-gray-100">
+                    قالب‌های رضایت‌نامه
+                  </h3>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateTemplate(true)}
+                    className="flex items-center gap-1 rounded-lg bg-primary-light/15 px-2 py-1 text-[10px] text-primary-dark dark:bg-primary/10 dark:text-primary-light"
+                  >
+                    <Plus className="h-3 w-3" />
+                    قالب جدید
+                  </button>
+                </div>
+
+                {templates.length === 0 ? (
+                  <p className="text-[11px] text-gray-400 dark:text-gray-500">قالبی ثبت نشده.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {templates.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setSelectedTemplateId(t.id)}
+                        className={`w-full rounded-xl border p-2.5 text-right transition ${
+                          selectedTemplate?.id === t.id
+                            ? "border-primary bg-primary-light/5 dark:bg-primary/10"
+                            : "border-gray-100 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/5"
+                        }`}
+                      >
+                        <div className="text-[11px] font-medium text-gray-700 dark:text-gray-200">
+                          {t.title}
+                        </div>
+                        <div className="text-[9px] text-gray-400 dark:text-gray-500">
+                          {t.serviceName ?? "عمومی"} ·{" "}
+                          {t.status === "active" ? "فعال" : t.status === "draft" ? "پیش‌نویس" : "غیرفعال"}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
+
+      {showCreateTemplate && (
+        <CreateTemplateModal
+          clinicSlug={clinicSlug}
+          onClose={() => setShowCreateTemplate(false)}
+          onCreated={(templateId) => {
+            setShowCreateTemplate(false);
+            setSelectedTemplateId(templateId);
+            setConsentsError(null);
+            invalidateTemplates();
+          }}
+        />
+      )}
+
+      {showEditTemplateInfo && selectedTemplate && (
+        <EditTemplateInfoModal
+          clinicSlug={clinicSlug}
+          template={selectedTemplate}
+          onClose={() => setShowEditTemplateInfo(false)}
+          onSaved={() => {
+            setShowEditTemplateInfo(false);
+            setConsentsError(null);
+            invalidateTemplates();
+          }}
+        />
+      )}
+
+      {showNewVersion && selectedTemplate && (
+        <CreateVersionModal
+          clinicSlug={clinicSlug}
+          template={selectedTemplate}
+          onClose={() => setShowNewVersion(false)}
+          onSaved={() => {
+            setShowNewVersion(false);
+            setConsentsError(null);
+            invalidateVersions();
+            invalidateTemplates();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function CreateTemplateModal({
+  clinicSlug,
+  onClose,
+  onCreated,
+}: {
+  clinicSlug: string;
+  onClose: () => void;
+  onCreated: (templateId: string) => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [serviceId, setServiceId] = useState("");
+  const [content, setContent] = useState("");
+  const [activate, setActivate] = useState(true);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const { data: services = [] } = useQuery({
+    queryKey: ["services", clinicSlug, "for-consent-template"],
+    queryFn: () => getServices(clinicSlug),
+    enabled: !!clinicSlug,
+  });
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      if (!title.trim()) throw new Error("عنوان قالب الزامی است.");
+      if (!content.trim()) throw new Error("متن رضایت‌نامه الزامی است.");
+      return createConsentTemplate(clinicSlug, {
+        title: title.trim(),
+        service_id: serviceId || undefined,
+        content: content.trim(),
+        activate,
+      });
+    },
+    onSuccess: (template) => onCreated(template.id),
+    onError: (e) => setFormError(e instanceof Error ? e.message : "ایجاد قالب ناموفق بود"),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-[1px] dark:bg-black/60">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-gray-100 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-[#18201e]">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-bold text-gray-900 dark:text-white">قالب رضایت‌نامه جدید</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 text-gray-400 transition hover:bg-gray-50 hover:text-gray-600 dark:hover:bg-white/10 dark:hover:text-gray-300"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {formError && (
+          <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-500 dark:bg-red-500/10 dark:text-red-300">
+            {formError}
+          </p>
+        )}
+
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">عنوان</label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="مثلاً: رضایت‌نامه تزریقات زیبایی"
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">
+              خدمت مرتبط (اختیاری)
+            </label>
+            <select
+              value={serviceId}
+              onChange={(e) => setServiceId(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+            >
+              <option value="">عمومی (بدون خدمت خاص)</option>
+              {services.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">
+              متن رضایت‌نامه (نسخه اول)
+            </label>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={5}
+              className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+            />
+          </div>
+
+          <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+            <input
+              type="checkbox"
+              checked={activate}
+              onChange={(e) => setActivate(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-gray-300"
+            />
+            بلافاصله فعال شود
+          </label>
+        </div>
+
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm text-gray-600 transition hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/10"
+          >
+            انصراف
+          </button>
+          <button
+            type="button"
+            onClick={() => mutation.mutate()}
+            disabled={mutation.isPending}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-medium text-white transition hover:bg-primary-dark disabled:opacity-60"
+          >
+            {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            {mutation.isPending ? "در حال ثبت..." : "ایجاد قالب"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditTemplateInfoModal({
+  clinicSlug,
+  template,
+  onClose,
+  onSaved,
+}: {
+  clinicSlug: string;
+  template: ConsentTemplate;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [title, setTitle] = useState(template.title);
+  const [serviceId, setServiceId] = useState(template.serviceId ?? "");
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const { data: services = [] } = useQuery({
+    queryKey: ["services", clinicSlug, "for-consent-template"],
+    queryFn: () => getServices(clinicSlug),
+    enabled: !!clinicSlug,
+  });
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      if (!title.trim()) throw new Error("عنوان قالب الزامی است.");
+      return updateConsentTemplate(clinicSlug, template.id, {
+        title: title.trim(),
+        service_id: serviceId || null,
+      });
+    },
+    onSuccess: () => onSaved(),
+    onError: (e) => setFormError(e instanceof Error ? e.message : "ویرایش قالب ناموفق بود"),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-[1px] dark:bg-black/60">
+      <div className="w-full max-w-sm rounded-2xl border border-gray-100 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-[#18201e]">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-bold text-gray-900 dark:text-white">ویرایش قالب</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 text-gray-400 transition hover:bg-gray-50 hover:text-gray-600 dark:hover:bg-white/10 dark:hover:text-gray-300"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {formError && (
+          <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-500 dark:bg-red-500/10 dark:text-red-300">
+            {formError}
+          </p>
+        )}
+
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">عنوان</label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">خدمت مرتبط</label>
+            <select
+              value={serviceId}
+              onChange={(e) => setServiceId(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+            >
+              <option value="">عمومی (بدون خدمت خاص)</option>
+              {services.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm text-gray-600 transition hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/10"
+          >
+            انصراف
+          </button>
+          <button
+            type="button"
+            onClick={() => mutation.mutate()}
+            disabled={mutation.isPending}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-medium text-white transition hover:bg-primary-dark disabled:opacity-60"
+          >
+            {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            {mutation.isPending ? "در حال ذخیره..." : "ذخیره تغییرات"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CreateVersionModal({
+  clinicSlug,
+  template,
+  onClose,
+  onSaved,
+}: {
+  clinicSlug: string;
+  template: ConsentTemplate;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [content, setContent] = useState("");
+  const [activate, setActivate] = useState(true);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      if (!content.trim()) throw new Error("متن نسخه‌ی جدید الزامی است.");
+      return createConsentVersion(clinicSlug, template.id, { content: content.trim(), activate });
+    },
+    onSuccess: () => onSaved(),
+    onError: (e) => setFormError(e instanceof Error ? e.message : "ایجاد نسخه‌ی جدید ناموفق بود"),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-[1px] dark:bg-black/60">
+      <div className="w-full max-w-md rounded-2xl border border-gray-100 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-[#18201e]">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-bold text-gray-900 dark:text-white">
+            نسخه‌ی جدید «{template.title}»
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 text-gray-400 transition hover:bg-gray-50 hover:text-gray-600 dark:hover:bg-white/10 dark:hover:text-gray-300"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {formError && (
+          <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-500 dark:bg-red-500/10 dark:text-red-300">
+            {formError}
+          </p>
+        )}
+
+        <p className="mb-2 text-[10px] text-gray-400 dark:text-gray-500">
+          نسخه‌های قبلی هرگز تغییر نمی‌کنند؛ این متن به‌عنوان نسخه‌ی جدید ثبت می‌شود.
+        </p>
+
+        <textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          rows={6}
+          className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+        />
+
+        <label className="mt-2 flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+          <input
+            type="checkbox"
+            checked={activate}
+            onChange={(e) => setActivate(e.target.checked)}
+            className="h-3.5 w-3.5 rounded border-gray-300"
+          />
+          این نسخه فعال شود (نسخه‌ی فعال قبلی غیرفعال می‌شود)
+        </label>
+
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm text-gray-600 transition hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/10"
+          >
+            انصراف
+          </button>
+          <button
+            type="button"
+            onClick={() => mutation.mutate()}
+            disabled={mutation.isPending}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-medium text-white transition hover:bg-primary-dark disabled:opacity-60"
+          >
+            {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            {mutation.isPending ? "در حال ثبت..." : "ثبت نسخه جدید"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -874,4 +1219,3 @@ function TinySelectInline({
     </div>
   );
 }
-

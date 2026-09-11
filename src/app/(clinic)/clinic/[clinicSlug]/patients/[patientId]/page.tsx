@@ -21,28 +21,20 @@ import {
   AlignLeft,
   UserRound,
   ShieldCheck,
-  ShieldAlert,
   FilePlus2,
   Images,
   StickyNote,
   Heart,
   CalendarDays,
   Paperclip,
-  Lock,
-  Save,
-  X,
-  ChevronDown,
-  ChevronUp,
-  MapPin,
+  CheckCircle2,
+  XCircle,
   Plus,
+  X,
+  Loader2,
 } from "lucide-react";
 
 import Image from "next/image";
-
-import { Calendar } from "react-multi-date-picker";
-import persian from "react-date-object/calendars/persian";
-import persian_fa from "react-date-object/locales/persian_fa";
-import DateObject from "react-date-object";
 
 import {
   getPatientDetail,
@@ -50,18 +42,14 @@ import {
   getPatientNextAppointment,
 } from "@/lib/api/patients";
 
+import { getPatientVisits, type ClinicVisit } from "@/lib/api/visits";
+
 import {
-  getPatientVisits,
-  getVisitDetail,
-  updateVisit,
-  lockVisit,
-  addVisitRecommendation,
-  setVisitFollowUp,
-  checkVisitConsents,
-  getVisitServiceBodyPoints,
-  addVisitServiceBodyPoint,
-  type ClinicVisit,
-} from "@/lib/api/visits";
+  getPatientSignedConsents,
+  getConsentTemplates,
+  signPatientConsent,
+  type ConsentTemplate,
+} from "@/lib/api/consents";
 
 import { queryKeys } from "@/lib/query/keys";
 
@@ -92,18 +80,6 @@ const VISIT_STATUS_TONE: Record<ClinicVisit["status"], string> = {
   locked: "bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-300",
   cancelled: "bg-red-50 text-danger dark:bg-red-500/10 dark:text-red-300",
 };
-
-const BODY_REGIONS = [
-  "پیشانی",
-  "اطراف چشم",
-  "گونه",
-  "لب",
-  "چانه",
-  "خط فک",
-  "گردن",
-  "پوست سر",
-  "سایر",
-];
 
 const GALLERY = [
   {
@@ -151,9 +127,21 @@ const CHAT_MESSAGES = [
 ];
 
 const RELATED_FILES = [
-  { name: "رضایت‌نامه مزوتراپی مو", type: "PDF", date: "۱۴۰۳/۰۳/۲۱" },
-  { name: "برنامه مراقبتی بعد از جلسه", type: "PDF", date: "۱۴۰۳/۰۳/۲۱" },
-  { name: "عکس آنالیز پوست", type: "JPG", date: "۱۴۰۳/۰۲/۱۵" },
+  {
+    name: "رضایت‌نامه مزوتراپی مو",
+    type: "PDF",
+    date: "۱۴۰۳/۰۳/۲۱",
+  },
+  {
+    name: "برنامه مراقبتی بعد از جلسه",
+    type: "PDF",
+    date: "۱۴۰۳/۰۳/۲۱",
+  },
+  {
+    name: "عکس آنالیز پوست",
+    type: "JPG",
+    date: "۱۴۰۳/۰۲/۱۵",
+  },
 ];
 
 const STATUS_LABELS: Record<string, string> = {
@@ -164,6 +152,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 function formatJalaliDate(iso: string | null) {
   if (!iso) return "—";
+
   try {
     return new Date(iso).toLocaleDateString("fa-IR");
   } catch {
@@ -173,53 +162,13 @@ function formatJalaliDate(iso: string | null) {
 
 function formatJalaliTime(iso: string) {
   try {
-    return new Date(iso).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" });
+    return new Date(iso).toLocaleTimeString("fa-IR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   } catch {
     return "";
   }
-}
-
-function toDateInputValue(iso: string | null) {
-  if (!iso) return "";
-  try {
-    return new Date(iso).toISOString().slice(0, 10);
-  } catch {
-    return "";
-  }
-}
-
-// شکل واقعی خروجی /visits/{id}/consents/check:
-// { all_signed: boolean, missing: (string | { name?: string; title?: string; consent_name?: string })[] }
-function missingConsentLabel(item: unknown): string {
-  if (typeof item === "string") return item;
-  if (item && typeof item === "object") {
-    const o = item as Record<string, unknown>;
-    return (
-      (o.name as string) ??
-      (o.title as string) ??
-      (o.consent_name as string) ??
-      (o.label as string) ??
-      "رضایت‌نامه‌ی نامشخص"
-    );
-  }
-  return "رضایت‌نامه‌ی نامشخص";
-}
-
-function summarizeConsentResult(result: Record<string, unknown> | null | undefined) {
-  if (!result) return null;
-
-  const allSigned = result.all_signed as boolean | undefined;
-  const missing = (result.missing as unknown[] | undefined) ?? [];
-
-  if (allSigned === true || missing.length === 0) {
-    return { ok: true, message: "همه‌ی رضایت‌نامه‌های لازم ثبت شده است.", missing: [] as string[] };
-  }
-
-  return {
-    ok: false,
-    message: `${missing.length} رضایت‌نامه‌ی ثبت‌نشده وجود دارد.`,
-    missing: missing.map(missingConsentLabel),
-  };
 }
 
 export default function PatientProfilePage({
@@ -228,8 +177,11 @@ export default function PatientProfilePage({
   params: Promise<{ clinicSlug: string; patientId: string }>;
 }) {
   const { clinicSlug, patientId } = use(params);
+  const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState("info");
+  const [showSignConsent, setShowSignConsent] = useState(false);
+  const [consentsError, setConsentsError] = useState<string | null>(null);
 
   const [note, setNote] = useState(
     "مزوتراپی مو با کوکتل رشد مو انجام شد. پوست سر قبل از تزریق با لیدوکائین موضعی بی‌حس شد. بیمار رضایت قبل از دارد. توصیه شد مصرف مکمل بیوتین ادامه یابد و شستشوی ملایم انجام شود."
@@ -237,7 +189,9 @@ export default function PatientProfilePage({
 
   const noteRef = useRef<HTMLDivElement>(null);
 
-  const [activeFormats, setActiveFormats] = useState<Record<string, boolean>>({});
+  const [activeFormats, setActiveFormats] = useState<
+    Record<string, boolean>
+  >({});
 
   const { data: detail, isLoading, error } = useQuery({
     queryKey: queryKeys.patients.detail(clinicSlug, patientId),
@@ -252,7 +206,10 @@ export default function PatientProfilePage({
   });
 
   const { data: nextAppointment } = useQuery({
-    queryKey: [...queryKeys.patients.detail(clinicSlug, patientId), "next-appointment"],
+    queryKey: [
+      ...queryKeys.patients.detail(clinicSlug, patientId),
+      "next-appointment",
+    ],
     queryFn: () => getPatientNextAppointment(clinicSlug, patientId),
     enabled: !!clinicSlug && !!patientId,
   });
@@ -263,10 +220,38 @@ export default function PatientProfilePage({
     enabled: !!clinicSlug && !!patientId,
   });
 
+  const { data: signedConsents = [], isLoading: consentsLoading } = useQuery({
+    queryKey: queryKeys.consents.byPatient(clinicSlug, patientId),
+    queryFn: () => getPatientSignedConsents(clinicSlug, patientId),
+    enabled: !!clinicSlug && !!patientId,
+  });
+
+  const { data: consentTemplates = [] } = useQuery({
+    queryKey: queryKeys.consents.templates(clinicSlug),
+    queryFn: () => getConsentTemplates(clinicSlug),
+    enabled: !!clinicSlug && activeTab === "consents",
+  });
+
+  const signConsentMutation = useMutation({
+    mutationFn: (payload: { consentVersionId: string; serviceId?: string; accepted: boolean }) =>
+      signPatientConsent(clinicSlug, patientId, {
+        consent_version_id: payload.consentVersionId,
+        service_id: payload.serviceId,
+        accepted: payload.accepted,
+      }),
+    onSuccess: () => {
+      setConsentsError(null);
+      setShowSignConsent(false);
+      queryClient.invalidateQueries({ queryKey: queryKeys.consents.byPatient(clinicSlug, patientId) });
+    },
+    onError: (e) => setConsentsError(e instanceof Error ? e.message : "ثبت رضایت‌نامه ناموفق بود"),
+  });
+
   const sortedVisits = [...(visits ?? [])].sort(
     (a, b) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime()
   );
 
+  // برای ویجت خلاصه‌ی "خدمات آخیر" در تب اطلاعات پایه: هر خدمتِ هر جلسه، یک ردیف
   const recentVisitServices = sortedVisits
     .flatMap((v) =>
       v.services.map((s) => ({
@@ -281,9 +266,14 @@ export default function PatientProfilePage({
 
   const applyFormat = (command: string, value?: string) => {
     noteRef.current?.focus();
+
     document.execCommand(command, false, value);
+
     updateActiveFormats();
-    if (noteRef.current) setNote(noteRef.current.innerHTML);
+
+    if (noteRef.current) {
+      setNote(noteRef.current.innerHTML);
+    }
   };
 
   const updateActiveFormats = () => {
@@ -297,7 +287,11 @@ export default function PatientProfilePage({
     });
   };
 
-  const toolbarBtn = (icon: React.ReactNode, command: string, value?: string) => (
+  const toolbarBtn = (
+    icon: React.ReactNode,
+    command: string,
+    value?: string
+  ) => (
     <button
       type="button"
       onMouseDown={(e) => e.preventDefault()}
@@ -314,13 +308,17 @@ export default function PatientProfilePage({
 
   if (isLoading) {
     return (
-      <div className="py-20 text-center text-sm text-gray-400 dark:text-gray-500">در حال بارگذاری...</div>
+      <div className="py-20 text-center text-sm text-gray-400 dark:text-gray-500">
+        در حال بارگذاری...
+      </div>
     );
   }
 
   if (error || !detail) {
     return (
-      <div className="py-20 text-center text-sm text-danger dark:text-red-400">بیمار یافت نشد.</div>
+      <div className="py-20 text-center text-sm text-danger dark:text-red-400">
+        بیمار یافت نشد.
+      </div>
     );
   }
 
@@ -332,7 +330,8 @@ export default function PatientProfilePage({
       tone: "bg-danger",
     },
     medicalAlerts.hasSpecialDisease && {
-      text: medicalAlerts.specialDiseaseDescription || "بیماری خاص ثبت‌شده",
+      text:
+        medicalAlerts.specialDiseaseDescription || "بیماری خاص ثبت‌شده",
       tone: "bg-warning",
     },
     medicalAlerts.usesMedicine && {
@@ -378,6 +377,7 @@ export default function PatientProfilePage({
                 <span className="text-base font-bold text-gray-900 dark:text-white">
                   {patient.firstName} {patient.lastName}
                 </span>
+
                 <Star className="h-4 w-4 text-warning" />
               </div>
 
@@ -387,18 +387,29 @@ export default function PatientProfilePage({
             </div>
           </div>
 
-          <InfoStat label="کدملی" value={patient.nationalId ?? "—"} />
+          <InfoStat
+            label="کدملی"
+            value={patient.nationalId ?? "—"}
+          />
 
           <InfoStat
             label="تاریخ تولد / سن"
             value={`${formatJalaliDate(patient.birthDate)}${
-              patient.age != null ? ` - ${patient.age.toLocaleString("fa-IR")} سال` : ""
+              patient.age != null
+                ? ` - ${patient.age.toLocaleString("fa-IR")} سال`
+                : ""
             }`}
           />
 
-          <InfoStat label="شماره تماس" value={patient.phone || "—"} />
+          <InfoStat
+            label="شماره تماس"
+            value={patient.phone || "—"}
+          />
 
-          <InfoStat label="آخرین مراجعه" value={formatJalaliDate(patient.lastVisitAt)} />
+          <InfoStat
+            label="آخرین مراجعه"
+            value={formatJalaliDate(patient.lastVisitAt)}
+          />
 
           <InfoStat
             label="وضعیت"
@@ -408,15 +419,25 @@ export default function PatientProfilePage({
                   {STATUS_LABELS[patient.status] ?? patient.status}
                 </span>
               ) : (
-                <span className="text-gray-300 dark:text-gray-600">—</span>
+                <span className="text-gray-300 dark:text-gray-600">
+                  —
+                </span>
               )
             }
           />
 
           <InfoStat
             label="بدهی جاری"
-            value={debt != null ? `${debt.toLocaleString("fa-IR")} تومان` : "—"}
-            valueTone={debt && debt > 0 ? "text-danger dark:text-red-400" : undefined}
+            value={
+              debt != null
+                ? `${debt.toLocaleString("fa-IR")} تومان`
+                : "—"
+            }
+            valueTone={
+              debt && debt > 0
+                ? "text-danger dark:text-red-400"
+                : undefined
+            }
           />
         </div>
       </div>
@@ -426,6 +447,7 @@ export default function PatientProfilePage({
         <div className="flex min-w-max items-center gap-5 text-sm">
           {TABS.map((tab) => {
             const Icon = tab.icon;
+
             return (
               <button
                 key={tab.key}
@@ -458,15 +480,23 @@ export default function PatientProfilePage({
 
                 <div className="space-y-3">
                   {CHAT_MESSAGES.map((m, i) => (
-                    <div key={i} className="flex items-start gap-2">
+                    <div
+                      key={i}
+                      className="flex items-start gap-2"
+                    >
                       <div className="h-6 w-6 shrink-0 rounded-full bg-gray-100 dark:bg-gray-800" />
+
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
                           <span className="text-[11px] font-medium text-gray-700 dark:text-gray-200">
                             {m.name}
                           </span>
-                          <span className="text-[9px] text-gray-300 dark:text-gray-600">{m.time}</span>
+
+                          <span className="text-[9px] text-gray-300 dark:text-gray-600">
+                            {m.time}
+                          </span>
                         </div>
+
                         <p className="text-[10px] leading-relaxed text-gray-500 dark:text-gray-400">
                           {m.text}
                         </p>
@@ -489,12 +519,17 @@ export default function PatientProfilePage({
 
                 <div className="space-y-3">
                   {RELATED_FILES.map((f) => (
-                    <div key={f.name} className="flex items-center gap-2.5">
+                    <div
+                      key={f.name}
+                      className="flex items-center gap-2.5"
+                    >
                       <FilePlus2 className="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" />
+
                       <div>
                         <div className="text-[11px] font-medium text-gray-700 dark:text-gray-200">
                           {f.name}
                         </div>
+
                         <div className="text-[10px] text-gray-400 dark:text-gray-500">
                           {f.type} · {f.date}
                         </div>
@@ -515,7 +550,10 @@ export default function PatientProfilePage({
               <div className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
                 <div className="mb-3 flex items-center gap-1.5">
                   <FileText className="h-4 w-4 text-primary-dark dark:text-primary" />
-                  <h3 className="text-xs font-bold text-gray-800 dark:text-gray-100">یادداشت آخرین جلسه</h3>
+
+                  <h3 className="text-xs font-bold text-gray-800 dark:text-gray-100">
+                    یادداشت آخرین جلسه
+                  </h3>
                 </div>
 
                 <div className="mb-2 flex items-center gap-2 border-b border-gray-100 pb-2 dark:border-gray-800">
@@ -524,26 +562,54 @@ export default function PatientProfilePage({
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
                       const url = prompt("لینک را وارد کنید:");
-                      if (url) applyFormat("createLink", url);
+
+                      if (url) {
+                        applyFormat("createLink", url);
+                      }
                     }}
                     className="rounded p-1 text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-200"
                   >
                     <Link2 className="h-3.5 w-3.5" />
                   </button>
 
-                  {toolbarBtn(<AlignRight className="h-3.5 w-3.5" />, "justifyRight")}
-                  {toolbarBtn(<AlignLeft className="h-3.5 w-3.5" />, "justifyLeft")}
-                  {toolbarBtn(<List className="h-3.5 w-3.5" />, "insertUnorderedList")}
-                  {toolbarBtn(<Bold className="h-3.5 w-3.5" />, "bold")}
-                  {toolbarBtn(<Italic className="h-3.5 w-3.5" />, "italic")}
-                  {toolbarBtn(<Underline className="h-3.5 w-3.5" />, "underline")}
+                  {toolbarBtn(
+                    <AlignRight className="h-3.5 w-3.5" />,
+                    "justifyRight"
+                  )}
+
+                  {toolbarBtn(
+                    <AlignLeft className="h-3.5 w-3.5" />,
+                    "justifyLeft"
+                  )}
+
+                  {toolbarBtn(
+                    <List className="h-3.5 w-3.5" />,
+                    "insertUnorderedList"
+                  )}
+
+                  {toolbarBtn(
+                    <Bold className="h-3.5 w-3.5" />,
+                    "bold"
+                  )}
+
+                  {toolbarBtn(
+                    <Italic className="h-3.5 w-3.5" />,
+                    "italic"
+                  )}
+
+                  {toolbarBtn(
+                    <Underline className="h-3.5 w-3.5" />,
+                    "underline"
+                  )}
                 </div>
 
                 <div
                   ref={noteRef}
                   contentEditable
                   suppressContentEditableWarning
-                  onInput={(e) => setNote(e.currentTarget.innerHTML)}
+                  onInput={(e) =>
+                    setNote(e.currentTarget.innerHTML)
+                  }
                   onKeyUp={updateActiveFormats}
                   onMouseUp={updateActiveFormats}
                   dangerouslySetInnerHTML={{ __html: note }}
@@ -555,6 +621,7 @@ export default function PatientProfilePage({
                   <span className="text-[10px] text-gray-300 dark:text-gray-600">
                     ثبت توسط: دکتر سارا محمدی - ۱۴۰۳/۰۳/۲۱ - ۱۱:۳۰
                   </span>
+
                   <button className="rounded-lg bg-primary px-4 py-1.5 text-[11px] font-medium text-white transition-colors hover:bg-primary-dark">
                     ذخیره یادداشت
                   </button>
@@ -563,7 +630,9 @@ export default function PatientProfilePage({
 
               {/* Services */}
               <div className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-                <h3 className="mb-3 text-xs font-bold text-gray-800 dark:text-gray-100">خدمات آخیر</h3>
+                <h3 className="mb-3 text-xs font-bold text-gray-800 dark:text-gray-100">
+                  خدمات آخیر
+                </h3>
 
                 {visitsLoading ? (
                   <p className="py-4 text-center text-[11px] text-gray-400 dark:text-gray-500">
@@ -584,12 +653,25 @@ export default function PatientProfilePage({
                           <th className="pb-2 font-medium">وضعیت</th>
                         </tr>
                       </thead>
+
                       <tbody>
                         {recentVisitServices.map((s, i) => (
-                          <tr key={`${s.visitId}-${i}`} className="border-b border-gray-50 dark:border-gray-800">
-                            <td className="py-2 text-gray-700 dark:text-gray-200">{s.name}</td>
-                            <td className="py-2 text-gray-500 dark:text-gray-400">{s.date}</td>
-                            <td className="py-2 text-gray-500 dark:text-gray-400">{s.doctor}</td>
+                          <tr
+                            key={`${s.visitId}-${i}`}
+                            className="border-b border-gray-50 dark:border-gray-800"
+                          >
+                            <td className="py-2 text-gray-700 dark:text-gray-200">
+                              {s.name}
+                            </td>
+
+                            <td className="py-2 text-gray-500 dark:text-gray-400">
+                              {s.date}
+                            </td>
+
+                            <td className="py-2 text-gray-500 dark:text-gray-400">
+                              {s.doctor}
+                            </td>
+
                             <td className="py-2">
                               <span className="rounded-full bg-primary-light/20 px-2 py-0.5 text-primary-dark dark:bg-primary/15 dark:text-primary">
                                 {s.status}
@@ -620,18 +702,25 @@ export default function PatientProfilePage({
                 <div className="grid grid-cols-3 gap-3">
                   {GALLERY.map((g) => (
                     <div key={g.title}>
-                      <div className={`relative h-16 overflow-hidden rounded-lg bg-gradient-to-br ${g.tone}`}>
+                      <div
+                        className={`relative h-16 overflow-hidden rounded-lg bg-gradient-to-br ${g.tone}`}
+                      >
                         <span className="absolute right-1 top-1 rounded bg-white/90 px-1 text-[8px] text-gray-600 dark:bg-gray-900/80 dark:text-gray-300">
                           قبل
                         </span>
+
                         <span className="absolute left-1 top-1 rounded bg-white/90 px-1 text-[8px] text-gray-600 dark:bg-gray-900/80 dark:text-gray-300">
                           بعد
                         </span>
                       </div>
+
                       <div className="mt-1 text-[10px] font-medium text-gray-600 dark:text-gray-300">
                         {g.title}
                       </div>
-                      <div className="text-[9px] text-gray-400 dark:text-gray-500">{g.date}</div>
+
+                      <div className="text-[9px] text-gray-400 dark:text-gray-500">
+                        {g.date}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -648,22 +737,30 @@ export default function PatientProfilePage({
               <div className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
                 <div className="mb-3 flex items-center">
                   <CalendarClock className="h-4 w-4 text-primary-dark dark:text-primary" />
-                  <h3 className="mr-2 text-xs font-bold text-gray-800 dark:text-gray-100">نوبت بعدی</h3>
+
+                  <h3 className="mr-2 text-xs font-bold text-gray-800 dark:text-gray-100">
+                    نوبت بعدی
+                  </h3>
                 </div>
 
                 {nextAppointment ? (
                   <>
                     <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-300">
                       <CalendarDays className="h-3.5 w-3.5 text-gray-300 dark:text-gray-600" />
-                      {formatJalaliDate(nextAppointment.startTime)} ساعت{" "}
+
+                      {formatJalaliDate(nextAppointment.startTime)}{" "}
+                      ساعت{" "}
                       {formatJalaliTime(nextAppointment.startTime)}
                     </div>
+
                     <div className="mt-1 text-xs text-gray-400 dark:text-gray-500">
                       {nextAppointment.serviceName}
                     </div>
                   </>
                 ) : (
-                  <div className="text-xs text-gray-400 dark:text-gray-500">نوبت آینده‌ای ثبت نشده.</div>
+                  <div className="text-xs text-gray-400 dark:text-gray-500">
+                    نوبت آینده‌ای ثبت نشده.
+                  </div>
                 )}
 
                 <button className="mt-3 w-full rounded-lg bg-primary-light/15 py-2 text-[11px] font-medium text-primary-dark transition-colors hover:bg-primary-light/25 dark:bg-primary/10 dark:text-primary dark:hover:bg-primary/20">
@@ -679,19 +776,30 @@ export default function PatientProfilePage({
               <div className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
                 <div className="mb-3 flex items-center gap-1.5">
                   <ShieldCheck className="h-4 w-4 text-primary-dark dark:text-primary" />
-                  <h3 className="text-xs font-bold text-gray-800 dark:text-gray-100">هشدارها و اطلاعات مهم</h3>
+
+                  <h3 className="text-xs font-bold text-gray-800 dark:text-gray-100">
+                    هشدارها و اطلاعات مهم
+                  </h3>
                 </div>
 
                 <div className="space-y-2">
                   {alerts.length > 0 ? (
                     alerts.map((a, i) => (
-                      <div key={i} className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
-                        <span className={`h-2 w-2 shrink-0 rounded-full ${a.tone}`} />
+                      <div
+                        key={i}
+                        className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300"
+                      >
+                        <span
+                          className={`h-2 w-2 shrink-0 rounded-full ${a.tone}`}
+                        />
+
                         {a.text}
                       </div>
                     ))
                   ) : (
-                    <div className="text-xs text-gray-400 dark:text-gray-500">هشداری ثبت نشده.</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500">
+                      هشداری ثبت نشده.
+                    </div>
                   )}
                 </div>
               </div>
@@ -700,7 +808,10 @@ export default function PatientProfilePage({
               <div className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
                 <div className="mb-2 flex items-center gap-1.5">
                   <PencilLine className="h-4 w-4 text-primary-dark dark:text-primary" />
-                  <h3 className="text-xs font-bold text-gray-800 dark:text-gray-100">یادداشت سریع</h3>
+
+                  <h3 className="text-xs font-bold text-gray-800 dark:text-gray-100">
+                    یادداشت سریع
+                  </h3>
                 </div>
 
                 <textarea
@@ -716,40 +827,103 @@ export default function PatientProfilePage({
             </div>
           </div>
 
+          {/* Security Notice */}
           <p className="flex items-center justify-center gap-1.5 pb-2 pt-4 text-center text-xs text-gray-400 dark:text-gray-500">
             <ShieldCheck className="h-3.5 w-3.5" />
             اطلاعات شما نزد ما امن است و به هیچ عنوان در اختیار شخص ثالث قرار نمی‌گیرد.
           </p>
         </>
-      ) : activeTab === "services" || activeTab === "consents" ? (
-        <VisitHistoryList
-          clinicSlug={clinicSlug}
-          patientId={patientId}
-          visits={sortedVisits}
-          isLoading={visitsLoading}
-          focusConsents={activeTab === "consents"}
-        />
+      ) : activeTab === "services" ? (
+        <VisitHistoryList visits={sortedVisits} isLoading={visitsLoading} />
+      ) : activeTab === "consents" ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-gray-800 dark:text-gray-100">رضایت‌نامه‌های امضاشده</h3>
+            <button
+              type="button"
+              onClick={() => setShowSignConsent(true)}
+              className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-medium text-white transition hover:bg-primary-dark"
+            >
+              <Plus className="h-3.5 w-3.5" /> ثبت رضایت‌نامه جدید
+            </button>
+          </div>
+
+          {consentsError && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-500 dark:bg-red-500/10 dark:text-red-300">
+              {consentsError}
+            </p>
+          )}
+
+          <div className="rounded-2xl border border-gray-100 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+            {consentsLoading ? (
+              <p className="py-10 text-center text-xs text-gray-400 dark:text-gray-500">در حال بارگذاری...</p>
+            ) : signedConsents.length === 0 ? (
+              <p className="py-10 text-center text-xs text-gray-400 dark:text-gray-500">
+                هنوز رضایت‌نامه‌ای برای این بیمار ثبت نشده است.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {signedConsents.map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center justify-between rounded-xl border border-gray-100 p-3 dark:border-gray-800"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                          c.accepted
+                            ? "bg-primary-light/20 text-primary-dark dark:bg-primary/15 dark:text-primary"
+                            : "bg-red-50 text-danger dark:bg-red-500/10 dark:text-red-300"
+                        }`}
+                      >
+                        {c.accepted ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                      </div>
+                      <div>
+                        <div className="text-xs font-medium text-gray-700 dark:text-gray-200">
+                          {c.templateTitle ?? "رضایت‌نامه"}
+                          {c.versionNumber != null && (
+                            <span className="mr-1 text-[10px] text-gray-400 dark:text-gray-500">
+                              (نسخه {c.versionNumber.toLocaleString("fa-IR")})
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-gray-400 dark:text-gray-500">
+                          {c.signedAt ? new Date(c.signedAt).toLocaleDateString("fa-IR") : "—"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       ) : (
         <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-sm text-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-500">
-          محتوای «{TABS.find((t) => t.key === activeTab)?.label}» به‌زودی اینجا نمایش داده می‌شود.
+          محتوای «
+          {TABS.find((t) => t.key === activeTab)?.label}
+          » به‌زودی اینجا نمایش داده می‌شود.
         </div>
+      )}
+
+      {showSignConsent && (
+        <SignConsentModal
+          templates={consentTemplates}
+          onClose={() => setShowSignConsent(false)}
+          onSign={(payload) => signConsentMutation.mutate(payload)}
+          isSubmitting={signConsentMutation.isPending}
+        />
       )}
     </div>
   );
 }
 
 function VisitHistoryList({
-  clinicSlug,
-  patientId,
   visits,
   isLoading,
-  focusConsents,
 }: {
-  clinicSlug: string;
-  patientId: string;
   visits: ClinicVisit[];
   isLoading: boolean;
-  focusConsents?: boolean;
 }) {
   if (isLoading) {
     return (
@@ -770,260 +944,47 @@ function VisitHistoryList({
   return (
     <div className="space-y-3">
       {visits.map((visit) => (
-        <VisitCard
+        <div
           key={visit.id}
-          clinicSlug={clinicSlug}
-          patientId={patientId}
-          visit={visit}
-          defaultOpenConsents={focusConsents}
-        />
-      ))}
-    </div>
-  );
-}
+          className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-gray-800 dark:text-gray-100">
+                {formatJalaliDate(visit.visitDate)}
+              </span>
 
-function VisitCard({
-  clinicSlug,
-  patientId,
-  visit,
-  defaultOpenConsents,
-}: {
-  clinicSlug: string;
-  patientId: string;
-  visit: ClinicVisit;
-  defaultOpenConsents?: boolean;
-}) {
-  const queryClient = useQueryClient();
-
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-
-  const [isEditing, setIsEditing] = useState(false);
-  const [summary, setSummary] = useState(visit.clinicalSummary ?? "");
-  const [recommendation, setRecommendation] = useState(visit.patientRecommendation ?? "");
-
-  const [followUpDate, setFollowUpDate] = useState(toDateInputValue(visit.nextVisitRecommendedAt));
-
-  const [consentOpen, setConsentOpen] = useState(!!defaultOpenConsents);
-  const [consentResult, setConsentResult] = useState<Record<string, unknown> | null>(null);
-
-  const [expandedServiceId, setExpandedServiceId] = useState<string | null>(null);
-
-  const isLocked = visit.status === "locked" || !!visit.lockedAt;
-  const isCancelled = visit.status === "cancelled";
-  const canEdit = !isLocked && !isCancelled;
-
-  function invalidateVisits() {
-    queryClient.invalidateQueries({ queryKey: queryKeys.visits.listByPatient(clinicSlug, patientId) });
-    queryClient.invalidateQueries({ queryKey: ["visit-detail", clinicSlug, visit.id] });
-  }
-
-  // برای گرفتن جزئیات کامل و به‌روز جلسه هنگام باز کردن حالت ویرایش
-  const { refetch: refetchVisitDetail, isFetching: detailLoading } = useQuery({
-    queryKey: ["visit-detail", clinicSlug, visit.id],
-    queryFn: () => getVisitDetail(clinicSlug, visit.id),
-    enabled: false,
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async () => {
-      const fresh = await refetchVisitDetail();
-      return updateVisit(clinicSlug, visit.id, {
-        clinical_summary: summary || undefined,
-        patient_recommendation: recommendation || undefined,
-      });
-    },
-    onSuccess: () => {
-      setError(null);
-      setMessage("جلسه با موفقیت ویرایش شد.");
-      setIsEditing(false);
-      invalidateVisits();
-    },
-    onError: (e) => setError(e instanceof Error ? e.message : "ویرایش جلسه ناموفق بود"),
-  });
-
-  const recommendationMutation = useMutation({
-    mutationFn: () => addVisitRecommendation(clinicSlug, visit.id, recommendation),
-    onSuccess: () => {
-      setError(null);
-      setMessage("توصیه برای بیمار ثبت شد.");
-      invalidateVisits();
-    },
-    onError: (e) => setError(e instanceof Error ? e.message : "ثبت توصیه ناموفق بود"),
-  });
-
-  const followUpMutation = useMutation({
-    mutationFn: () => setVisitFollowUp(clinicSlug, visit.id, followUpDate),
-    onSuccess: () => {
-      setError(null);
-      setMessage("نوبت پیگیری پیشنهادی ثبت شد.");
-      invalidateVisits();
-    },
-    onError: (e) => setError(e instanceof Error ? e.message : "ثبت نوبت پیگیری ناموفق بود"),
-  });
-
-  const lockMutation = useMutation({
-    mutationFn: () => lockVisit(clinicSlug, visit.id),
-    onSuccess: () => {
-      setError(null);
-      setMessage("جلسه قفل شد و دیگر قابل ویرایش نیست.");
-      invalidateVisits();
-    },
-    onError: (e) => setError(e instanceof Error ? e.message : "قفل‌کردن جلسه ناموفق بود"),
-  });
-
-  const consentMutation = useMutation({
-    mutationFn: () => checkVisitConsents(clinicSlug, visit.id),
-    onSuccess: (result) => {
-      setError(null);
-      setConsentResult(result);
-      setConsentOpen(true);
-    },
-    onError: (e) => setError(e instanceof Error ? e.message : "بررسی رضایت‌نامه ناموفق بود"),
-  });
-
-  const consentSummary = summarizeConsentResult(consentResult);
-
-  return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-gray-800 dark:text-gray-100">
-            {formatJalaliDate(visit.visitDate)}
-          </span>
-          <span className="text-[10px] text-gray-400 dark:text-gray-500">
-            {formatJalaliTime(visit.visitDate)}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className={`rounded-full px-2 py-0.5 text-[10px] ${VISIT_STATUS_TONE[visit.status]}`}>
-            {VISIT_STATUS_LABEL[visit.status]}
-          </span>
-
-          {canEdit && !isEditing && (
-            <button
-              type="button"
-              onClick={() => setIsEditing(true)}
-              className="flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-[10px] text-gray-600 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-            >
-              <Pencil className="h-3 w-3" />
-              ویرایش
-            </button>
-          )}
-
-          {visit.status === "completed" && !isLocked && (
-            <button
-              type="button"
-              onClick={() => {
-                if (confirm("پس از قفل‌کردن، این جلسه دیگر قابل ویرایش نخواهد بود. ادامه می‌دهید؟")) {
-                  lockMutation.mutate();
-                }
-              }}
-              disabled={lockMutation.isPending}
-              className="flex items-center gap-1 rounded-lg bg-gray-800 px-2 py-1 text-[10px] font-medium text-white transition hover:bg-gray-900 disabled:opacity-50 dark:bg-white/10 dark:hover:bg-white/20"
-            >
-              <Lock className="h-3 w-3" />
-              {lockMutation.isPending ? "..." : "قفل جلسه"}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {visit.doctorName && (
-        <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">پزشک: {visit.doctorName}</p>
-      )}
-
-      {error && (
-        <p className="mt-2 rounded-lg bg-red-50 px-2.5 py-1.5 text-[11px] text-red-500 dark:bg-red-500/10 dark:text-red-300">
-          {error}
-        </p>
-      )}
-
-      {message && !error && (
-        <p className="mt-2 rounded-lg bg-primary-light/10 px-2.5 py-1.5 text-[11px] text-primary-dark dark:bg-primary/10 dark:text-primary">
-          {message}
-        </p>
-      )}
-
-      {visit.services.length > 0 && (
-        <div className="mt-3 space-y-2">
-          {visit.services.map((s) => (
-            <div key={s.id}>
-              <button
-                type="button"
-                onClick={() => setExpandedServiceId(expandedServiceId === s.id ? null : s.id)}
-                className="flex items-center gap-1.5 rounded-full bg-primary-light/20 px-2.5 py-1 text-[11px] text-primary-dark transition hover:bg-primary-light/30 dark:bg-primary/15 dark:text-primary dark:hover:bg-primary/25"
-              >
-                <MapPin className="h-3 w-3" />
-                {s.serviceName ?? "خدمت"}
-                {expandedServiceId === s.id ? (
-                  <ChevronUp className="h-3 w-3" />
-                ) : (
-                  <ChevronDown className="h-3 w-3" />
-                )}
-              </button>
-
-              {expandedServiceId === s.id && (
-                <BodyPointsPanel
-                  clinicSlug={clinicSlug}
-                  visitServiceId={s.id}
-                  canEdit={canEdit}
-                />
-              )}
+              <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                {formatJalaliTime(visit.visitDate)}
+              </span>
             </div>
-          ))}
-        </div>
-      )}
 
-      {isEditing ? (
-        <div className="mt-3 space-y-2">
-          <div>
-            <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">خلاصه‌ی بالینی</label>
-            <textarea
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-              rows={2}
-              className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">توصیه به بیمار</label>
-            <textarea
-              value={recommendation}
-              onChange={(e) => setRecommendation(e.target.value)}
-              rows={2}
-              className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => updateMutation.mutate()}
-              disabled={updateMutation.isPending || detailLoading}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-2 text-[11px] font-medium text-white transition hover:bg-primary-dark disabled:opacity-50"
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] ${VISIT_STATUS_TONE[visit.status]}`}
             >
-              <Save className="h-3.5 w-3.5" />
-              {updateMutation.isPending ? "در حال ذخیره..." : "ذخیره"}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIsEditing(false);
-                setSummary(visit.clinicalSummary ?? "");
-                setRecommendation(visit.patientRecommendation ?? "");
-              }}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-[11px] text-gray-600 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-            >
-              <X className="h-3.5 w-3.5" />
-              انصراف
-            </button>
+              {VISIT_STATUS_LABEL[visit.status]}
+            </span>
           </div>
-        </div>
-      ) : (
-        <>
+
+          {visit.doctorName && (
+            <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+              پزشک: {visit.doctorName}
+            </p>
+          )}
+
+          {visit.services.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {visit.services.map((s) => (
+                <span
+                  key={s.id}
+                  className="rounded-full bg-primary-light/20 px-2.5 py-1 text-[11px] text-primary-dark dark:bg-primary/15 dark:text-primary"
+                >
+                  {s.serviceName ?? "خدمت"}
+                </span>
+              ))}
+            </div>
+          )}
+
           {visit.clinicalSummary && (
             <p className="mt-3 rounded-lg bg-gray-50 p-2.5 text-[11px] leading-relaxed text-gray-600 dark:bg-white/[0.04] dark:text-gray-300">
               {visit.clinicalSummary}
@@ -1035,237 +996,121 @@ function VisitCard({
               توصیه به بیمار: {visit.patientRecommendation}
             </p>
           )}
-        </>
-      )}
 
-      {canEdit && !isEditing && (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <JalaliDateField value={followUpDate} onChange={setFollowUpDate} />
-          <button
-            type="button"
-            onClick={() => followUpMutation.mutate()}
-            disabled={!followUpDate || followUpMutation.isPending}
-            className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-[11px] text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-          >
-            {followUpMutation.isPending ? "..." : "ثبت نوبت پیگیری"}
-          </button>
-
-          {recommendation && recommendation !== visit.patientRecommendation && (
-            <button
-              type="button"
-              onClick={() => recommendationMutation.mutate()}
-              disabled={recommendationMutation.isPending}
-              className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-[11px] text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-            >
-              {recommendationMutation.isPending ? "..." : "ثبت توصیه"}
-            </button>
+          {visit.nextVisitRecommendedAt && (
+            <p className="mt-2 text-[11px] text-primary-dark dark:text-primary-light">
+              نوبت پیگیری پیشنهادی: {formatJalaliDate(visit.nextVisitRecommendedAt)}
+            </p>
           )}
         </div>
-      )}
+      ))}
+    </div>
+  );
+}
 
-      {visit.nextVisitRecommendedAt && (
-        <p className="mt-2 text-[11px] text-primary-dark dark:text-primary-light">
-          نوبت پیگیری پیشنهادی: {formatJalaliDate(visit.nextVisitRecommendedAt)}
-        </p>
-      )}
+function SignConsentModal({
+  templates,
+  onClose,
+  onSign,
+  isSubmitting,
+}: {
+  templates: ConsentTemplate[];
+  onClose: () => void;
+  onSign: (payload: { consentVersionId: string; serviceId?: string; accepted: boolean }) => void;
+  isSubmitting: boolean;
+}) {
+  const eligible = templates
+    .filter((t) => t.status === "active")
+    .map((t) => ({ template: t, activeVersion: t.versions.find((v) => v.status === "active") }))
+    .filter((t): t is { template: ConsentTemplate; activeVersion: NonNullable<typeof t.activeVersion> } =>
+      Boolean(t.activeVersion)
+    );
 
-      {/* Consents */}
-      <div className="mt-3 border-t border-gray-50 pt-3 dark:border-gray-800">
-        <button
-          type="button"
-          onClick={() => (consentResult ? setConsentOpen((o) => !o) : consentMutation.mutate())}
-          disabled={consentMutation.isPending}
-          className="flex items-center gap-1.5 text-[11px] text-gray-500 transition hover:text-primary-dark disabled:opacity-50 dark:text-gray-400 dark:hover:text-primary"
-        >
-          <ShieldCheck className="h-3.5 w-3.5" />
-          {consentMutation.isPending ? "در حال بررسی رضایت‌نامه‌ها..." : "بررسی رضایت‌نامه‌های این جلسه"}
-        </button>
+  const [selectedId, setSelectedId] = useState(eligible[0]?.template.id ?? "");
+  const [accepted, setAccepted] = useState(true);
 
-        {consentOpen && consentSummary && (
-          <div
-            className={`mt-2 rounded-lg px-2.5 py-1.5 text-[11px] ${
-              consentSummary.ok
-                ? "bg-primary-light/10 text-primary-dark dark:bg-primary/10 dark:text-primary"
-                : "bg-amber-50 text-warning dark:bg-amber-500/10 dark:text-amber-300"
-            }`}
+  const selected = eligible.find((t) => t.template.id === selectedId);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-[1px] dark:bg-black/60">
+      <div className="w-full max-w-sm rounded-2xl border border-gray-100 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-[#18201e]">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-bold text-gray-900 dark:text-white">ثبت رضایت‌نامه</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 text-gray-400 transition hover:bg-gray-50 hover:text-gray-600 dark:hover:bg-white/10 dark:hover:text-gray-300"
           >
-            <p className="flex items-center gap-1.5">
-              {consentSummary.ok ? (
-                <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-              ) : (
-                <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
-              )}
-              {consentSummary.message}
-            </p>
+            <X className="h-4 w-4" />
+          </button>
+        </div>
 
-            {consentSummary.missing.length > 0 && (
-              <ul className="mt-1 list-inside list-disc space-y-0.5 pr-5">
-                {consentSummary.missing.map((name, i) => (
-                  <li key={i}>{name}</li>
+        {eligible.length === 0 ? (
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            هیچ قالب رضایت‌نامه‌ی فعالی وجود ندارد. ابتدا از «تنظیمات ‹ فرم‌ساز پذیرش و رضایت‌نامه‌ها» یک قالب فعال
+            بسازید.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">رضایت‌نامه</label>
+              <select
+                value={selectedId}
+                onChange={(e) => setSelectedId(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+              >
+                {eligible.map(({ template }) => (
+                  <option key={template.id} value={template.id}>
+                    {template.title}
+                  </option>
                 ))}
-              </ul>
+              </select>
+            </div>
+
+            {selected && (
+              <p className="max-h-32 overflow-y-auto rounded-lg bg-gray-50 p-2.5 text-[11px] leading-relaxed text-gray-500 dark:bg-white/[0.04] dark:text-gray-400">
+                {selected.activeVersion.content}
+              </p>
             )}
+
+            <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+              <input
+                type="checkbox"
+                checked={accepted}
+                onChange={(e) => setAccepted(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-gray-300"
+              />
+              بیمار این رضایت‌نامه را پذیرفته است
+            </label>
           </div>
         )}
-      </div>
-    </div>
-  );
-}
 
-function BodyPointsPanel({
-  clinicSlug,
-  visitServiceId,
-  canEdit,
-}: {
-  clinicSlug: string;
-  visitServiceId: string;
-  canEdit: boolean;
-}) {
-  const queryClient = useQueryClient();
-
-  const [showForm, setShowForm] = useState(false);
-  const [region, setRegion] = useState(BODY_REGIONS[0]);
-  const [pointNote, setPointNote] = useState("");
-
-  const queryKey = ["visit-service-body-points", clinicSlug, visitServiceId];
-
-  const { data: points, isLoading } = useQuery({
-    queryKey,
-    queryFn: () => getVisitServiceBodyPoints(clinicSlug, visitServiceId),
-    enabled: !!clinicSlug && !!visitServiceId,
-  });
-
-  const addPointMutation = useMutation({
-    mutationFn: () =>
-      addVisitServiceBodyPoint(clinicSlug, visitServiceId, {
-        body_region: region,
-        note: pointNote || undefined,
-      }),
-    onSuccess: () => {
-      setPointNote("");
-      setShowForm(false);
-      queryClient.invalidateQueries({ queryKey });
-    },
-  });
-
-  return (
-    <div className="mt-2 rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-white/[0.03]">
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">
-          نقاط ثبت‌شده روی نقشه‌ی بدن
-        </span>
-
-        {canEdit && (
+        <div className="mt-5 flex gap-2">
           <button
             type="button"
-            onClick={() => setShowForm((v) => !v)}
-            className="flex items-center gap-1 text-[10px] text-primary-dark transition hover:text-primary dark:text-primary-light"
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm text-gray-600 transition hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/10"
           >
-            <Plus className="h-3 w-3" />
-            افزودن نقطه
+            انصراف
           </button>
-        )}
-      </div>
-
-      {isLoading ? (
-        <p className="text-[10px] text-gray-400 dark:text-gray-500">در حال بارگذاری...</p>
-      ) : points && points.length > 0 ? (
-        <ul className="space-y-1.5">
-          {points.map((p) => (
-            <li key={p.id} className="flex items-start gap-1.5 text-[11px] text-gray-600 dark:text-gray-300">
-              <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-primary-dark dark:text-primary-light" />
-              <span>
-                {p.bodyRegion ?? "ناحیه‌ی نامشخص"}
-                {p.shotType ? ` · ${p.shotType}` : ""}
-                {p.note ? ` — ${p.note}` : ""}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-[10px] text-gray-400 dark:text-gray-500">هنوز نقطه‌ای ثبت نشده است.</p>
-      )}
-
-      {showForm && (
-        <div className="mt-3 space-y-2 border-t border-gray-200 pt-3 dark:border-gray-700">
-          <select
-            value={region}
-            onChange={(e) => setRegion(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-[11px] outline-none focus:border-primary dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
-          >
-            {BODY_REGIONS.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-
-          <input
-            type="text"
-            value={pointNote}
-            onChange={(e) => setPointNote(e.target.value)}
-            placeholder="یادداشت (مثلاً میزان دوز، نوع تزریق و...)"
-            className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-[11px] outline-none focus:border-primary dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
-          />
-
           <button
             type="button"
-            onClick={() => addPointMutation.mutate()}
-            disabled={addPointMutation.isPending}
-            className="w-full rounded-lg bg-primary py-1.5 text-[11px] font-medium text-white transition hover:bg-primary-dark disabled:opacity-50"
+            disabled={!selected || isSubmitting}
+            onClick={() =>
+              selected &&
+              onSign({
+                consentVersionId: selected.activeVersion.id,
+                serviceId: selected.template.serviceId ?? undefined,
+                accepted,
+              })
+            }
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-medium text-white transition hover:bg-primary-dark disabled:opacity-60"
           >
-            {addPointMutation.isPending ? "در حال ثبت..." : "ثبت نقطه"}
+            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isSubmitting ? "در حال ثبت..." : "ثبت رضایت‌نامه"}
           </button>
         </div>
-      )}
-    </div>
-  );
-}
-
-// انتخابگر تاریخ شمسی سبک؛ خروجی را به‌صورت رشته‌ی ISO تاریخ (YYYY-MM-DD) برمی‌گرداند
-function JalaliDateField({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (isoDate: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  const dateObj = value
-    ? new DateObject({ date: new Date(value), calendar: persian, locale: persian_fa })
-    : null;
-
-  const label = dateObj ? dateObj.format("D MMMM YYYY") : "انتخاب تاریخ پیگیری";
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-[11px] text-gray-600 outline-none transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300 dark:hover:bg-gray-800"
-      >
-        <CalendarDays className="h-3 w-3 text-gray-300 dark:text-gray-600" />
-        {label}
-      </button>
-
-      {open && (
-        <div className="absolute z-30 mt-1 w-[260px] rounded-2xl border border-gray-100 bg-white p-1 shadow-xl dark:border-gray-700 dark:bg-[#18201e]">
-          <Calendar
-            value={dateObj ?? undefined}
-            onChange={(v) => {
-              if (v) {
-                const d = v as DateObject;
-                onChange(d.toDate().toISOString());
-                setOpen(false);
-              }
-            }}
-            calendar={persian}
-            locale={persian_fa}
-            shadow={false}
-          />
-        </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -1287,10 +1132,18 @@ function InfoStat({
     <div
       className={`rounded-xl border border-gray-200 bg-white px-4 py-3 transition-all duration-200 hover:border-primary/40 hover:shadow-md dark:border-gray-700 dark:bg-gray-950 dark:hover:border-primary/40 ${className}`}
     >
-      <div className="text-[11px] font-medium text-gray-400 dark:text-gray-500">{label}</div>
+      <div className="text-[11px] font-medium text-gray-400 dark:text-gray-500">
+        {label}
+      </div>
 
       {custom ?? (
-        <div className={`mt-2 text-sm ${valueTone ?? "text-gray-800 dark:text-gray-200"}`}>{value}</div>
+        <div
+          className={`mt-2 text-sm ${
+            valueTone ?? "text-gray-800 dark:text-gray-200"
+          }`}
+        >
+          {value}
+        </div>
       )}
     </div>
   );

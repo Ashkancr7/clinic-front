@@ -21,7 +21,8 @@ import {
   UserCog,
   ShieldCheck,
   History,
-  Send
+  Send,
+  MessageCircle
 } from "lucide-react";
 
 export type ClinicRole = "clinic_admin" | "doctor" | "receptionist";
@@ -63,8 +64,9 @@ export const CLINIC_NAV_ITEMS: ClinicNavItem[] = [
     ],
   },
   { href: "marketing", label: "بازاریابی", icon: Megaphone, roles: ["clinic_admin"] },
-  { href: "chat", label: "پیام‌ها", icon: MessageSquare, roles: ["clinic_admin", "doctor", "receptionist"] },
+  // { href: "chat", label: "پیام‌ها", icon: MessageSquare, roles: ["clinic_admin", "doctor", "receptionist"] },
   { href: "sms", label: "پیامک‌ها", icon: Send, roles: ["clinic_admin", "receptionist"] },
+  { href: "chat", label: "گفتگوهای داخلی", icon: MessageCircle, roles: ["clinic_admin", "doctor", "receptionist"] },
   { href: "profile", label: "پروفایل", icon: UserCircle, roles: ["clinic_admin", "doctor", "receptionist"] },
   { href: "reports", label: "گزارش‌ها", icon: BarChart3, roles: ["clinic_admin"] },
   {
