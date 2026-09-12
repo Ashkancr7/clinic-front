@@ -155,8 +155,6 @@ export async function getPatientDetail(
   );
   const data = unwrapObject<Record<string, unknown>>(res);
 
-    console.log("RAW /patients/{id} response:", JSON.stringify(data, null, 2));
-
   const patient = (data.patient as Record<string, unknown>) ?? {};
   const clinicRecord = (data.clinic_record as Record<string, unknown>) ?? {};
   const medicalProfile = (data.medical_profile as Record<string, unknown>) ?? {};
@@ -212,8 +210,6 @@ export async function getPatientNextAppointment(
   );
   const list = unwrapList<Record<string, unknown>>(res);
 
-  console.log("RAW /appointments?patient_id= response:", JSON.stringify(list, null, 2)); // این خط رو موقت اضافه کن
-
   if (list.length === 0) return null;
 
   const sorted = [...list].sort(
@@ -242,4 +238,124 @@ export async function searchPatients(clinicSlug: string, query: string): Promise
     fullName: `${p.firstName} ${p.lastName}`,
     phone: p.phone,
   }));
+}
+
+export type UpdatePatientPayload = Partial<CreatePatientPayload>;
+
+// --- ویرایش اطلاعات پایه بیمار ---
+export async function updatePatient(
+  clinicSlug: string,
+  patientId: string,
+  payload: UpdatePatientPayload
+): Promise<Record<string, unknown>> {
+  const res = await apiClient<LaravelEnvelope<Record<string, unknown>> | Record<string, unknown>>(
+    `/patients/${patientId}`,
+    { method: "PATCH", body: JSON.stringify(payload), clinicSlug }
+  );
+  return unwrapObject<Record<string, unknown>>(res);
+}
+
+export interface PatientSummary {
+  patientCode: string | null;
+  status: "active" | "inactive" | "archived" | null;
+  lastVisitAt: string | null;
+  firstVisitAt: string | null;
+}
+
+// --- خلاصه پرونده بیمار (کد پرونده، وضعیت، آخرین مراجعه) ---
+export async function getPatientSummary(clinicSlug: string, patientId: string): Promise<PatientSummary> {
+  const res = await apiClient<LaravelEnvelope<Record<string, unknown>> | Record<string, unknown>>(
+    `/patients/${patientId}/summary`,
+    { clinicSlug }
+  );
+  const data = unwrapObject<Record<string, unknown>>(res);
+  return {
+    patientCode: (data.patient_code as string | null) ?? null,
+    status: (data.status as PatientSummary["status"]) ?? null,
+    lastVisitAt: (data.last_visit_at as string | null) ?? null,
+    firstVisitAt: (data.first_visit_at as string | null) ?? null,
+  };
+}
+
+export type PatientStatus = "active" | "inactive" | "archived";
+
+// --- تغییر وضعیت بیمار (فعال/غیرفعال/آرشیو) در کلینیک جاری ---
+export async function updatePatientStatus(clinicSlug: string, patientId: string, status: PatientStatus) {
+  return apiClient(`/patients/${patientId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+    clinicSlug,
+  });
+}
+
+export interface PatientMedicalProfile {
+  bloodType: string | null;
+  skinType: string | null;
+  hasSpecialDisease: boolean;
+  specialDiseaseDescription: string | null;
+  hasAllergy: boolean;
+  allergyDescription: string | null;
+  usesMedicine: boolean;
+  medicineDescription: string | null;
+  surgeryHistory: string | null;
+  beautyHistory: string | null;
+  pregnancyStatus: string | null;
+  notes: string | null;
+}
+
+function mapMedicalProfile(m: Record<string, unknown>): PatientMedicalProfile {
+  return {
+    bloodType: (m.blood_type as string | null) ?? null,
+    skinType: (m.skin_type as string | null) ?? null,
+    hasSpecialDisease: Boolean(m.has_special_disease),
+    specialDiseaseDescription: (m.special_disease_description as string | null) ?? null,
+    hasAllergy: Boolean(m.has_allergy),
+    allergyDescription: (m.allergy_description as string | null) ?? null,
+    usesMedicine: Boolean(m.uses_medicine),
+    medicineDescription: (m.medicine_description as string | null) ?? null,
+    surgeryHistory: (m.surgery_history as string | null) ?? null,
+    beautyHistory: (m.beauty_history as string | null) ?? null,
+    pregnancyStatus: (m.pregnancy_status as string | null) ?? null,
+    notes: (m.notes as string | null) ?? null,
+  };
+}
+
+// --- دریافت سوابق پزشکی بیمار (مخصوص کلینیک جاری) ---
+export async function getPatientMedicalProfile(
+  clinicSlug: string,
+  patientId: string
+): Promise<PatientMedicalProfile> {
+  const res = await apiClient<LaravelEnvelope<Record<string, unknown>> | Record<string, unknown>>(
+    `/patients/${patientId}/medical-profile`,
+    { clinicSlug }
+  );
+  return mapMedicalProfile(unwrapObject<Record<string, unknown>>(res));
+}
+
+export type UpdateMedicalProfilePayload = Partial<{
+  blood_type: string;
+  skin_type: string;
+  has_special_disease: boolean;
+  special_disease_description: string;
+  has_allergy: boolean;
+  allergy_description: string;
+  uses_medicine: boolean;
+  medicine_description: string;
+  surgery_history: string;
+  beauty_history: string;
+  pregnancy_status: string;
+  notes: string;
+}>;
+
+// --- ویرایش سوابق پزشکی بیمار (ویرایش‌های حساس؛ در Audit Log ثبت می‌شود) ---
+export async function updatePatientMedicalProfile(
+  clinicSlug: string,
+  patientId: string,
+  payload: UpdateMedicalProfilePayload
+): Promise<PatientMedicalProfile> {
+  const res = await apiClient<LaravelEnvelope<Record<string, unknown>> | Record<string, unknown>>(
+    `/patients/${patientId}/medical-profile`,
+    { method: "PATCH", body: JSON.stringify(payload), clinicSlug }
+  );
+  return mapMedicalProfile(unwrapObject<Record<string, unknown>>(res));
 }

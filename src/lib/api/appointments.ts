@@ -248,6 +248,27 @@ export async function createAppointment(clinicSlug: string, payload: CreateAppoi
   return unwrapObject<Record<string, unknown>>(res);
 }
 
+export type UpdateAppointmentPayload = Partial<{
+  doctor_user_id: number;
+  service_id: string;
+  service_option_id: string;
+  appointment_type: "in_person" | "online" | "followup";
+  notes: string;
+}>;
+
+// --- ویرایش اطلاعات نوبت (پزشک/خدمت/نوع/یادداشت؛ برای تغییر زمان از reschedule استفاده کنید) ---
+export async function updateAppointment(
+  clinicSlug: string,
+  appointmentId: string,
+  payload: UpdateAppointmentPayload
+): Promise<CalendarAppointment> {
+  const res = await apiClient<LaravelEnvelope<Record<string, unknown>> | Record<string, unknown>>(
+    `/appointments/${appointmentId}`,
+    { method: "PATCH", body: JSON.stringify(payload), clinicSlug }
+  );
+  return mapAppointment(unwrapObject<Record<string, unknown>>(res));
+}
+
 export async function rescheduleAppointment(
   clinicSlug: string,
   appointmentId: string,

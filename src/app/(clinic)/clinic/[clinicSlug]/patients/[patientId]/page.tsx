@@ -42,6 +42,12 @@ import {
   getPatientDetail,
   getPatientDebt,
   getPatientNextAppointment,
+  updatePatient,
+  updatePatientStatus,
+  getPatientMedicalProfile,
+  updatePatientMedicalProfile,
+  type PatientStatus,
+  type PatientMedicalProfile,
 } from "@/lib/api/patients";
 
 import { getPatientVisits, type ClinicVisit } from "@/lib/api/visits";
@@ -184,6 +190,9 @@ export default function PatientProfilePage({
   const [consentsError, setConsentsError] = useState<string | null>(null);
   const [showUploadImage, setShowUploadImage] = useState(false);
   const [imagesError, setImagesError] = useState<string | null>(null);
+  const [showEditPatient, setShowEditPatient] = useState(false);
+  const [showEditMedical, setShowEditMedical] = useState(false);
+  const [patientActionError, setPatientActionError] = useState<string | null>(null);
 
   const [note, setNote] = useState(
     "مزوتراپی مو با کوکتل رشد مو انجام شد. پوست سر قبل از تزریق با لیدوکائین موضعی بی‌حس شد. بیمار رضایت قبل از دارد. توصیه شد مصرف مکمل بیوتین ادامه یابد و شستشوی ملایم انجام شود."
@@ -243,6 +252,25 @@ export default function PatientProfilePage({
   function invalidateImages() {
     queryClient.invalidateQueries({ queryKey: queryKeys.files.byPatient(clinicSlug, patientId) });
   }
+
+  const { data: medicalProfile, isLoading: medicalLoading } = useQuery({
+    queryKey: queryKeys.patients.medicalProfile(clinicSlug, patientId),
+    queryFn: () => getPatientMedicalProfile(clinicSlug, patientId),
+    enabled: !!clinicSlug && !!patientId && activeTab === "medical",
+  });
+
+  function invalidatePatientDetail() {
+    queryClient.invalidateQueries({ queryKey: queryKeys.patients.detail(clinicSlug, patientId) });
+  }
+
+  const statusMutation = useMutation({
+    mutationFn: (status: PatientStatus) => updatePatientStatus(clinicSlug, patientId, status),
+    onSuccess: () => {
+      setPatientActionError(null);
+      invalidatePatientDetail();
+    },
+    onError: (e) => setPatientActionError(e instanceof Error ? e.message : "تغییر وضعیت ناموفق بود"),
+  });
 
   async function handleViewImage(fileId: string) {
     try {
@@ -371,7 +399,10 @@ export default function PatientProfilePage({
           ارسال پیام
         </button>
 
-        <button className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-primary-dark">
+        <button
+          onClick={() => setShowEditPatient(true)}
+          className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-primary-dark"
+        >
           <Pencil className="h-3.5 w-3.5" />
           ویرایش اطلاعات
         </button>
@@ -380,6 +411,12 @@ export default function PatientProfilePage({
           <MoreVertical className="h-4 w-4" />
         </button>
       </div>
+
+      {patientActionError && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-500 dark:bg-red-500/10 dark:text-red-300">
+          {patientActionError}
+        </p>
+      )}
 
       {/* Patient Header */}
       <div className="rounded-2xl border border-gray-100 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
@@ -436,15 +473,18 @@ export default function PatientProfilePage({
           <InfoStat
             label="وضعیت"
             custom={
-              patient.status ? (
-                <span className="rounded-full bg-primary-light/20 px-2.5 py-0.5 text-[11px] text-primary-dark dark:bg-primary/15 dark:text-primary">
-                  {STATUS_LABELS[patient.status] ?? patient.status}
-                </span>
-              ) : (
-                <span className="text-gray-300 dark:text-gray-600">
-                  —
-                </span>
-              )
+              <select
+                value={patient.status ?? ""}
+                onChange={(e) => statusMutation.mutate(e.target.value as PatientStatus)}
+                disabled={statusMutation.isPending}
+                className="rounded-full border-none bg-primary-light/20 px-2.5 py-0.5 text-[11px] text-primary-dark outline-none dark:bg-primary/15 dark:text-primary"
+              >
+                {(["active", "inactive", "archived"] as const).map((s) => (
+                  <option key={s} value={s}>
+                    {STATUS_LABELS[s]}
+                  </option>
+                ))}
+              </select>
             }
           />
 
@@ -994,6 +1034,57 @@ export default function PatientProfilePage({
             )}
           </div>
         </div>
+      ) : activeTab === "medical" ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-gray-800 dark:text-gray-100">سوابق پزشکی</h3>
+            <button
+              type="button"
+              onClick={() => setShowEditMedical(true)}
+              className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-4 py-2 text-xs text-gray-600 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+            >
+              <Pencil className="h-3.5 w-3.5" /> ویرایش سوابق
+            </button>
+          </div>
+
+          <div className="rounded-2xl border border-gray-100 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+            {medicalLoading ? (
+              <p className="py-10 text-center text-xs text-gray-400 dark:text-gray-500">در حال بارگذاری...</p>
+            ) : !medicalProfile ? (
+              <p className="py-10 text-center text-xs text-gray-400 dark:text-gray-500">
+                سوابق پزشکی ثبت نشده است.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <MedicalField label="گروه خونی" value={medicalProfile.bloodType} />
+                <MedicalField label="نوع پوست" value={medicalProfile.skinType} />
+                <MedicalField
+                  label="سابقه‌ی حساسیت"
+                  value={medicalProfile.hasAllergy ? medicalProfile.allergyDescription || "دارد" : "ندارد"}
+                  alert={medicalProfile.hasAllergy}
+                />
+                <MedicalField
+                  label="بیماری خاص"
+                  value={
+                    medicalProfile.hasSpecialDisease
+                      ? medicalProfile.specialDiseaseDescription || "دارد"
+                      : "ندارد"
+                  }
+                  alert={medicalProfile.hasSpecialDisease}
+                />
+                <MedicalField
+                  label="مصرف دارو"
+                  value={medicalProfile.usesMedicine ? medicalProfile.medicineDescription || "دارد" : "ندارد"}
+                  alert={medicalProfile.usesMedicine}
+                />
+                <MedicalField label="وضعیت بارداری" value={medicalProfile.pregnancyStatus} />
+                <MedicalField label="سابقه‌ی جراحی" value={medicalProfile.surgeryHistory} full />
+                <MedicalField label="سابقه‌ی زیبایی" value={medicalProfile.beautyHistory} full />
+                <MedicalField label="یادداشت" value={medicalProfile.notes} full />
+              </div>
+            )}
+          </div>
+        </div>
       ) : (
         <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-sm text-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-500">
           محتوای «
@@ -1020,6 +1111,33 @@ export default function PatientProfilePage({
             setShowUploadImage(false);
             setImagesError(null);
             invalidateImages();
+          }}
+        />
+      )}
+
+      {showEditPatient && (
+        <EditPatientModal
+          clinicSlug={clinicSlug}
+          patientId={patientId}
+          patient={patient}
+          onClose={() => setShowEditPatient(false)}
+          onSaved={() => {
+            setShowEditPatient(false);
+            invalidatePatientDetail();
+          }}
+        />
+      )}
+
+      {showEditMedical && (
+        <EditMedicalProfileModal
+          clinicSlug={clinicSlug}
+          patientId={patientId}
+          profile={medicalProfile ?? null}
+          onClose={() => setShowEditMedical(false)}
+          onSaved={() => {
+            setShowEditMedical(false);
+            queryClient.invalidateQueries({ queryKey: queryKeys.patients.medicalProfile(clinicSlug, patientId) });
+            invalidatePatientDetail();
           }}
         />
       )}
@@ -1368,6 +1486,393 @@ function UploadImageModal({
             {mutation.isPending ? "در حال آپلود..." : "آپلود تصویر"}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function EditPatientModal({
+  clinicSlug,
+  patientId,
+  patient,
+  onClose,
+  onSaved,
+}: {
+  clinicSlug: string;
+  patientId: string;
+  patient: {
+    firstName: string;
+    lastName: string;
+    phone: string;
+    nationalId: string | null;
+    birthDate: string | null;
+    gender: "male" | "female" | "other" | null;
+  };
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [firstName, setFirstName] = useState(patient.firstName);
+  const [lastName, setLastName] = useState(patient.lastName);
+  const [phone, setPhone] = useState(patient.phone);
+  const [nationalId, setNationalId] = useState(patient.nationalId ?? "");
+  const [birthDate, setBirthDate] = useState(patient.birthDate ?? "");
+  const [gender, setGender] = useState<"male" | "female" | "other" | "">(patient.gender ?? "");
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      if (!firstName.trim() || !lastName.trim() || !phone.trim()) {
+        throw new Error("نام، نام خانوادگی و شماره تماس الزامی است.");
+      }
+      return updatePatient(clinicSlug, patientId, {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        phone: phone.trim(),
+        national_id: nationalId || undefined,
+        birth_date: birthDate || undefined,
+        gender: gender || undefined,
+      });
+    },
+    onSuccess: () => onSaved(),
+    onError: (e) => setFormError(e instanceof Error ? e.message : "ویرایش اطلاعات ناموفق بود"),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-[1px] dark:bg-black/60">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-gray-100 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-[#18201e]">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-bold text-gray-900 dark:text-white">ویرایش اطلاعات بیمار</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 text-gray-400 transition hover:bg-gray-50 hover:text-gray-600 dark:hover:bg-white/10 dark:hover:text-gray-300"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {formError && (
+          <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-500 dark:bg-red-500/10 dark:text-red-300">
+            {formError}
+          </p>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">نام</label>
+            <input
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">نام خانوادگی</label>
+            <input
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">شماره تماس</label>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              dir="ltr"
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">کدملی</label>
+            <input
+              value={nationalId}
+              onChange={(e) => setNationalId(e.target.value)}
+              dir="ltr"
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">تاریخ تولد</label>
+            <input
+              type="date"
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">جنسیت</label>
+            <select
+              value={gender}
+              onChange={(e) => setGender(e.target.value as typeof gender)}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+            >
+              <option value="">مشخص نشده</option>
+              <option value="male">مرد</option>
+              <option value="female">زن</option>
+              <option value="other">سایر</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm text-gray-600 transition hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/10"
+          >
+            انصراف
+          </button>
+          <button
+            type="button"
+            disabled={mutation.isPending}
+            onClick={() => mutation.mutate()}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-medium text-white transition hover:bg-primary-dark disabled:opacity-60"
+          >
+            {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            {mutation.isPending ? "در حال ذخیره..." : "ذخیره تغییرات"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditMedicalProfileModal({
+  clinicSlug,
+  patientId,
+  profile,
+  onClose,
+  onSaved,
+}: {
+  clinicSlug: string;
+  patientId: string;
+  profile: PatientMedicalProfile | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [bloodType, setBloodType] = useState(profile?.bloodType ?? "");
+  const [skinType, setSkinType] = useState(profile?.skinType ?? "");
+  const [hasAllergy, setHasAllergy] = useState(profile?.hasAllergy ?? false);
+  const [allergyDescription, setAllergyDescription] = useState(profile?.allergyDescription ?? "");
+  const [hasSpecialDisease, setHasSpecialDisease] = useState(profile?.hasSpecialDisease ?? false);
+  const [specialDiseaseDescription, setSpecialDiseaseDescription] = useState(
+    profile?.specialDiseaseDescription ?? ""
+  );
+  const [usesMedicine, setUsesMedicine] = useState(profile?.usesMedicine ?? false);
+  const [medicineDescription, setMedicineDescription] = useState(profile?.medicineDescription ?? "");
+  const [surgeryHistory, setSurgeryHistory] = useState(profile?.surgeryHistory ?? "");
+  const [beautyHistory, setBeautyHistory] = useState(profile?.beautyHistory ?? "");
+  const [pregnancyStatus, setPregnancyStatus] = useState(profile?.pregnancyStatus ?? "");
+  const [notes, setNotes] = useState(profile?.notes ?? "");
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      updatePatientMedicalProfile(clinicSlug, patientId, {
+        blood_type: bloodType || undefined,
+        skin_type: skinType || undefined,
+        has_allergy: hasAllergy,
+        allergy_description: allergyDescription || undefined,
+        has_special_disease: hasSpecialDisease,
+        special_disease_description: specialDiseaseDescription || undefined,
+        uses_medicine: usesMedicine,
+        medicine_description: medicineDescription || undefined,
+        surgery_history: surgeryHistory || undefined,
+        beauty_history: beautyHistory || undefined,
+        pregnancy_status: pregnancyStatus || undefined,
+        notes: notes || undefined,
+      }),
+    onSuccess: () => onSaved(),
+    onError: (e) => setFormError(e instanceof Error ? e.message : "ویرایش سوابق پزشکی ناموفق بود"),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-[1px] dark:bg-black/60">
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-gray-100 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-[#18201e]">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-bold text-gray-900 dark:text-white">ویرایش سوابق پزشکی</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 text-gray-400 transition hover:bg-gray-50 hover:text-gray-600 dark:hover:bg-white/10 dark:hover:text-gray-300"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {formError && (
+          <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-500 dark:bg-red-500/10 dark:text-red-300">
+            {formError}
+          </p>
+        )}
+
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">گروه خونی</label>
+              <input
+                value={bloodType}
+                onChange={(e) => setBloodType(e.target.value)}
+                placeholder="مثلاً: O+"
+                dir="ltr"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">نوع پوست</label>
+              <input
+                value={skinType}
+                onChange={(e) => setSkinType(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+              />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-gray-100 p-3 dark:border-gray-800">
+            <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+              <input
+                type="checkbox"
+                checked={hasAllergy}
+                onChange={(e) => setHasAllergy(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-gray-300"
+              />
+              سابقه‌ی حساسیت دارد
+            </label>
+            {hasAllergy && (
+              <input
+                value={allergyDescription}
+                onChange={(e) => setAllergyDescription(e.target.value)}
+                placeholder="توضیحات حساسیت"
+                className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+              />
+            )}
+          </div>
+
+          <div className="rounded-xl border border-gray-100 p-3 dark:border-gray-800">
+            <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+              <input
+                type="checkbox"
+                checked={hasSpecialDisease}
+                onChange={(e) => setHasSpecialDisease(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-gray-300"
+              />
+              بیماری خاص دارد
+            </label>
+            {hasSpecialDisease && (
+              <input
+                value={specialDiseaseDescription}
+                onChange={(e) => setSpecialDiseaseDescription(e.target.value)}
+                placeholder="توضیحات بیماری"
+                className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+              />
+            )}
+          </div>
+
+          <div className="rounded-xl border border-gray-100 p-3 dark:border-gray-800">
+            <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+              <input
+                type="checkbox"
+                checked={usesMedicine}
+                onChange={(e) => setUsesMedicine(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-gray-300"
+              />
+              مصرف دارو دارد
+            </label>
+            {usesMedicine && (
+              <input
+                value={medicineDescription}
+                onChange={(e) => setMedicineDescription(e.target.value)}
+                placeholder="نام دارو / توضیحات"
+                className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+              />
+            )}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">وضعیت بارداری</label>
+            <input
+              value={pregnancyStatus}
+              onChange={(e) => setPregnancyStatus(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">سابقه‌ی جراحی</label>
+            <textarea
+              value={surgeryHistory}
+              onChange={(e) => setSurgeryHistory(e.target.value)}
+              rows={2}
+              className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">سابقه‌ی زیبایی</label>
+            <textarea
+              value={beautyHistory}
+              onChange={(e) => setBeautyHistory(e.target.value)}
+              rows={2}
+              className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">یادداشت</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+            />
+          </div>
+        </div>
+
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm text-gray-600 transition hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/10"
+          >
+            انصراف
+          </button>
+          <button
+            type="button"
+            disabled={mutation.isPending}
+            onClick={() => mutation.mutate()}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-medium text-white transition hover:bg-primary-dark disabled:opacity-60"
+          >
+            {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            {mutation.isPending ? "در حال ذخیره..." : "ذخیره سوابق"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MedicalField({
+  label,
+  value,
+  alert,
+  full,
+}: {
+  label: string;
+  value: string | null;
+  alert?: boolean;
+  full?: boolean;
+}) {
+  return (
+    <div className={full ? "sm:col-span-2" : ""}>
+      <div className="text-[11px] text-gray-400 dark:text-gray-500">{label}</div>
+      <div
+        className={`mt-1 text-xs ${
+          alert ? "font-medium text-danger dark:text-red-300" : "text-gray-700 dark:text-gray-200"
+        }`}
+      >
+        {value || "—"}
       </div>
     </div>
   );

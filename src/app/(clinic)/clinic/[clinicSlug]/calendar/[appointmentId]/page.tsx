@@ -32,10 +32,8 @@ import {
   UserRound,
   Phone,
   ClipboardList,
-  Lock,
-  ShieldAlert,
-  ShieldCheck,
   X,
+  Loader2,
 } from "lucide-react";
 
 import Image from "next/image";
@@ -56,23 +54,23 @@ import {
   completeAppointment,
   markNoShow,
   sendAppointmentReminder,
+  updateAppointment,
+  getDoctors,
+  getServicesForBooking,
   formatDurationMinutes,
   toLocalIsoDate,
   buildDateTime,
   extractTimeLabel,
   getAvailability,
   type AvailabilitySlot,
+  type DoctorOption,
+  type ServiceOption,
 } from "@/lib/api/appointments";
 
 import {
   createVisit,
   addServiceToVisit,
   completeVisit,
-  getVisitDetail,
-  lockVisit,
-  checkVisitConsents,
-  setVisitFollowUp,
-  addVisitRecommendation,
 } from "@/lib/api/visits";
 
 import { queryKeys } from "@/lib/query/keys";
@@ -122,6 +120,8 @@ const STATUS_LEGEND = [
   },
 ];
 
+
+
 const REMINDERS = [
   {
     icon: BellRing,
@@ -154,14 +154,19 @@ const REMINDERS = [
 const STATUS_BADGE: Record<string, string> = {
   confirmed:
     "bg-primary-light/20 text-primary-dark dark:bg-primary-light/10 dark:text-primary-light",
+
   pending:
     "bg-amber-50 text-warning dark:bg-amber-500/10 dark:text-amber-300",
+
   cancelled:
     "bg-red-50 text-danger dark:bg-red-500/10 dark:text-red-300",
+
   completed:
     "bg-primary-light/20 text-primary-dark dark:bg-primary-light/10 dark:text-primary-light",
+
   no_show:
     "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400",
+
   rescheduled:
     "bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-300",
 };
@@ -208,48 +213,23 @@ function formatTime(iso: string) {
 
 function calculateAge(birthDate?: string | null) {
   if (!birthDate) return null;
+
   const birth = new Date(birthDate);
   const today = new Date();
+
   let age = today.getFullYear() - birth.getFullYear();
+
   const monthDiff = today.getMonth() - birth.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+
+  if (
+    monthDiff < 0 ||
+    (monthDiff === 0 &&
+      today.getDate() < birth.getDate())
+  ) {
     age--;
   }
+
   return age;
-}
-
-// شکل واقعی خروجی /visits/{id}/consents/check:
-// { all_signed: boolean, missing: (string | { name?: string; title?: string; consent_name?: string })[] }
-function missingConsentLabel(item: unknown): string {
-  if (typeof item === "string") return item;
-  if (item && typeof item === "object") {
-    const o = item as Record<string, unknown>;
-    return (
-      (o.name as string) ??
-      (o.title as string) ??
-      (o.consent_name as string) ??
-      (o.label as string) ??
-      "رضایت‌نامه‌ی نامشخص"
-    );
-  }
-  return "رضایت‌نامه‌ی نامشخص";
-}
-
-function summarizeConsentResult(result: Record<string, unknown> | null | undefined) {
-  if (!result) return null;
-
-  const allSigned = result.all_signed as boolean | undefined;
-  const missing = (result.missing as unknown[] | undefined) ?? [];
-
-  if (allSigned === true || missing.length === 0) {
-    return { ok: true, message: "همه‌ی رضایت‌نامه‌های لازم برای این جلسه ثبت شده است.", missing: [] as string[] };
-  }
-
-  return {
-    ok: false,
-    message: `${missing.length} رضایت‌نامه‌ی ثبت‌نشده وجود دارد.`,
-    missing: missing.map(missingConsentLabel),
-  };
 }
 
 export default function AppointmentDetailPage({
@@ -270,19 +250,21 @@ export default function AppointmentDetailPage({
 
   const [visitSummary, setVisitSummary] = useState("");
   const [visitRecommendation, setVisitRecommendation] = useState("");
-  const [followUpDate, setFollowUpDate] = useState("");
   const [visitSaved, setVisitSaved] = useState(false);
 
-  // شناسه‌ی جلسه‌ی درمانی که برای همین نوبت ایجاد شده (برای قفل‌کردن، بررسی رضایت‌نامه و...)
-  const [activeVisitId, setActiveVisitId] = useState<string | null>(null);
-  const [consentResult, setConsentResult] = useState<Record<string, unknown> | null>(null);
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesDraft, setNotesDraft] = useState("");
+  const [showEditAppointment, setShowEditAppointment] = useState(false);
 
   const {
     data: appt,
     isLoading,
     error,
   } = useQuery({
-    queryKey: queryKeys.appointmentsCalendar.detail(clinicSlug, appointmentId),
+    queryKey: queryKeys.appointmentsCalendar.detail(
+      clinicSlug,
+      appointmentId
+    ),
     queryFn: () => getAppointmentDetail(clinicSlug, appointmentId),
     enabled: !!clinicSlug && !!appointmentId,
   });
@@ -293,146 +275,231 @@ export default function AppointmentDetailPage({
     ? `${patient.first_name} ${patient.last_name}`
     : appt?.patientName ?? "—";
 
-  const patientPhone = patient?.phone ?? appt?.patientPhone ?? "—";
+  const patientPhone =
+    patient?.phone ?? appt?.patientPhone ?? "—";
 
-  const patientNationalId = patient?.national_id ?? "—";
+  const patientNationalId =
+    patient?.national_id ?? "—";
 
   const patientBirthDate = patient?.birth_date
     ? new Date(patient.birth_date).toLocaleDateString("fa-IR")
     : "—";
 
+
   const statusHistory = appt?.statusHistory ?? [];
 
   const { data: patientDetail } = useQuery({
-    queryKey: queryKeys.patients.detail(clinicSlug, appt?.patientId ?? ""),
-    queryFn: () => getPatientDetail(clinicSlug, appt!.patientId!),
+    queryKey: queryKeys.patients.detail(
+      clinicSlug,
+      appt?.patientId ?? ""
+    ),
+    queryFn: () =>
+      getPatientDetail(clinicSlug, appt!.patientId!),
     enabled: !!clinicSlug && !!appt?.patientId,
   });
-
-  const medicalAlerts = patientDetail?.medicalAlerts;
-
-  const patientAlerts = [
-    medicalAlerts?.hasAllergy && {
-      text: medicalAlerts.allergyDescription || "سابقه‌ی حساسیت",
-    },
-    medicalAlerts?.hasSpecialDisease && {
-      text: medicalAlerts.specialDiseaseDescription || "بیماری خاص ثبت‌شده",
-    },
-    medicalAlerts?.usesMedicine && {
-      text: medicalAlerts.medicineDescription || "مصرف دارو",
-    },
-  ].filter(Boolean) as { text: string }[];
 
   const patientAge = calculateAge(patient?.birth_date);
 
-  const { data: debt } = useQuery({
-    queryKey: [...queryKeys.patients.detail(clinicSlug, appt?.patientId ?? ""), "debt"],
-    queryFn: () => getPatientDebt(clinicSlug, appt!.patientId!),
-    enabled: !!clinicSlug && !!appt?.patientId,
-  });
 
-  // جزئیات کامل جلسه‌ی درمانِ ثبت‌شده برای این نوبت (برای نمایش وضعیت قفل و...)
-  const { data: activeVisit } = useQuery({
-    queryKey: ["visit-detail", clinicSlug, activeVisitId],
-    queryFn: () => getVisitDetail(clinicSlug, activeVisitId!),
-    enabled: !!clinicSlug && !!activeVisitId,
+  const { data: debt } = useQuery({
+    queryKey: [
+      ...queryKeys.patients.detail(
+        clinicSlug,
+        appt?.patientId ?? ""
+      ),
+      "debt",
+    ],
+    queryFn: () =>
+      getPatientDebt(clinicSlug, appt!.patientId!),
+    enabled: !!clinicSlug && !!appt?.patientId,
   });
 
   function invalidateAppointment() {
     queryClient.invalidateQueries({
-      queryKey: queryKeys.appointmentsCalendar.detail(clinicSlug, appointmentId),
+      queryKey: queryKeys.appointmentsCalendar.detail(
+        clinicSlug,
+        appointmentId
+      ),
     });
-    queryClient.invalidateQueries({ queryKey: ["appointments-calendar", clinicSlug] });
-  }
 
-  function invalidateActiveVisit() {
-    if (activeVisitId) {
-      queryClient.invalidateQueries({ queryKey: ["visit-detail", clinicSlug, activeVisitId] });
-    }
-    if (appt?.patientId) {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.visits.listByPatient(clinicSlug, appt.patientId),
-      });
-    }
+    queryClient.invalidateQueries({
+      queryKey: ["appointments-calendar", clinicSlug],
+    });
   }
 
   const completeMutation = useMutation({
-    mutationFn: () => completeAppointment(clinicSlug, appointmentId),
+    mutationFn: () =>
+      completeAppointment(clinicSlug, appointmentId),
+
     onSuccess: () => {
       setActionError(null);
       setActionMessage("نوبت با موفقیت تکمیل شد.");
       invalidateAppointment();
     },
-    onError: (e) => setActionError(e instanceof Error ? e.message : "عملیات ناموفق بود"),
+
+    onError: (e) =>
+      setActionError(
+        e instanceof Error
+          ? e.message
+          : "عملیات ناموفق بود"
+      ),
   });
 
   const noShowMutation = useMutation({
-    mutationFn: () => markNoShow(clinicSlug, appointmentId),
+    mutationFn: () =>
+      markNoShow(clinicSlug, appointmentId),
+
     onSuccess: () => {
       setActionError(null);
       setActionMessage("عدم حضور بیمار ثبت شد.");
       invalidateAppointment();
     },
-    onError: (e) => setActionError(e instanceof Error ? e.message : "عملیات ناموفق بود"),
+
+    onError: (e) =>
+      setActionError(
+        e instanceof Error
+          ? e.message
+          : "عملیات ناموفق بود"
+      ),
   });
 
   const cancelMutation = useMutation({
     mutationFn: () => {
       const reason = prompt("دلیل لغو نوبت را وارد کنید:");
-      if (!reason) throw new Error("لغو انصراف داده شد");
-      return cancelAppointment(clinicSlug, appointmentId, reason);
+
+      if (!reason) {
+        throw new Error("لغو انصراف داده شد");
+      }
+
+      return cancelAppointment(
+        clinicSlug,
+        appointmentId,
+        reason
+      );
     },
+
     onSuccess: () => {
       setActionError(null);
       setActionMessage("نوبت لغو شد.");
       invalidateAppointment();
     },
+
     onError: (e) => {
-      if (e instanceof Error && e.message === "لغو انصراف داده شد") return;
-      setActionError(e instanceof Error ? e.message : "عملیات ناموفق بود");
+      if (
+        e instanceof Error &&
+        e.message === "لغو انصراف داده شد"
+      ) {
+        return;
+      }
+
+      setActionError(
+        e instanceof Error
+          ? e.message
+          : "عملیات ناموفق بود"
+      );
     },
   });
 
   const reminderMutation = useMutation({
-    mutationFn: () => sendAppointmentReminder(clinicSlug, appointmentId),
+    mutationFn: () =>
+      sendAppointmentReminder(
+        clinicSlug,
+        appointmentId
+      ),
+
     onSuccess: () => {
       setActionError(null);
       setActionMessage("درخواست یادآوری ثبت شد.");
     },
-    onError: (e) => setActionError(e instanceof Error ? e.message : "ارسال یادآوری ناموفق بود"),
+
+    onError: (e) =>
+      setActionError(
+        e instanceof Error
+          ? e.message
+          : "ارسال یادآوری ناموفق بود"
+      ),
   });
 
   const rescheduleMutation = useMutation({
-    mutationFn: (payload: { date: string; time: string }) => {
-      if (!appt) throw new Error("نوبت یافت نشد");
-      const durationMin = formatDurationMinutes(appt.startTime, appt.endTime) ?? 30;
-      const newStart = buildDateTime(payload.date, payload.time);
-      const newEnd = new Date(new Date(newStart).getTime() + durationMin * 60000).toISOString();
-      return rescheduleAppointment(clinicSlug, appointmentId, {
-        start_time: newStart,
-        end_time: newEnd,
-      });
+    mutationFn: (payload: {
+      date: string;
+      time: string;
+    }) => {
+      if (!appt) {
+        throw new Error("نوبت یافت نشد");
+      }
+
+      const durationMin =
+        formatDurationMinutes(
+          appt.startTime,
+          appt.endTime
+        ) ?? 30;
+
+      const newStart = buildDateTime(
+        payload.date,
+        payload.time
+      );
+
+      const newEnd = new Date(
+        new Date(newStart).getTime() +
+        durationMin * 60000
+      ).toISOString();
+
+      return rescheduleAppointment(
+        clinicSlug,
+        appointmentId,
+        {
+          start_time: newStart,
+          end_time: newEnd,
+        }
+      );
     },
+
     onSuccess: () => {
       setActionError(null);
       setActionMessage("زمان نوبت تغییر کرد.");
       setShowRescheduleModal(false);
       invalidateAppointment();
     },
+
     onError: (e) => {
-      if (e instanceof ApiError && e.status === 409) {
-        setActionError("این بازه‌ی زمانی برای این پزشک قبلاً رزرو شده است.");
+      if (
+        e instanceof ApiError &&
+        e.status === 409
+      ) {
+        setActionError(
+          "این بازه‌ی زمانی برای این پزشک قبلاً رزرو شده است."
+        );
       } else {
-        setActionError(e instanceof Error ? e.message : "تغییر زمان ناموفق بود");
+        setActionError(
+          e instanceof Error
+            ? e.message
+            : "تغییر زمان ناموفق بود"
+        );
       }
     },
   });
 
-  // ثبت نتیجه‌ی ویزیت: ایجاد جلسه، افزودن خدمت، ثبت توصیه/پیگیری، بررسی رضایت‌نامه، تکمیل
+  const updateAppointmentMutation = useMutation({
+    mutationFn: (payload: { doctor_user_id?: number; service_id?: string; notes?: string }) =>
+      updateAppointment(clinicSlug, appointmentId, payload),
+    onSuccess: () => {
+      setActionError(null);
+      setActionMessage("نوبت به‌روزرسانی شد.");
+      setEditingNotes(false);
+      setShowEditAppointment(false);
+      invalidateAppointment();
+    },
+    onError: (e) =>
+      setActionError(e instanceof Error ? e.message : "ویرایش نوبت ناموفق بود"),
+  });
+
   const saveVisitResultMutation = useMutation({
     mutationFn: async () => {
       if (!appt?.patientId || !appt?.doctorId) {
-        throw new Error("بیمار یا پزشک این نوبت مشخص نیست؛ امکان ثبت جلسه‌ی درمان وجود ندارد.");
+        throw new Error(
+          "بیمار یا پزشک این نوبت مشخص نیست؛ امکان ثبت جلسه‌ی درمان وجود ندارد."
+        );
       }
 
       const visit = await createVisit(clinicSlug, {
@@ -451,64 +518,32 @@ export default function AppointmentDetailPage({
         });
       }
 
-      if (visitRecommendation) {
-        await addVisitRecommendation(clinicSlug, visit.id, visitRecommendation);
-      }
-
-      if (followUpDate) {
-        await setVisitFollowUp(clinicSlug, visit.id, followUpDate);
-      }
-
-      const consents = await checkVisitConsents(clinicSlug, visit.id).catch(() => null);
-
       await completeVisit(clinicSlug, visit.id);
 
       if (appt.status !== "completed") {
         await completeAppointment(clinicSlug, appointmentId);
       }
 
-      return { visit, consents };
+      return visit;
     },
-    onSuccess: ({ visit, consents }) => {
+
+    onSuccess: () => {
       setActionError(null);
       setActionMessage("نتیجه‌ی ویزیت ثبت و نوبت تکمیل شد.");
       setVisitSaved(true);
-      setActiveVisitId(visit.id);
-      setConsentResult(consents);
       invalidateAppointment();
+
       if (appt?.patientId) {
         queryClient.invalidateQueries({
           queryKey: queryKeys.visits.listByPatient(clinicSlug, appt.patientId),
         });
       }
     },
+
     onError: (e) =>
-      setActionError(e instanceof Error ? e.message : "ثبت نتیجه‌ی ویزیت ناموفق بود"),
-  });
-
-  const lockVisitMutation = useMutation({
-    mutationFn: () => {
-      if (!activeVisitId) throw new Error("جلسه‌ای برای قفل‌کردن یافت نشد");
-      return lockVisit(clinicSlug, activeVisitId);
-    },
-    onSuccess: () => {
-      setActionError(null);
-      setActionMessage("جلسه‌ی درمان قفل شد و دیگر قابل ویرایش نیست.");
-      invalidateActiveVisit();
-    },
-    onError: (e) => setActionError(e instanceof Error ? e.message : "قفل‌کردن جلسه ناموفق بود"),
-  });
-
-  const consentCheckMutation = useMutation({
-    mutationFn: () => {
-      if (!activeVisitId) throw new Error("ابتدا باید نتیجه‌ی ویزیت ثبت شود");
-      return checkVisitConsents(clinicSlug, activeVisitId);
-    },
-    onSuccess: (result) => {
-      setActionError(null);
-      setConsentResult(result);
-    },
-    onError: (e) => setActionError(e instanceof Error ? e.message : "بررسی رضایت‌نامه ناموفق بود"),
+      setActionError(
+        e instanceof Error ? e.message : "ثبت نتیجه‌ی ویزیت ناموفق بود"
+      ),
   });
 
   if (isLoading) {
@@ -523,16 +558,23 @@ export default function AppointmentDetailPage({
     );
   }
 
-  const durationMin = formatDurationMinutes(appt.startTime, appt.endTime);
-
-  const consentSummary = summarizeConsentResult(consentResult);
-  const isVisitLocked = !!activeVisit?.lockedAt;
+  const durationMin = formatDurationMinutes(
+    appt.startTime,
+    appt.endTime
+  );
 
   const ACTIONS = [
     {
+      icon: Pencil,
+      label: "ویرایش نوبت",
+      onClick: () => setShowEditAppointment(true),
+      disabled: false,
+    },
+    {
       icon: CalendarCog,
       label: "تغییر زمان",
-      onClick: () => setShowRescheduleModal(true),
+      onClick: () =>
+        setShowRescheduleModal(true),
       disabled: false,
     },
     {
@@ -545,26 +587,29 @@ export default function AppointmentDetailPage({
     {
       icon: CheckCircle2,
       label: "علامت تکمیل شده",
-      onClick: () => completeMutation.mutate(),
+      onClick: () =>
+        completeMutation.mutate(),
       disabled: completeMutation.isPending,
     },
     {
       icon: UserX,
       label: "علامت عدم حضور",
-      onClick: () => noShowMutation.mutate(),
+      onClick: () =>
+        noShowMutation.mutate(),
       disabled: noShowMutation.isPending,
       danger: true,
     },
     {
       icon: BellRing,
       label: "ارسال یادآوری",
-      onClick: () => reminderMutation.mutate(),
+      onClick: () =>
+        reminderMutation.mutate(),
       disabled: reminderMutation.isPending,
     },
     {
       icon: Video,
       label: "شروع ویزیت آنلاین",
-      onClick: () => {},
+      onClick: () => { },
       disabled: true,
     },
   ];
@@ -579,8 +624,14 @@ export default function AppointmentDetailPage({
         >
           نوبت‌ها
         </Link>
-        <span className="mx-1 text-gray-300 dark:text-gray-600">‹</span>
-        <span className="text-gray-600 dark:text-gray-300">جزئیات نوبت</span>
+
+        <span className="mx-1 text-gray-300 dark:text-gray-600">
+          ‹
+        </span>
+
+        <span className="text-gray-600 dark:text-gray-300">
+          جزئیات نوبت
+        </span>
       </div>
 
       {/* Header */}
@@ -621,18 +672,6 @@ export default function AppointmentDetailPage({
         </p>
       )}
 
-      {patientAlerts.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-warning dark:bg-amber-500/10 dark:text-amber-300">
-          <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
-          {patientAlerts.map((a, i) => (
-            <span key={i}>
-              {a.text}
-              {i < patientAlerts.length - 1 ? " ·" : ""}
-            </span>
-          ))}
-        </div>
-      )}
-
       {/* Appointment Summary */}
       <div className="rounded-2xl border border-gray-100 bg-white p-5 dark:border-white/10 dark:bg-white/[0.06]">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
@@ -656,25 +695,34 @@ export default function AppointmentDetailPage({
             value={appt.service?.name ?? appt.serviceName ?? "—"}
           />
 
-          <SummaryItem icon={CalendarDays} label="تاریخ" value={formatJalaliDate(appt.startTime)} />
+          <SummaryItem
+            icon={CalendarDays}
+            label="تاریخ"
+            value={formatJalaliDate(
+              appt.startTime
+            )}
+          />
 
           <SummaryItem
             icon={Clock3}
             label="ساعت"
-            value={`${formatTime(appt.startTime)}${
-              durationMin ? ` - ${durationMin.toLocaleString("fa-IR")} دقیقه` : ""
-            }`}
+            value={`${formatTime(appt.startTime)}${durationMin
+              ? ` - ${durationMin.toLocaleString(
+                "fa-IR"
+              )} دقیقه`
+              : ""
+              }`}
           />
 
           <SummaryItem
             custom={
               <span
-                className={`rounded-full px-2.5 py-1 text-[11px] ${
-                  STATUS_BADGE[appt.status] ??
+                className={`rounded-full px-2.5 py-1 text-[11px] ${STATUS_BADGE[appt.status] ??
                   "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400"
-                }`}
+                  }`}
               >
-                {STATUS_TEXT[appt.status] ?? appt.status}
+                {STATUS_TEXT[appt.status] ??
+                  appt.status}
               </span>
             }
             label="وضعیت نوبت"
@@ -692,7 +740,12 @@ export default function AppointmentDetailPage({
           <SummaryItem
             icon={Globe}
             label="کانال نوبت"
-            value={appt.source ? SOURCE_LABEL[appt.source] ?? appt.source : "—"}
+            value={
+              appt.source
+                ? SOURCE_LABEL[appt.source] ??
+                appt.source
+                : "—"
+            }
           />
         </div>
       </div>
@@ -705,17 +758,18 @@ export default function AppointmentDetailPage({
             type="button"
             onClick={a.onClick}
             disabled={a.disabled}
-            className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-[11px] whitespace-nowrap transition disabled:opacity-40 ${
-              a.danger
-                ? "border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20"
-                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-300 dark:hover:bg-white/10"
-            }`}
+            className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-[11px] whitespace-nowrap transition disabled:opacity-40 ${a.danger
+              ? "border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20"
+              : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-300 dark:hover:bg-white/10"
+              }`}
           >
             <a.icon
-              className={`h-3.5 w-3.5 shrink-0 ${
-                a.danger ? "text-red-500 dark:text-red-300" : "text-primary-dark dark:text-primary-light"
-              }`}
+              className={`h-3.5 w-3.5 shrink-0 ${a.danger
+                ? "text-red-500 dark:text-red-300"
+                : "text-primary-dark dark:text-primary-light"
+                }`}
             />
+
             <span>{a.label}</span>
           </button>
         ))}
@@ -743,9 +797,13 @@ export default function AppointmentDetailPage({
               />
 
               <div>
-                <div className="text-sm font-bold text-gray-900 dark:text-gray-100">{patientName}</div>
+                <div className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                  {patientName}
+                </div>
+
                 <div className="text-[10px] text-gray-400 dark:text-gray-500">
-                  کد ملی: {patientNationalId}
+                  کد ملی:{" "}
+                  {patientNationalId}
                 </div>
               </div>
             </div>
@@ -753,12 +811,22 @@ export default function AppointmentDetailPage({
             <div className="mt-3 space-y-1.5 text-[11px] text-gray-500 dark:text-gray-400">
               <div className="flex items-center gap-1.5">
                 <CalendarDays className="h-3 w-3 text-gray-300 dark:text-gray-600" />
+
                 تاریخ تولد:
+
                 {patientBirthDate}
-                {patientAge !== null && <span>({patientAge.toLocaleString("fa-IR")} سال)</span>}
+
+                {patientAge !== null && (
+                  <span>
+                    ({patientAge.toLocaleString("fa-IR")} سال)
+                  </span>
+                )}
               </div>
 
-              <div className="flex items-center gap-1.5" dir="ltr">
+              <div
+                className="flex items-center gap-1.5"
+                dir="ltr"
+              >
                 <Phone className="h-3 w-3 text-gray-300 dark:text-gray-600" />
                 {appt.patientPhone || "—"}
               </div>
@@ -768,22 +836,45 @@ export default function AppointmentDetailPage({
               type="button"
               className="mt-3 flex w-full items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-[11px] text-gray-600 transition hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/10"
             >
-              موجودی حساب: {debt != null ? `${debt.toLocaleString("fa-IR")} تومان` : "—"}
+              موجودی حساب:{" "}
+              {debt != null
+                ? `${debt.toLocaleString(
+                  "fa-IR"
+                )} تومان`
+                : "—"}
+
               <Pencil className="h-3 w-3 text-gray-300 dark:text-gray-600" />
             </button>
 
             <div className="mt-3 grid grid-cols-3 gap-2 text-center">
               <div className="rounded-lg bg-gray-50 p-2 dark:bg-white/[0.04]">
-                <div className="text-xs font-bold text-gray-800 dark:text-gray-200">طلایی</div>
-                <div className="text-[9px] text-gray-400 dark:text-gray-500">سطح وفاداری</div>
+                <div className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                  طلایی
+                </div>
+
+                <div className="text-[9px] text-gray-400 dark:text-gray-500">
+                  سطح وفاداری
+                </div>
               </div>
+
               <div className="rounded-lg bg-gray-50 p-2 dark:bg-white/[0.04]">
-                <div className="text-xs font-bold text-gray-800 dark:text-gray-200">۲</div>
-                <div className="text-[9px] text-gray-400 dark:text-gray-500">نوبت‌های آینده</div>
+                <div className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                  ۲
+                </div>
+
+                <div className="text-[9px] text-gray-400 dark:text-gray-500">
+                  نوبت‌های آینده
+                </div>
               </div>
+
               <div className="rounded-lg bg-gray-50 p-2 dark:bg-white/[0.04]">
-                <div className="text-xs font-bold text-gray-800 dark:text-gray-200">۲۸</div>
-                <div className="text-[9px] text-gray-400 dark:text-gray-500">تعداد نوبت‌ها</div>
+                <div className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                  ۲۸
+                </div>
+
+                <div className="text-[9px] text-gray-400 dark:text-gray-500">
+                  تعداد نوبت‌ها
+                </div>
               </div>
             </div>
           </div>
@@ -796,66 +887,9 @@ export default function AppointmentDetailPage({
             </h3>
 
             {appt.status === "completed" || visitSaved ? (
-              <div className="space-y-3">
-                <p className="rounded-xl bg-primary-light/10 p-3 text-[11px] text-primary-dark dark:bg-primary-light/5 dark:text-primary-light">
-                  این نوبت تکمیل شده و جلسه‌ی درمان مربوطه در پرونده‌ی بیمار ثبت شده است.
-                </p>
-
-                {consentSummary && (
-                  <div
-                    className={`rounded-xl p-3 text-[11px] ${
-                      consentSummary.ok
-                        ? "bg-primary-light/10 text-primary-dark dark:bg-primary-light/5 dark:text-primary-light"
-                        : "bg-amber-50 text-warning dark:bg-amber-500/10 dark:text-amber-300"
-                    }`}
-                  >
-                    <p className="flex items-center gap-1.5">
-                      {consentSummary.ok ? (
-                        <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-                      ) : (
-                        <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
-                      )}
-                      {consentSummary.message}
-                    </p>
-
-                    {consentSummary.missing.length > 0 && (
-                      <ul className="mt-1.5 list-inside list-disc space-y-0.5 pr-5">
-                        {consentSummary.missing.map((name, i) => (
-                          <li key={i}>{name}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
-
-                {activeVisitId && !consentSummary && (
-                  <button
-                    type="button"
-                    onClick={() => consentCheckMutation.mutate()}
-                    disabled={consentCheckMutation.isPending}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-gray-200 py-2 text-[11px] text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/10"
-                  >
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    {consentCheckMutation.isPending ? "در حال بررسی..." : "بررسی رضایت‌نامه‌ها"}
-                  </button>
-                )}
-
-                {activeVisitId && (
-                  <button
-                    type="button"
-                    onClick={() => lockVisitMutation.mutate()}
-                    disabled={lockVisitMutation.isPending || isVisitLocked}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-gray-800 py-2.5 text-xs font-medium text-white transition hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white/10 dark:hover:bg-white/20"
-                  >
-                    <Lock className="h-3.5 w-3.5" />
-                    {isVisitLocked
-                      ? "جلسه قفل شده"
-                      : lockVisitMutation.isPending
-                      ? "در حال قفل‌کردن..."
-                      : "قفل نهایی جلسه (غیرقابل‌برگشت)"}
-                  </button>
-                )}
-              </div>
+              <p className="rounded-xl bg-primary-light/10 p-3 text-[11px] text-primary-dark dark:bg-primary-light/5 dark:text-primary-light">
+                این نوبت تکمیل شده و جلسه‌ی درمان مربوطه در پرونده‌ی بیمار ثبت شده است.
+              </p>
             ) : appt.status === "cancelled" ? (
               <p className="rounded-xl bg-gray-50 p-3 text-[11px] text-gray-500 dark:bg-white/5 dark:text-gray-400">
                 این نوبت لغو شده؛ امکان ثبت نتیجه‌ی ویزیت برای آن وجود ندارد.
@@ -888,13 +922,6 @@ export default function AppointmentDetailPage({
                       className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none transition focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
                     />
                   </div>
-
-                  <div>
-                    <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">
-                      تاریخ پیگیری پیشنهادی (اختیاری)
-                    </label>
-                    <JalaliDateField value={followUpDate} onChange={setFollowUpDate} />
-                  </div>
                 </div>
 
                 <button
@@ -903,7 +930,9 @@ export default function AppointmentDetailPage({
                   disabled={saveVisitResultMutation.isPending}
                   className="mt-4 w-full rounded-xl bg-primary py-2.5 text-xs font-medium text-white transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60 dark:bg-primary/90 dark:hover:bg-primary"
                 >
-                  {saveVisitResultMutation.isPending ? "در حال ثبت..." : "ثبت نتیجه و تکمیل نوبت"}
+                  {saveVisitResultMutation.isPending
+                    ? "در حال ثبت..."
+                    : "ثبت نتیجه و تکمیل نوبت"}
                 </button>
               </>
             )}
@@ -914,38 +943,52 @@ export default function AppointmentDetailPage({
         <div className="space-y-4">
           {/* Status History */}
           <div className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-white/10 dark:bg-white/[0.06]">
-            <h3 className="mb-4 text-xs font-bold text-gray-800 dark:text-gray-100">تاریخچه وضعیت نوبت</h3>
+            <h3 className="mb-4 text-xs font-bold text-gray-800 dark:text-gray-100">
+              تاریخچه وضعیت نوبت
+            </h3>
 
             <div className="relative space-y-4 border-r-2 border-gray-100 pr-4 dark:border-white/10">
               {statusHistory.length > 0 ? (
                 statusHistory.map((history, index) => {
                   const status = history.to_status ?? history.status;
+
                   return (
-                    <div key={history.id ?? `${status}-${index}`} className="relative pr-6">
+                    <div
+                      key={history.id ?? `${status}-${index}`}
+                      className="relative pr-6"
+                    >
+                      {/* نقطه تایم‌لاین */}
                       <div className="absolute right-[-7px] top-1.5 h-3 w-3 rounded-full border-2 border-white bg-primary-500 dark:border-slate-900" />
+
                       <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
                         <div className="flex items-center justify-between gap-3">
                           <span className="font-semibold text-slate-800 dark:text-white">
                             {STATUS_TEXT[status] ?? status}
                           </span>
+
                           {history.created_at && (
                             <span className="text-xs text-slate-400">
                               {new Date(history.created_at).toLocaleString("fa-IR")}
                             </span>
                           )}
                         </div>
+
                         {history.changed_by?.full_name && (
                           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                             توسط {history.changed_by.full_name}
                           </p>
                         )}
+
                         {history.reason && (
                           <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
                             دلیل: {history.reason}
                           </p>
                         )}
+
                         {history.notes && (
-                          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{history.notes}</p>
+                          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                            {history.notes}
+                          </p>
                         )}
                       </div>
                     </div>
@@ -968,20 +1011,54 @@ export default function AppointmentDetailPage({
               یادداشت‌ها
             </h3>
 
-            <p className="rounded-xl bg-gray-50 p-3 text-xs leading-relaxed text-gray-600 dark:bg-white/[0.04] dark:text-gray-300">
-              {appt.notes || "یادداشتی برای این نوبت ثبت نشده است."}
-            </p>
+            {editingNotes ? (
+              <>
+                <textarea
+                  value={notesDraft}
+                  onChange={(e) => setNotesDraft(e.target.value)}
+                  rows={3}
+                  className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none transition focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+                />
+                <div className="mt-2 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingNotes(false)}
+                    className="rounded-lg border border-gray-200 px-3 py-1.5 text-[11px] text-gray-600 transition hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/10"
+                  >
+                    انصراف
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateAppointmentMutation.mutate({ notes: notesDraft })}
+                    disabled={updateAppointmentMutation.isPending}
+                    className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-[11px] font-medium text-white transition hover:bg-primary-dark disabled:opacity-60"
+                  >
+                    {updateAppointmentMutation.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
+                    ذخیره
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="rounded-xl bg-gray-50 p-3 text-xs leading-relaxed text-gray-600 dark:bg-white/[0.04] dark:text-gray-300">
+                  {appt.notes || "یادداشتی برای این نوبت ثبت نشده است."}
+                </p>
 
-            <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-gray-300 dark:text-gray-600">
-              <span>آخرین ویرایش: دکتر سارا محمدی - ۲۲ خرداد ۱۴۰۳ - ۱۱:۲۰</span>
-              <button
-                type="button"
-                className="flex shrink-0 items-center gap-1 text-primary-dark transition hover:text-primary dark:text-primary-light dark:hover:text-primary"
-              >
-                <Plus className="h-3 w-3" />
-                افزودن یادداشت
-              </button>
-            </div>
+                <div className="mt-2 flex items-center justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNotesDraft(appt.notes ?? "");
+                      setEditingNotes(true);
+                    }}
+                    className="flex shrink-0 items-center gap-1 text-[10px] text-primary-dark transition hover:text-primary dark:text-primary-light dark:hover:text-primary"
+                  >
+                    <Plus className="h-3 w-3" />
+                    {appt.notes ? "ویرایش یادداشت" : "افزودن یادداشت"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -996,22 +1073,40 @@ export default function AppointmentDetailPage({
 
             <div className="space-y-3">
               {REMINDERS.map((r) => (
-                <div key={r.title} className="flex items-center gap-2.5">
-                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${r.tone}`}>
+                <div
+                  key={r.title}
+                  className="flex items-center gap-2.5"
+                >
+                  <div
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${r.tone}`}
+                  >
                     <r.icon className="h-4 w-4" />
                   </div>
+
                   <div className="flex-1">
-                    <div className="text-[11px] font-medium text-gray-700 dark:text-gray-200">{r.title}</div>
-                    <div className="text-[10px] text-gray-400 dark:text-gray-500">{r.time}</div>
+                    <div className="text-[11px] font-medium text-gray-700 dark:text-gray-200">
+                      {r.title}
+                    </div>
+
+                    <div className="text-[10px] text-gray-400 dark:text-gray-500">
+                      {r.time}
+                    </div>
                   </div>
-                  <span className={`text-[10px] font-medium ${r.statusTone}`}>{r.status}</span>
+
+                  <span
+                    className={`text-[10px] font-medium ${r.statusTone}`}
+                  >
+                    {r.status}
+                  </span>
                 </div>
               ))}
             </div>
 
             <button
               type="button"
-              onClick={() => reminderMutation.mutate()}
+              onClick={() =>
+                reminderMutation.mutate()
+              }
               disabled={reminderMutation.isPending}
               className="mt-3 flex w-full items-center justify-center gap-1 rounded-lg bg-primary-light/15 py-2 text-[11px] font-medium text-primary-dark transition hover:bg-primary-light/25 disabled:opacity-50 dark:bg-primary-light/10 dark:text-primary-light dark:hover:bg-primary-light/20"
             >
@@ -1029,22 +1124,43 @@ export default function AppointmentDetailPage({
 
             <div className="space-y-2 text-xs">
               <div className="flex items-center justify-between">
-                <span className="text-gray-400 dark:text-gray-500">وضعیت پرداخت</span>
+                <span className="text-gray-400 dark:text-gray-500">
+                  وضعیت پرداخت
+                </span>
+
                 <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] text-danger dark:bg-red-500/10 dark:text-red-300">
                   پرداخت نشده
                 </span>
               </div>
+
               <div className="flex items-center justify-between">
-                <span className="text-gray-400 dark:text-gray-500">مبلغ خدمات</span>
-                <span className="text-gray-700 dark:text-gray-200">۱,۴۸۰,۰۰۰ تومان</span>
+                <span className="text-gray-400 dark:text-gray-500">
+                  مبلغ خدمات
+                </span>
+
+                <span className="text-gray-700 dark:text-gray-200">
+                  ۱,۴۸۰,۰۰۰ تومان
+                </span>
               </div>
+
               <div className="flex items-center justify-between">
-                <span className="text-gray-400 dark:text-gray-500">تخفیف</span>
-                <span className="text-gray-700 dark:text-gray-200">۰ تومان</span>
+                <span className="text-gray-400 dark:text-gray-500">
+                  تخفیف
+                </span>
+
+                <span className="text-gray-700 dark:text-gray-200">
+                  ۰ تومان
+                </span>
               </div>
+
               <div className="flex items-center justify-between border-t border-gray-50 pt-2 dark:border-white/10">
-                <span className="font-medium text-gray-600 dark:text-gray-300">مبلغ قابل پرداخت</span>
-                <span className="font-bold text-gray-800 dark:text-gray-100">۱,۴۸۰,۰۰۰ تومان</span>
+                <span className="font-medium text-gray-600 dark:text-gray-300">
+                  مبلغ قابل پرداخت
+                </span>
+
+                <span className="font-bold text-gray-800 dark:text-gray-100">
+                  ۱,۴۸۰,۰۰۰ تومان
+                </span>
               </div>
             </div>
 
@@ -1055,6 +1171,7 @@ export default function AppointmentDetailPage({
               >
                 دریافت پرداخت
               </button>
+
               <button
                 type="button"
                 className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-200 py-2 text-[11px] text-gray-600 transition hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/10"
@@ -1069,16 +1186,29 @@ export default function AppointmentDetailPage({
 
       {/* Status Legend */}
       <div className="rounded-2xl border border-gray-100 bg-white p-5 dark:border-white/10 dark:bg-white/[0.06]">
-        <h3 className="mb-4 text-sm font-bold text-gray-800 dark:text-gray-100">راهنمای وضعیت نوبت</h3>
+        <h3 className="mb-4 text-sm font-bold text-gray-800 dark:text-gray-100">
+          راهنمای وضعیت نوبت
+        </h3>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {STATUS_LEGEND.map((s) => (
-            <div key={s.label} className="rounded-xl border border-gray-50 p-3 dark:border-white/5">
-              <span className={`mb-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] ${s.tone}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
+            <div
+              key={s.label}
+              className="rounded-xl border border-gray-50 p-3 dark:border-white/5"
+            >
+              <span
+                className={`mb-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] ${s.tone}`}
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${s.dot}`}
+                />
+
                 {s.label}
               </span>
-              <p className="text-[10px] leading-relaxed text-gray-400 dark:text-gray-500">{s.desc}</p>
+
+              <p className="text-[10px] leading-relaxed text-gray-400 dark:text-gray-500">
+                {s.desc}
+              </p>
             </div>
           ))}
         </div>
@@ -1091,11 +1221,137 @@ export default function AppointmentDetailPage({
           doctorId={appt.doctorId}
           currentStartTime={appt.startTime}
           currentEndTime={appt.endTime}
-          onClose={() => setShowRescheduleModal(false)}
-          onSubmit={(date, time) => rescheduleMutation.mutate({ date, time })}
-          isSubmitting={rescheduleMutation.isPending}
+          onClose={() =>
+            setShowRescheduleModal(false)
+          }
+          onSubmit={(date, time) =>
+            rescheduleMutation.mutate({
+              date,
+              time,
+            })
+          }
+          isSubmitting={
+            rescheduleMutation.isPending
+          }
         />
       )}
+
+      {showEditAppointment && (
+        <EditAppointmentModal
+          clinicSlug={clinicSlug}
+          currentDoctorId={appt.doctorId ?? undefined}
+          currentServiceId={appt.service?.id}
+          onClose={() => setShowEditAppointment(false)}
+          onSubmit={(payload) => updateAppointmentMutation.mutate(payload)}
+          isSubmitting={updateAppointmentMutation.isPending}
+        />
+      )}
+    </div>
+  );
+}
+
+function EditAppointmentModal({
+  clinicSlug,
+  currentDoctorId,
+  currentServiceId,
+  onClose,
+  onSubmit,
+  isSubmitting,
+}: {
+  clinicSlug: string;
+  currentDoctorId?: number;
+  currentServiceId?: string;
+  onClose: () => void;
+  onSubmit: (payload: { doctor_user_id?: number; service_id?: string }) => void;
+  isSubmitting: boolean;
+}) {
+  const [doctorId, setDoctorId] = useState<string>(currentDoctorId != null ? String(currentDoctorId) : "");
+  const [serviceId, setServiceId] = useState<string>(currentServiceId ?? "");
+
+  const { data: doctors = [] } = useQuery({
+    queryKey: queryKeys.appointmentsCalendar.doctors(clinicSlug),
+    queryFn: () => getDoctors(clinicSlug),
+    enabled: !!clinicSlug,
+  });
+
+  const { data: services = [] } = useQuery({
+    queryKey: ["services-for-booking", clinicSlug],
+    queryFn: () => getServicesForBooking(clinicSlug),
+    enabled: !!clinicSlug,
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-[1px] dark:bg-black/60">
+      <div className="w-full max-w-sm rounded-2xl border border-gray-100 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-[#18201e]">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-bold text-gray-900 dark:text-white">ویرایش نوبت</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 text-gray-400 transition hover:bg-gray-50 hover:text-gray-600 dark:hover:bg-white/10 dark:hover:text-gray-300"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">پزشک</label>
+            <select
+              value={doctorId}
+              onChange={(e) => setDoctorId(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+            >
+              <option value="">بدون تغییر</option>
+              {doctors.map((d: DoctorOption) => (
+                <option key={d.userId} value={d.userId}>
+                  {d.fullName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-[11px] text-gray-500 dark:text-gray-400">خدمت</label>
+            <select
+              value={serviceId}
+              onChange={(e) => setServiceId(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200"
+            >
+              <option value="">بدون تغییر</option>
+              {services.map((s: ServiceOption) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm text-gray-600 transition hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/10"
+          >
+            انصراف
+          </button>
+          <button
+            type="button"
+            disabled={isSubmitting}
+            onClick={() =>
+              onSubmit({
+                doctor_user_id: doctorId ? Number(doctorId) : undefined,
+                service_id: serviceId || undefined,
+              })
+            }
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-medium text-white transition hover:bg-primary-dark disabled:opacity-60"
+          >
+            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isSubmitting ? "در حال ذخیره..." : "ذخیره تغییرات"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1114,40 +1370,78 @@ function RescheduleModal({
   currentStartTime: string;
   currentEndTime: string;
   onClose: () => void;
-  onSubmit: (date: string, time: string) => void;
+  onSubmit: (
+    date: string,
+    time: string
+  ) => void;
   isSubmitting: boolean;
 }) {
   const [date, setDate] = useState<DateObject>(
-    new DateObject({ date: new Date(currentStartTime), calendar: persian, locale: persian_fa })
+    new DateObject({
+      date: new Date(currentStartTime),
+      calendar: persian,
+      locale: persian_fa,
+    })
   );
 
-  const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
+  const [selectedSlot, setSelectedSlot] =
+    useState<AvailabilitySlot | null>(null);
 
-  const isoDate = toLocalIsoDate(date.toDate());
+  const isoDate = toLocalIsoDate(
+    date.toDate()
+  );
 
   const currentTimeLabel = extractTimeLabel(
-    new Date(currentStartTime).toLocaleTimeString("en-GB", {
+    new Date(
+      currentStartTime
+    ).toLocaleTimeString("en-GB", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
     })
   );
 
-  const isSameDayAsCurrent = isoDate === toLocalIsoDate(new Date(currentStartTime));
+  const isSameDayAsCurrent =
+    isoDate ===
+    toLocalIsoDate(
+      new Date(currentStartTime)
+    );
 
-  const { data: rawSlots = [], isLoading: slotsLoading } = useQuery({
-    queryKey: queryKeys.appointmentsCalendar.availability(clinicSlug, doctorId, isoDate),
-    queryFn: () => getAvailability(clinicSlug, { doctorUserId: doctorId, date: isoDate }),
-    enabled: !!clinicSlug && !!doctorId,
+  const {
+    data: rawSlots = [],
+    isLoading: slotsLoading,
+  } = useQuery({
+    queryKey:
+      queryKeys.appointmentsCalendar.availability(
+        clinicSlug,
+        doctorId,
+        isoDate
+      ),
+
+    queryFn: () =>
+      getAvailability(clinicSlug, {
+        doctorUserId: doctorId,
+        date: isoDate,
+      }),
+
+    enabled:
+      !!clinicSlug && !!doctorId,
   });
 
-  const slots = useMemoSlots(rawSlots, isSameDayAsCurrent, currentTimeLabel);
+  const slots = useMemoSlots(
+    rawSlots,
+    isSameDayAsCurrent,
+    currentTimeLabel
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-[1px] dark:bg-black/60">
       <div className="w-full max-w-md rounded-2xl border border-gray-100 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-[#18201e]">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-bold text-gray-900 dark:text-white">تغییر زمان نوبت</h2>
+          <h2 className="text-base font-bold text-gray-900 dark:text-white">
+            تغییر زمان نوبت
+          </h2>
+
           <button
             type="button"
             onClick={onClose}
@@ -1173,32 +1467,47 @@ function RescheduleModal({
         </div>
 
         <div className="mt-4">
-          <label className="mb-2 block text-xs font-medium text-gray-600 dark:text-gray-300">ساعت جدید</label>
+          <label className="mb-2 block text-xs font-medium text-gray-600 dark:text-gray-300">
+            ساعت جدید
+          </label>
 
           {slotsLoading && (
-            <p className="text-[11px] text-gray-300 dark:text-gray-600">در حال دریافت ساعت‌های آزاد...</p>
+            <p className="text-[11px] text-gray-300 dark:text-gray-600">
+              در حال دریافت ساعت‌های آزاد...
+            </p>
           )}
 
-          {!slotsLoading && slots.length === 0 && (
-            <p className="text-[11px] text-gray-300 dark:text-gray-600">ساعت آزادی برای این روز نیست.</p>
-          )}
+          {!slotsLoading &&
+            slots.length === 0 && (
+              <p className="text-[11px] text-gray-300 dark:text-gray-600">
+                ساعت آزادی برای این روز نیست.
+              </p>
+            )}
 
           <div className="grid max-h-48 grid-cols-3 gap-2 overflow-y-auto">
             {slots.map((slot, i) => (
               <button
                 type="button"
                 key={i}
-                onClick={() => setSelectedSlot(slot)}
-                className={`rounded-xl border py-2 text-xs transition ${
-                  selectedSlot?.start === slot.start
-                    ? "border-primary bg-primary-light/10 font-medium text-primary-dark dark:border-primary-light dark:bg-primary-light/10 dark:text-primary-light"
-                    : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/10"
-                }`}
+                onClick={() =>
+                  setSelectedSlot(slot)
+                }
+                className={`rounded-xl border py-2 text-xs transition ${selectedSlot?.start ===
+                  slot.start
+                  ? "border-primary bg-primary-light/10 font-medium text-primary-dark dark:border-primary-light dark:bg-primary-light/10 dark:text-primary-light"
+                  : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/10"
+                  }`}
               >
                 {extractTimeLabel(slot.start)}
-                {extractTimeLabel(slot.start) === currentTimeLabel && isSameDayAsCurrent && (
-                  <span className="mr-1 text-[9px] text-gray-400 dark:text-gray-500">(فعلی)</span>
-                )}
+
+                {extractTimeLabel(
+                  slot.start
+                ) === currentTimeLabel &&
+                  isSameDayAsCurrent && (
+                    <span className="mr-1 text-[9px] text-gray-400 dark:text-gray-500">
+                      (فعلی)
+                    </span>
+                  )}
               </button>
             ))}
           </div>
@@ -1215,11 +1524,23 @@ function RescheduleModal({
 
           <button
             type="button"
-            disabled={!selectedSlot || isSubmitting}
-            onClick={() => selectedSlot && onSubmit(isoDate, extractTimeLabel(selectedSlot.start))}
+            disabled={
+              !selectedSlot || isSubmitting
+            }
+            onClick={() =>
+              selectedSlot &&
+              onSubmit(
+                isoDate,
+                extractTimeLabel(
+                  selectedSlot.start
+                )
+              )
+            }
             className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-medium text-white transition hover:bg-primary-dark disabled:opacity-50 dark:bg-primary/90 dark:hover:bg-primary"
           >
-            {isSubmitting ? "در حال ثبت..." : "ثبت تغییر"}
+            {isSubmitting
+              ? "در حال ثبت..."
+              : "ثبت تغییر"}
           </button>
         </div>
       </div>
@@ -1232,75 +1553,26 @@ function useMemoSlots(
   isSameDayAsCurrent: boolean,
   currentTimeLabel: string
 ): AvailabilitySlot[] {
-  const hasCurrent = rawSlots.some((s) => extractTimeLabel(s.start) === currentTimeLabel);
+  const hasCurrent = rawSlots.some(
+    (s) =>
+      extractTimeLabel(s.start) ===
+      currentTimeLabel
+  );
 
-  if (isSameDayAsCurrent && !hasCurrent) {
-    return [{ start: currentTimeLabel, end: "" }, ...rawSlots];
+  if (
+    isSameDayAsCurrent &&
+    !hasCurrent
+  ) {
+    return [
+      {
+        start: currentTimeLabel,
+        end: "",
+      },
+      ...rawSlots,
+    ];
   }
 
   return rawSlots;
-}
-
-// انتخابگر تاریخ شمسی سبک؛ خروجی را به‌صورت رشته‌ی ISO تاریخ (YYYY-MM-DD) برمی‌گرداند
-function JalaliDateField({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (isoDate: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  const dateObj = value
-    ? new DateObject({ date: new Date(value), calendar: persian, locale: persian_fa })
-    : null;
-
-  const label = dateObj
-    ? dateObj.format("D MMMM YYYY")
-    : "انتخاب تاریخ";
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between rounded-xl border border-gray-200 px-3 py-2 text-xs text-gray-700 outline-none transition hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-200 dark:hover:bg-white/10"
-      >
-        {label}
-        {value && (
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={(e) => {
-              e.stopPropagation();
-              onChange("");
-            }}
-            className="text-[10px] text-gray-400 hover:text-red-500"
-          >
-            پاک‌کردن
-          </span>
-        )}
-      </button>
-
-      {open && (
-        <div className="absolute z-30 mt-1 w-full min-w-[260px] rounded-2xl border border-gray-100 bg-white p-1 shadow-xl dark:border-white/10 dark:bg-[#18201e]">
-          <Calendar
-            value={dateObj ?? undefined}
-            onChange={(v) => {
-              if (v) {
-                const d = v as DateObject;
-                onChange(d.toDate().toISOString());
-                setOpen(false);
-              }
-            }}
-            calendar={persian}
-            locale={persian_fa}
-            shadow={false}
-          />
-        </div>
-      )}
-    </div>
-  );
 }
 
 function SummaryItem({
@@ -1322,7 +1594,9 @@ function SummaryItem({
 }) {
   return (
     <div className="min-w-0">
-      <div className="mb-1.5 text-[10px] text-gray-400 dark:text-gray-500">{label}</div>
+      <div className="mb-1.5 text-[10px] text-gray-400 dark:text-gray-500">
+        {label}
+      </div>
 
       {custom ?? (
         <div className="flex items-center gap-1.5">
@@ -1337,11 +1611,20 @@ function SummaryItem({
             />
           )}
 
-          {Icon && !avatar && <Icon className="h-3.5 w-3.5 shrink-0 text-gray-300 dark:text-gray-600" />}
+          {Icon && !avatar && (
+            <Icon className="h-3.5 w-3.5 shrink-0 text-gray-300 dark:text-gray-600" />
+          )}
 
           <div className="min-w-0">
-            <div className="truncate text-xs font-medium text-gray-700 dark:text-gray-200">{value}</div>
-            {sub && <div className="truncate text-[9px] text-gray-400 dark:text-gray-500">{sub}</div>}
+            <div className="truncate text-xs font-medium text-gray-700 dark:text-gray-200">
+              {value}
+            </div>
+
+            {sub && (
+              <div className="truncate text-[9px] text-gray-400 dark:text-gray-500">
+                {sub}
+              </div>
+            )}
           </div>
         </div>
       )}

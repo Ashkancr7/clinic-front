@@ -6,7 +6,7 @@
  * داده‌ی کلینیک قبلی همچنان از کش نمایش داده شود
  * (باگ جدی حریم خصوصی داده).
  *
- * نکته:
+ * نکات:
  * - تمام Query Keyهای وابسته به کلینیک باید clinicSlug داشته باشند.
  * - Query Keyهای SuperAdmin بر اساس clinicId هستند.
  * - Query Keyهای عمومی مثل notifications و memberships
@@ -17,6 +17,7 @@ export const queryKeys = {
   // =========================================================
   // Patients
   // =========================================================
+
   patients: {
     list: (
       clinicSlug: string,
@@ -30,13 +31,22 @@ export const queryKeys = {
     ) =>
       ["patients", clinicSlug, "detail", patientId] as const,
 
-    lookup: (phone: string) =>
+    medicalProfile: (
+      clinicSlug: string,
+      patientId: string
+    ) =>
+      ["patients", clinicSlug, "medical-profile", patientId] as const,
+
+    lookup: (
+      phone: string
+    ) =>
       ["patients", "lookup", phone] as const,
   },
 
   // =========================================================
   // Appointments
   // =========================================================
+
   appointments: {
     list: (
       clinicSlug: string,
@@ -54,22 +64,30 @@ export const queryKeys = {
   // =========================================================
   // Clinics
   // =========================================================
+
   clinics: {
     myMemberships: () =>
       ["clinics", "my-memberships"] as const,
 
-    detail: (clinicSlug: string) =>
+    detail: (
+      clinicSlug: string
+    ) =>
       ["clinics", clinicSlug, "detail"] as const,
 
-    services: (clinicSlug: string) =>
+    services: (
+      clinicSlug: string
+    ) =>
       ["clinics", clinicSlug, "services"] as const,
   },
 
   // =========================================================
   // Chat
   // =========================================================
+
   chat: {
-    conversations: (clinicSlug: string) =>
+    conversations: (
+      clinicSlug: string
+    ) =>
       ["chat", clinicSlug, "conversations"] as const,
 
     conversationDetail: (
@@ -109,6 +127,7 @@ export const queryKeys = {
   // =========================================================
   // Files
   // =========================================================
+
   files: {
     byPatient: (
       clinicSlug: string,
@@ -134,14 +153,38 @@ export const queryKeys = {
   },
 
   // =========================================================
+  // Doctor Schedules
+  // =========================================================
+
+  doctorSchedules: {
+    list: (
+      clinicSlug: string,
+      doctorUserId?: number
+    ) =>
+      [
+        "doctor-schedules",
+        clinicSlug,
+        "list",
+        doctorUserId ?? "all",
+      ] as const,
+  },
+
+  // =========================================================
   // Super Admin
   // =========================================================
+
   superAdmin: {
     clinics: {
       list: () =>
-        ["super-admin", "clinics", "list"] as const,
+        [
+          "super-admin",
+          "clinics",
+          "list",
+        ] as const,
 
-      detail: (clinicId: string) =>
+      detail: (
+        clinicId: string
+      ) =>
         [
           "super-admin",
           "clinics",
@@ -152,22 +195,31 @@ export const queryKeys = {
 
     plans: {
       list: () =>
-        ["super-admin", "plans", "list"] as const,
+        [
+          "super-admin",
+          "plans",
+          "list",
+        ] as const,
     },
   },
 
   // =========================================================
   // Dashboard
   // =========================================================
+
   dashboard: {
-    clinic: (clinicSlug: string) =>
+    clinic: (
+      clinicSlug: string
+    ) =>
       [
         "dashboard",
         clinicSlug,
         "clinic",
       ] as const,
 
-    upcomingAppointments: (clinicSlug: string) =>
+    upcomingAppointments: (
+      clinicSlug: string
+    ) =>
       [
         "dashboard",
         clinicSlug,
@@ -178,14 +230,22 @@ export const queryKeys = {
   // =========================================================
   // Modules
   // =========================================================
+
   modules: {
-    list: (clinicSlug: string) =>
-      ["modules", clinicSlug, "list"] as const,
+    list: (
+      clinicSlug: string
+    ) =>
+      [
+        "modules",
+        clinicSlug,
+        "list",
+      ] as const,
   },
 
   // =========================================================
   // Appointments Calendar
   // =========================================================
+
   appointmentsCalendar: {
     list: (
       clinicSlug: string,
@@ -211,7 +271,9 @@ export const queryKeys = {
         appointmentId,
       ] as const,
 
-    doctors: (clinicSlug: string) =>
+    doctors: (
+      clinicSlug: string
+    ) =>
       [
         "appointments-calendar",
         clinicSlug,
@@ -235,16 +297,26 @@ export const queryKeys = {
   // =========================================================
   // Services
   // =========================================================
+
   services: {
-    list: (clinicSlug: string) =>
-      ["services", clinicSlug, "list"] as const,
+    list: (
+      clinicSlug: string
+    ) =>
+      [
+        "services",
+        clinicSlug,
+        "list",
+      ] as const,
   },
 
   // =========================================================
   // Session
   // =========================================================
+
   session: {
-    currentUser: (clinicSlug: string) =>
+    currentUser: (
+      clinicSlug: string
+    ) =>
       [
         "session",
         clinicSlug,
@@ -255,42 +327,58 @@ export const queryKeys = {
   // =========================================================
   // Notifications
   // =========================================================
+
   notifications: {
     unreadCount: () =>
-      ["notifications", "unread-count"] as const,
+      [
+        "notifications",
+        "unread-count",
+      ] as const,
   },
 
   notificationsList: {
     all: () =>
-      ["notifications", "list"] as const,
+      [
+        "notifications",
+        "list",
+      ] as const,
   },
 
   // =========================================================
   // Patient Portal
   // =========================================================
+
   patientPortal: {
-    dashboard: (clinicSlug: string) =>
+    dashboard: (
+      clinicSlug: string
+    ) =>
       [
         "patient-portal",
         clinicSlug,
         "dashboard",
       ] as const,
 
-    appointments: (clinicSlug: string) =>
+    appointments: (
+      clinicSlug: string
+    ) =>
       [
         "patient-portal",
         clinicSlug,
         "appointments",
       ] as const,
 
-    images: (clinicSlug: string) =>
+    images: (
+      clinicSlug: string
+    ) =>
       [
         "patient-portal",
         clinicSlug,
         "images",
       ] as const,
 
-    consents: (clinicSlug: string) =>
+    consents: (
+      clinicSlug: string
+    ) =>
       [
         "patient-portal",
         clinicSlug,
@@ -303,7 +391,9 @@ export const queryKeys = {
         "clinics",
       ] as const,
 
-    conversations: (clinicSlug: string) =>
+    conversations: (
+      clinicSlug: string
+    ) =>
       [
         "patient-portal",
         clinicSlug,
@@ -314,8 +404,11 @@ export const queryKeys = {
   // =========================================================
   // Super Admin Modules
   // =========================================================
+
   superAdminModules: {
-    list: (clinicId: string) =>
+    list: (
+      clinicId: string
+    ) =>
       [
         "super-admin",
         "modules",
@@ -326,6 +419,7 @@ export const queryKeys = {
   // =========================================================
   // Reports
   // =========================================================
+
   reports: {
     services: (
       clinicSlug: string,
@@ -392,14 +486,18 @@ export const queryKeys = {
         to,
       ] as const,
 
-    sms: (clinicSlug: string) =>
+    sms: (
+      clinicSlug: string
+    ) =>
       [
         "reports",
         clinicSlug,
         "sms",
       ] as const,
 
-    finance: (clinicSlug: string) =>
+    finance: (
+      clinicSlug: string
+    ) =>
       [
         "reports",
         clinicSlug,
@@ -410,6 +508,7 @@ export const queryKeys = {
   // =========================================================
   // Service Detail
   // =========================================================
+
   serviceDetail: {
     detail: (
       clinicSlug: string,
@@ -425,6 +524,7 @@ export const queryKeys = {
   // =========================================================
   // Visits
   // =========================================================
+
   visits: {
     listByPatient: (
       clinicSlug: string,
@@ -452,8 +552,11 @@ export const queryKeys = {
   // =========================================================
   // Staff
   // =========================================================
+
   staff: {
-    list: (clinicSlug: string) =>
+    list: (
+      clinicSlug: string
+    ) =>
       [
         "staff",
         clinicSlug,
@@ -471,7 +574,9 @@ export const queryKeys = {
         userId,
       ] as const,
 
-    myAssignedDoctors: (clinicSlug: string) =>
+    myAssignedDoctors: (
+      clinicSlug: string
+    ) =>
       [
         "staff",
         clinicSlug,
@@ -482,8 +587,11 @@ export const queryKeys = {
   // =========================================================
   // Roles
   // =========================================================
+
   roles: {
-    list: (clinicSlug: string) =>
+    list: (
+      clinicSlug: string
+    ) =>
       [
         "roles",
         clinicSlug,
@@ -494,6 +602,7 @@ export const queryKeys = {
   // =========================================================
   // Finance
   // =========================================================
+
   finance: {
     invoices: (
       clinicSlug: string,
@@ -534,8 +643,11 @@ export const queryKeys = {
   // =========================================================
   // SMS Templates
   // =========================================================
+
   smsTemplates: {
-    list: (clinicSlug: string) =>
+    list: (
+      clinicSlug: string
+    ) =>
       [
         "sms-templates",
         clinicSlug,
@@ -546,8 +658,11 @@ export const queryKeys = {
   // =========================================================
   // SMS Rules
   // =========================================================
+
   smsRules: {
-    list: (clinicSlug: string) =>
+    list: (
+      clinicSlug: string
+    ) =>
       [
         "sms-rules",
         clinicSlug,
@@ -558,8 +673,11 @@ export const queryKeys = {
   // =========================================================
   // SMS Messages
   // =========================================================
+
   smsMessages: {
-    list: (clinicSlug: string) =>
+    list: (
+      clinicSlug: string
+    ) =>
       [
         "sms-messages",
         clinicSlug,
@@ -567,11 +685,18 @@ export const queryKeys = {
       ] as const,
   },
 
+   clinicSettings: {
+    detail: (clinicSlug: string) => ["clinic-settings", clinicSlug] as const,
+  },
+
   // =========================================================
   // Consents
   // =========================================================
+
   consents: {
-    templates: (clinicSlug: string) =>
+    templates: (
+      clinicSlug: string
+    ) =>
       [
         "consents",
         clinicSlug,
@@ -600,4 +725,5 @@ export const queryKeys = {
         patientId,
       ] as const,
   },
-};
+} as const;
+
