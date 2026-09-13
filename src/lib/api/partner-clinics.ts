@@ -58,6 +58,14 @@ function unwrapItem<T>(res: unknown): T {
 }
 
 export const partnerClinicsApi = {
+  // --- لیست تبلیغات کلینیک‌های طرف‌قرارداد برای صفحه ورود (عمومی، بدون نیاز به احراز هویت) ---
+  getPartnerAds: async (clinicSlug: string) => {
+    const res = await apiClient<LaravelEnvelope<PartnerClinic[]> | PartnerClinic[]>(
+      `/public/clinics/${clinicSlug}/partner-ads`
+    );
+    return unwrapList<PartnerClinic>(res);
+  },
+
   getPartnerClinics: async () => {
     const res = await apiClient<LaravelEnvelope<PartnerClinic[]> | PartnerClinic[]>(
       "/super-admin/partner-clinics"

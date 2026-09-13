@@ -1,3 +1,4 @@
+
 /**
  * تمام کلیدهای React Query باید از این فکتوری ساخته شوند، نه دستی نوشته شوند.
  *
@@ -42,6 +43,19 @@ export const queryKeys = {
     ) =>
       ["patients", "lookup", phone] as const,
   },
+
+
+
+  subscription: {
+  current: (
+    clinicSlug: string
+  ) =>
+    [
+      "subscription",
+      clinicSlug,
+      "current",
+    ] as const,
+},
 
   // =========================================================
   // Appointments
@@ -685,8 +699,42 @@ export const queryKeys = {
       ] as const,
   },
 
-   clinicSettings: {
-    detail: (clinicSlug: string) => ["clinic-settings", clinicSlug] as const,
+  // =========================================================
+  // Clinic Settings
+  // =========================================================
+
+  clinicSettings: {
+    detail: (
+      clinicSlug: string
+    ) =>
+      [
+        "clinic-settings",
+        clinicSlug,
+      ] as const,
+  },
+
+  // =========================================================
+  // Public Clinic
+  // =========================================================
+
+  publicClinic: {
+    info: (
+      clinicSlug: string
+    ) =>
+      [
+        "public-clinic",
+        clinicSlug,
+        "info",
+      ] as const,
+
+    partnerAds: (
+      clinicSlug: string
+    ) =>
+      [
+        "public-clinic",
+        clinicSlug,
+        "partner-ads",
+      ] as const,
   },
 
   // =========================================================
@@ -725,5 +773,64 @@ export const queryKeys = {
         patientId,
       ] as const,
   },
+
+  // =========================================================
+  // Intake Forms
+  // =========================================================
+
+  intakeForms: {
+    list: (
+      clinicSlug: string
+    ) =>
+      [
+        "intake-forms",
+        clinicSlug,
+        "list",
+      ] as const,
+  },
+
+  // =========================================================
+  // Intake Submissions
+  // =========================================================
+
+  intakeSubmissions: {
+    list: (
+      clinicSlug: string,
+      status?: string
+    ) =>
+      [
+        "intake-submissions",
+        clinicSlug,
+        "list",
+        status ?? "all",
+      ] as const,
+
+    detail: (
+      clinicSlug: string,
+      submissionId: string
+    ) =>
+      [
+        "intake-submissions",
+        clinicSlug,
+        "detail",
+        submissionId,
+      ] as const,
+  },
+
+  // =========================================================
+  // Public Intake
+  // =========================================================
+
+  publicIntake: {
+    form: (
+      clinicSlug: string
+    ) =>
+      [
+        "public-intake",
+        clinicSlug,
+        "form",
+      ] as const,
+  },
 } as const;
+
 

@@ -39,7 +39,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p)) || pathname.includes("/intake")) {
+  if (
+    PUBLIC_PATHS.some((p) => pathname.startsWith(p)) ||
+    pathname.includes("/intake") ||
+    pathname.startsWith("/c/")
+  ) {
     return NextResponse.next();
   }
 

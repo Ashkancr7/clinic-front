@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Leaf,
@@ -16,6 +16,7 @@ import {
   Headset,
   Menu,
   X,
+  LogOut,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -68,8 +69,19 @@ export default function SuperAdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    setIsLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      router.push("/login");
+    }
+  }
 
   // بستن Drawer هنگام تغییر مسیر
   useEffect(() => {
@@ -180,6 +192,34 @@ export default function SuperAdminLayout({
           );
         })}
       </nav>
+
+      {/* Logout */}
+      <button
+        type="button"
+        onClick={handleLogout}
+        disabled={isLoggingOut}
+        className="
+          mt-2
+          flex
+          items-center
+          gap-3
+          rounded-xl
+          px-4
+          py-2.5
+          text-sm
+          text-danger
+          transition-all
+          duration-200
+          hover:bg-red-50
+          disabled:cursor-not-allowed
+          disabled:opacity-60
+          dark:text-red-300
+          dark:hover:bg-red-500/10
+        "
+      >
+        <LogOut className="ml-5 h-4 w-4 shrink-0" />
+        <span>{isLoggingOut ? "در حال خروج..." : "خروج از حساب"}</span>
+      </button>
 
       {/* Decorative Image */}
       <div className="mt-8 hidden justify-center lg:flex">

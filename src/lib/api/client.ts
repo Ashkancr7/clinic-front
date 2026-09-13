@@ -1,4 +1,3 @@
-
 const PROXY_BASE = "/api/proxy";
 
 interface RequestOptions extends RequestInit {
@@ -51,10 +50,35 @@ export async function apiClient<T>(
    * =========================================================
    */
 
+  /**
+   * اگر body از نوع FormData باشد، نباید Content-Type را
+   * دستی تنظیم کنیم.
+   *
+   * مرورگر خودش Content-Type مناسب به همراه multipart boundary
+   * را ایجاد می‌کند.
+   */
+  const isFormData =
+    typeof FormData !== "undefined" &&
+    rest.body instanceof FormData;
+
   const requestHeaders: HeadersInit = {
     Accept: "application/json",
-    "Content-Type": "application/json",
 
+    /**
+     * برای درخواست‌های معمولی JSON ارسال می‌کنیم.
+     *
+     * برای FormData این header را حذف می‌کنیم تا مرورگر
+     * خودش boundary صحیح را تنظیم کند.
+     */
+    ...(isFormData
+      ? {}
+      : {
+          "Content-Type": "application/json",
+        }),
+
+    /**
+     * Header مربوط به clinic slug
+     */
     ...(clinicSlug
       ? {
           "X-Clinic-Slug": clinicSlug,
@@ -62,9 +86,13 @@ export async function apiClient<T>(
       : {}),
 
     /**
-     * فقط اگر caller مشخص کرده باشد.
+     * فقط برای APIهای قدیمی که نیاز به Clinic ID دارند.
      *
-     * برای endpointهای جدید Super Admin استفاده نمی‌شود.
+     * Endpointهای جدید Super Admin مثل:
+     *
+     * /super-admin/clinics/{clinic}/modules
+     *
+     * نباید از این گزینه استفاده کنند.
      */
     ...(directClinicId
       ? {
@@ -72,6 +100,10 @@ export async function apiClient<T>(
         }
       : {}),
 
+    /**
+     * اجازه می‌دهیم caller بتواند headerهای اضافی
+     * خودش را نیز ارسال کند.
+     */
     ...(headers ?? {}),
   };
 
@@ -125,4 +157,3 @@ export async function apiClient<T>(
 
   return body as T;
 }
-

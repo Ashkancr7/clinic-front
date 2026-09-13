@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -13,6 +12,7 @@ import {
   Ban,
   X,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
 
 import {
@@ -433,7 +433,15 @@ export default function ClinicsListPage() {
                             <Building2 className="h-4 w-4" />
                           </span>
 
-                          <span>{clinic.name}</span>
+                          <span>
+                            <span className="block">{clinic.name}</span>
+                            <span
+                              className="block text-[10px] font-normal text-gray-400 dark:text-gray-500"
+                              dir="ltr"
+                            >
+                              /{clinic.slug}
+                            </span>
+                          </span>
                         </Link>
                       </td>
 
@@ -479,7 +487,35 @@ export default function ClinicsListPage() {
 
                       {/* Actions */}
                       <td className="py-3.5">
-                        <button
+                        <div className="flex items-center gap-1.5">
+                          <a
+                            href={`/c/${clinic.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="مشاهده صفحه عمومی"
+                            className="
+                              inline-flex
+                              items-center
+                              gap-1.5
+                              rounded-lg
+                              border border-gray-200
+                              px-2.5 py-1.5
+                              text-[11px]
+                              text-gray-500
+                              transition
+                              hover:border-gray-300
+                              hover:bg-gray-50
+                              dark:border-white/[0.1]
+                              dark:text-gray-400
+                              dark:hover:border-white/[0.16]
+                              dark:hover:bg-white/[0.05]
+                            "
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            صفحه عمومی
+                          </a>
+
+                          <button
                           type="button"
                           onClick={() =>
                             statusMutation.mutate({
@@ -522,6 +558,7 @@ export default function ClinicsListPage() {
                             ? "تعلیق"
                             : "فعال‌سازی"}
                         </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -875,4 +912,3 @@ function CreateClinicModal({
     </div>
   );
 }
-
