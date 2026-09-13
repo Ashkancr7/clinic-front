@@ -23,7 +23,8 @@ import {
   History,
   Send,
   MessageCircle,
-  Clock
+  Clock,
+  LayoutGrid
 } from "lucide-react";
 
 export type ClinicRole = "clinic_admin" | "doctor" | "receptionist";
@@ -81,6 +82,7 @@ export const CLINIC_NAV_ITEMS: ClinicNavItem[] = [
       { href: "settings/message-templates", label: "قالب‌های پیامک", icon: MessageSquare, roles: ["clinic_admin"] },
       { href: "settings/users", label: "مدیریت کاربران", icon: UserCog, roles: ["clinic_admin"] },
       { href: "settings/roles", label: "نقش‌ها و دسترسی‌ها", icon: ShieldCheck, roles: ["clinic_admin"] },
+      { href: "settings/modules", label: "ماژول‌ها", icon: LayoutGrid, roles: ["clinic_admin"] },
       { href: "settings/logs", label: "لاگ تغییرات", icon: History, roles: ["clinic_admin"] },
     ],
   },

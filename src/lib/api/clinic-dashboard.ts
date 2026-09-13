@@ -61,6 +61,28 @@ export function isFinanceModuleEnabled(modules: ClinicModule[]): boolean {
   return modules.some((m) => /financ|invoic|payment/i.test(m.module_key) && m.is_enabled);
 }
 
+// --- فعال/غیرفعال کردن یک ماژول توسط خود مدیر کلینیک ---
+// PATCH /clinics/current/modules/{moduleKey}
+// توجه: این عملیات مستقل از تغییر ماژول توسط SuperAdmin است (که مسیر جدای
+// /super-admin/clinics/{clinic}/modules/{moduleKey} را دارد و فراتر از
+// محدودیت پلن عمل می‌کند). این endpoint فقط برای خودِ کلینیک است و طبق
+// اسپک ممکن است به دلیل محدودیت پلن با خطای 403 مواجه شود.
+export async function updateClinicModule(
+  clinicSlug: string,
+  moduleKey: string,
+  isEnabled: boolean
+): Promise<ClinicModule> {
+  const res = await apiClient<LaravelEnvelope<ClinicModule> | ClinicModule>(
+    `/clinics/current/modules/${moduleKey}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ is_enabled: isEnabled }),
+      clinicSlug,
+    }
+  );
+  return unwrapObject<ClinicModule>(res);
+}
+
 // --- نوبت‌های آینده ---
 export interface UpcomingAppointment {
   id: string;
