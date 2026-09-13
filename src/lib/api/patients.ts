@@ -44,6 +44,7 @@ export interface PatientListItem {
   lastName: string;
   phone: string;
   nationalId: string | null;
+  birthDate: string | null;
   age: number | null;
   status: "active" | "inactive" | "archived" | null;
   lastVisitAt: string | null;
@@ -66,6 +67,7 @@ export async function getPatients(clinicSlug: string, search?: string): Promise<
       lastName: String(patient.last_name ?? ""),
       phone: String(patient.phone ?? ""),
       nationalId: (patient.national_id as string | null) ?? null,
+      birthDate: (patient.birth_date as string | null) ?? null,
       age: calculateAge(patient.birth_date as string | undefined),
       status: (pc.status as PatientListItem["status"]) ?? null,
       lastVisitAt: (pc.last_visit_at as string | null) ?? null,
