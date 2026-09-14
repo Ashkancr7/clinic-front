@@ -28,8 +28,9 @@ export const RECEPTION_NAV_ITEMS: ReceptionNavItem[] = [
   { href: "patients", label: "بیماران", icon: Users },
   { href: "reception/intake-forms", label: "فرم‌های پذیرش", icon: FileText },
   { href: "sms", label: "پیام‌ها", icon: MessageSquare },
+  { href: "settings/forms", label: "فرم‌های سیستمی", icon: FileText },
   { href: "services", label: "خدمات", icon: Briefcase },
   { href: "reception/doctors", label: "پزشکان", icon: Stethoscope },
   { href: "reports", label: "گزارش‌ها", icon: BarChart3 },
-  { href: "settings", label: "تنظیمات", icon: Settings },
+  { href: "settings", label: "تنظیمات", icon: Settings },  
 ];

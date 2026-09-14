@@ -105,6 +105,7 @@ export interface AssignedDoctor {
   id: string;
   doctorUserId: number;
   doctorName: string;
+  doctorPhone: string | null;
   isActive: boolean;
 }
 
@@ -114,6 +115,7 @@ function mapAssignedDoctor(a: Record<string, unknown>): AssignedDoctor {
     id: String(a.id ?? ""),
     doctorUserId: Number(a.doctor_user_id ?? doctor?.id ?? 0),
     doctorName: (doctor?.full_name as string | undefined) ?? "پزشک",
+    doctorPhone: (doctor?.phone as string | undefined) ?? null,
     isActive: Boolean(a.is_active ?? true),
   };
 }

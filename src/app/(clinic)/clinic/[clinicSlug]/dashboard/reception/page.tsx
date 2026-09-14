@@ -31,52 +31,6 @@ import {
 import { queryKeys } from "@/lib/query/keys";
 
 /* =========================
-   Static Mock Stats
-========================= */
-
-const STATIC_STATS = [
-  {
-    icon: UserPlus,
-    tone: "text-pink-600 bg-secondary-pink/40 dark:bg-pink-500/10 dark:text-pink-300",
-    label: "در حال خدمت",
-    value: "۳",
-    unit: "نفر",
-  },
-  {
-    icon: Users,
-    tone: "text-amber-500 bg-amber-50 dark:bg-amber-500/10 dark:text-amber-300",
-    label: "بیماران حاضر",
-    value: "۶",
-    unit: "نفر",
-  },
-];
-
-/* =========================
-   Waitlist Mock
-========================= */
-
-const WAITLIST = [
-  {
-    name: "سارا محمدی",
-    service: "تزریق ژل لب",
-    wait: "۱۵ دقیقه انتظار",
-    tone: "bg-red-50 text-danger dark:bg-red-500/10 dark:text-red-300",
-  },
-  {
-    name: "نگین احمدی",
-    service: "مشاوره پوست",
-    wait: "۵ دقیقه انتظار",
-    tone: "bg-amber-50 text-warning dark:bg-amber-500/10 dark:text-amber-300",
-  },
-  {
-    name: "حسین رضایی",
-    service: "پاکسازی پوست",
-    wait: "در انتظار",
-    tone: "bg-amber-50 text-warning dark:bg-amber-500/10 dark:text-amber-300",
-  },
-];
-
-/* =========================
    Status
 ========================= */
 
@@ -236,6 +190,49 @@ export default function ReceptionQueuePage({
   });
 
   /* =========================
+     In-service / Waiting
+     (بک‌اند مفهوم صریحی برای "پذیرش/چک‌این" ندارد؛ این‌ها برآوردی هستند
+     که فقط از روی نوبت‌های امروز و زمان جاری محاسبه می‌شوند)
+  ========================= */
+
+  const nowTs = Date.now();
+
+  const inServiceList = appointments.filter((a) => {
+    const start = new Date(a.startTime).getTime();
+    const end = new Date(a.endTime).getTime();
+    return a.status === "confirmed" && start <= nowTs && nowTs < end;
+  });
+
+  const inServiceIds = new Set(inServiceList.map((a) => a.id));
+
+  const waitingList = appointments
+    .filter((a) => {
+      if (a.status !== "pending" && a.status !== "confirmed") return false;
+      if (inServiceIds.has(a.id)) return false;
+      return new Date(a.startTime).getTime() <= nowTs;
+    })
+    .sort(
+      (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+    );
+
+  function waitMinutes(a: CalendarAppointment) {
+    return Math.max(
+      0,
+      Math.round((nowTs - new Date(a.startTime).getTime()) / 60000)
+    );
+  }
+
+  function waitTone(minutes: number) {
+    if (minutes >= 15) return "bg-red-50 text-danger dark:bg-red-500/10 dark:text-red-300";
+    if (minutes >= 5) return "bg-amber-50 text-warning dark:bg-amber-500/10 dark:text-amber-300";
+    return "bg-secondary-blue/40 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300";
+  }
+
+  function waitLabel(minutes: number) {
+    return minutes > 0 ? `${minutes.toLocaleString("fa-IR")} دقیقه انتظار` : "همین الان";
+  }
+
+  /* =========================
      Real Stats
   ========================= */
 
@@ -263,6 +260,20 @@ export default function ReceptionQueuePage({
       label: "نوبت‌های امروز",
       value: appointments.length.toLocaleString("fa-IR"),
       unit: "نوبت",
+    },
+    {
+      icon: UserPlus,
+      tone: "text-pink-600 bg-secondary-pink/40 dark:bg-pink-500/10 dark:text-pink-300",
+      label: "در حال خدمت",
+      value: inServiceList.length.toLocaleString("fa-IR"),
+      unit: "نفر",
+    },
+    {
+      icon: Users,
+      tone: "text-amber-500 bg-amber-50 dark:bg-amber-500/10 dark:text-amber-300",
+      label: "بیماران حاضر",
+      value: waitingList.length.toLocaleString("fa-IR"),
+      unit: "نفر",
     },
   ];
 
@@ -294,7 +305,7 @@ export default function ReceptionQueuePage({
       ========================= */}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-        {[...REAL_STATS, ...STATIC_STATS].map((stat) => {
+        {REAL_STATS.map((stat) => {
           const Icon = stat.icon;
 
           return (
@@ -669,9 +680,15 @@ export default function ReceptionQueuePage({
             </h3>
 
             <div className="space-y-3">
-              {WAITLIST.map((item) => (
+              {waitingList.length === 0 && (
+                <p className="text-[11px] text-gray-300 dark:text-gray-600">
+                  کسی در صف انتظار نیست.
+                </p>
+              )}
+
+              {waitingList.slice(0, 5).map((item) => (
                 <div
-                  key={item.name}
+                  key={item.id}
                   className="flex items-center gap-2.5"
                 >
                   <Image
@@ -685,27 +702,30 @@ export default function ReceptionQueuePage({
 
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[11px] font-medium text-gray-700 dark:text-gray-200">
-                      {item.name}
+                      {item.patientName}
                     </div>
 
                     <div className="truncate text-[10px] text-gray-400 dark:text-gray-500">
-                      {item.service}
+                      {item.serviceName}
                     </div>
                   </div>
 
                   <span
-                    className={`shrink-0 rounded-full px-2 py-1 text-[9px] ${item.tone}`}
+                    className={`shrink-0 rounded-full px-2 py-1 text-[9px] ${waitTone(waitMinutes(item))}`}
                   >
-                    {item.wait}
+                    {waitLabel(waitMinutes(item))}
                   </span>
                 </div>
               ))}
             </div>
 
-            <button className="mt-4 flex items-center gap-1 text-[11px] text-primary-dark transition hover:text-primary dark:text-primary-light">
+            <Link
+              href={`/clinic/${clinicSlug}/calendar`}
+              className="mt-4 flex items-center gap-1 text-[11px] text-primary-dark transition hover:text-primary dark:text-primary-light"
+            >
               <ChevronRight className="h-3 w-3" />
               مشاهده همه
-            </button>
+            </Link>
           </div>
         </div>
       </div>

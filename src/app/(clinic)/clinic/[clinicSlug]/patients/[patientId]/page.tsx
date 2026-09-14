@@ -693,7 +693,7 @@ export default function PatientProfilePage({
               {/* Services */}
               <div className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
                 <h3 className="mb-3 text-xs font-bold text-gray-800 dark:text-gray-100">
-                  خدمات آخیر
+                  خدمات اخیر
                 </h3>
 
                 {visitsLoading ? (
