@@ -667,6 +667,17 @@ export const queryKeys = {
         clinicSlug,
         "list",
       ] as const,
+
+    detail: (
+      clinicSlug: string,
+      templateId: string
+    ) =>
+      [
+        "sms-templates",
+        clinicSlug,
+        "detail",
+        templateId,
+      ] as const,
   },
 
   // =========================================================

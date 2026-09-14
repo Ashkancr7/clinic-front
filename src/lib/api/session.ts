@@ -57,3 +57,13 @@ export async function getCurrentClinicUser(clinicSlug: string): Promise<CurrentC
     roleName: roleId != null ? (ROLE_ID_TO_NAME[roleId] ?? "") : "",
   };
 }
+
+/**
+ * مسیر درست داشبورد بر اساس نقش کاربر در کلینیک — بلافاصله بعد از لاگین
+ * یا انتخاب کلینیک استفاده می‌شود تا هرکس به داشبورد مخصوص خودش برود.
+ */
+export function getDashboardPathForRole(clinicSlug: string, roleKey: CurrentClinicUser["roleKey"]): string {
+  if (roleKey === "doctor") return `/clinic/${clinicSlug}/dashboard/doctor`;
+  if (roleKey === "receptionist") return `/clinic/${clinicSlug}/dashboard/reception`;
+  return `/clinic/${clinicSlug}/dashboard`;
+}

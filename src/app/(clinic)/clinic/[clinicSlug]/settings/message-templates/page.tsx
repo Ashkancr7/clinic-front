@@ -2,9 +2,16 @@
 
 import { use, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Send, X, Pencil } from "lucide-react";
+import { Plus, Send, X, Pencil, Loader2 } from "lucide-react";
 
-import { getSmsTemplates, createSmsTemplate, updateSmsTemplate, testSmsTemplate, type SmsTemplate } from "@/lib/api/sms";
+import {
+  getSmsTemplates,
+  getSmsTemplate,
+  createSmsTemplate,
+  updateSmsTemplate,
+  testSmsTemplate,
+  type SmsTemplate,
+} from "@/lib/api/sms";
 import { queryKeys } from "@/lib/query/keys";
 
 export default function MessageTemplatesPage({ params }: { params: Promise<{ clinicSlug: string }> }) {
@@ -13,6 +20,8 @@ export default function MessageTemplatesPage({ params }: { params: Promise<{ cli
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<SmsTemplate | null>(null);
   const [testingTemplate, setTestingTemplate] = useState<SmsTemplate | null>(null);
+  const [loadingEditId, setLoadingEditId] = useState<string | null>(null);
+  const [loadEditError, setLoadEditError] = useState<string | null>(null);
 
   const { data: templates = [], isLoading, error } = useQuery({
     queryKey: queryKeys.smsTemplates.list(clinicSlug),
@@ -37,6 +46,24 @@ export default function MessageTemplatesPage({ params }: { params: Promise<{ cli
     },
   });
 
+  // قبل از باز کردن فرم ویرایش، آخرین نسخه‌ی قالب را از سرور می‌گیریم
+  // (GET /sms/templates/{template}) تا با داده‌ی احتمالاً قدیمیِ لیست کش‌شده
+  // فرم باز نشود.
+  async function openEdit(template: SmsTemplate) {
+    setLoadEditError(null);
+    setLoadingEditId(template.id);
+    try {
+      const fresh = await getSmsTemplate(clinicSlug, template.id);
+      queryClient.setQueryData(queryKeys.smsTemplates.detail(clinicSlug, template.id), fresh);
+      setEditingTemplate(fresh);
+    } catch (err) {
+      setLoadEditError(err instanceof Error ? err.message : "دریافت اطلاعات قالب با خطا مواجه شد.");
+      setEditingTemplate(template); // fallback به داده‌ی موجود در لیست
+    } finally {
+      setLoadingEditId(null);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -54,6 +81,7 @@ export default function MessageTemplatesPage({ params }: { params: Promise<{ cli
 
       {isLoading && <div className="py-10 text-center text-sm text-gray-400">در حال بارگذاری...</div>}
       {error && <div className="py-10 text-center text-sm text-danger">خطا در دریافت قالب‌ها</div>}
+      {loadEditError && <div className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-500">{loadEditError}</div>}
 
       {!isLoading && !error && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -69,10 +97,16 @@ export default function MessageTemplatesPage({ params }: { params: Promise<{ cli
               <p className="mb-3 line-clamp-3 text-[11px] leading-relaxed text-gray-500">{t.content}</p>
               <div className="flex gap-1.5">
                 <button
-                  onClick={() => setEditingTemplate(t)}
-                  className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-200 py-1.5 text-[11px] text-gray-600 hover:bg-gray-50"
+                  onClick={() => openEdit(t)}
+                  disabled={loadingEditId === t.id}
+                  className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-200 py-1.5 text-[11px] text-gray-600 hover:bg-gray-50 disabled:opacity-50"
                 >
-                  <Pencil className="h-3 w-3" /> ویرایش
+                  {loadingEditId === t.id ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Pencil className="h-3 w-3" />
+                  )}{" "}
+                  ویرایش
                 </button>
                 <button
                   onClick={() => setTestingTemplate(t)}

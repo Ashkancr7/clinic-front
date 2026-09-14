@@ -54,6 +54,18 @@ export async function getSmsTemplates(clinicSlug: string): Promise<SmsTemplate[]
   return unwrapList<Record<string, unknown>>(res).map(mapTemplate);
 }
 
+// دریافت جزئیات تازه‌ی یک قالب (GET /sms/templates/{template})
+// برخلاف getSmsTemplates که آیتم را از لیست کش‌شده می‌گیرد، این تابع همیشه
+// آخرین نسخه‌ی قالب را از سرور می‌خواند — مثلاً قبل از باز کردن فرم ویرایش،
+// تا اگر کاربر/تب دیگری قالب را تغییر داده باشد، فرم با داده‌ی قدیمی باز نشود.
+export async function getSmsTemplate(clinicSlug: string, templateId: string): Promise<SmsTemplate> {
+  const res = await apiClient<LaravelEnvelope<Record<string, unknown>> | Record<string, unknown>>(
+    `/sms/templates/${templateId}`,
+    { clinicSlug }
+  );
+  return mapTemplate(unwrapObject<Record<string, unknown>>(res));
+}
+
 export interface CreateTemplatePayload {
   title: string;
   template_key: string;

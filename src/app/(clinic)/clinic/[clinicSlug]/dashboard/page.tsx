@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+
+import { useRouter } from "next/navigation";
 
 import {
   RefreshCcw,
@@ -24,9 +26,12 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { LoadingLogo } from "@/components/LoadingLogo";
 
 import { useActiveClinic } from "@/hooks/use-active-clinic";
 import { queryKeys } from "@/lib/query/keys";
+
+import { getCurrentClinicUser, getDashboardPathForRole } from "@/lib/api/session";
 
 import {
   getClinicDashboard,
@@ -92,6 +97,20 @@ function getMonthRange(monthsAgo: number) {
 
 export default function ClinicDashboardPage() {
   const { clinicSlug } = useActiveClinic();
+  const router = useRouter();
+
+  const { data: currentUser, isLoading: currentUserLoading } = useQuery({
+    queryKey: queryKeys.session.currentUser(clinicSlug),
+    queryFn: () => getCurrentClinicUser(clinicSlug),
+    enabled: !!clinicSlug,
+  });
+
+  useEffect(() => {
+    if (!clinicSlug || !currentUser) return;
+    if (currentUser.roleKey === "doctor" || currentUser.roleKey === "receptionist") {
+      router.replace(getDashboardPathForRole(clinicSlug, currentUser.roleKey));
+    }
+  }, [clinicSlug, currentUser, router]);
 
   const today = useMemo(() => new Date(), []);
   const todayIso = toIso(today);
@@ -205,6 +224,14 @@ export default function ClinicDashboardPage() {
         .slice(0, 5),
     [recentPayments]
   );
+
+  if (currentUserLoading || currentUser?.roleKey === "doctor" || currentUser?.roleKey === "receptionist") {
+    return (
+      <div className="flex h-64 items-center justify-center text-xs text-gray-400 dark:text-gray-500">
+      <LoadingLogo />
+      </div>
+    );
+  }
 
   const QUICK_ACTIONS = [
     {
