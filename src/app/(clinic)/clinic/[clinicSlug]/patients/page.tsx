@@ -34,6 +34,7 @@ import {
 } from "@/lib/api/patients";
 
 import { queryKeys } from "@/lib/query/keys";
+import { useDoctorPatientScope } from "@/hooks/use-doctor-patient-scope";
 
 const STATUS_STYLE: Record<
   string,
@@ -120,6 +121,13 @@ export default function PatientsListPage({
     enabled: !!clinicSlug,
   });
 
+  const { isDoctor, patientIds: doctorPatientIds, isLoading: scopeLoading } = useDoctorPatientScope(clinicSlug);
+
+  const visiblePatients = useMemo(() => {
+    if (!isDoctor || !doctorPatientIds) return patients;
+    return patients.filter((p) => doctorPatientIds.has(p.id));
+  }, [patients, isDoctor, doctorPatientIds]);
+
   const createMutation = useMutation({
     mutationFn: (
       payload: Parameters<typeof createPatient>[1]
@@ -136,10 +144,10 @@ export default function PatientsListPage({
 
   const stats = useMemo(
     () => ({
-      total: patients.length,
-      active: patients.filter((p) => p.status === "active").length,
+      total: visiblePatients.length,
+      active: visiblePatients.filter((p) => p.status === "active").length,
     }),
-    [patients]
+    [visiblePatients]
   );
 
   return (
@@ -290,7 +298,7 @@ export default function PatientsListPage({
               </p>
 
               <p className="mt-1 text-base font-bold text-gray-900 dark:text-white">
-                {isLoading
+                {isLoading || scopeLoading
                   ? "…"
                   : `${stats.total.toLocaleString("fa-IR")} نفر`}
               </p>
@@ -327,7 +335,7 @@ export default function PatientsListPage({
               </p>
 
               <p className="mt-1 text-base font-bold text-gray-900 dark:text-white">
-                {isLoading
+                {isLoading || scopeLoading
                   ? "…"
                   : `${stats.active.toLocaleString("fa-IR")} نفر`}
               </p>
@@ -402,7 +410,7 @@ export default function PatientsListPage({
         </div>
 
         {/* Loading */}
-        {isLoading && (
+        {(isLoading || scopeLoading) && (
           <div className="py-10 text-center text-sm text-gray-400 dark:text-gray-500">
             در حال بارگذاری...
           </div>
@@ -416,7 +424,7 @@ export default function PatientsListPage({
         )}
 
         {/* Table */}
-        {!isLoading && !error && (
+        {!isLoading && !scopeLoading && !error && (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-right text-xs">
               <thead>
@@ -433,7 +441,7 @@ export default function PatientsListPage({
               </thead>
 
               <tbody>
-                {patients.map((p) => {
+                {visiblePatients.map((p) => {
                   const status = p.status
                     ? STATUS_STYLE[p.status]
                     : null;
@@ -594,7 +602,7 @@ export default function PatientsListPage({
                 })}
 
                 {/* Empty */}
-                {patients.length === 0 && (
+                {visiblePatients.length === 0 && (
                   <tr>
                     <td
                       colSpan={8}

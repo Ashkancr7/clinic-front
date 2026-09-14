@@ -80,7 +80,7 @@ export const CLINIC_NAV_ITEMS: ClinicNavItem[] = [
       { href: "settings", label: "تنظیمات عمومی", icon: Settings2, roles: ["clinic_admin"] },
       { href: "settings/forms", label: "قالب‌ها و فرم‌ها", icon: FileText, roles: ["clinic_admin"] },
       { href: "settings/message-templates", label: "قالب‌های پیامک", icon: MessageSquare, roles: ["clinic_admin"] },
-      { href: "settings/users", label: "مدیریت کاربران", icon: UserCog, roles: ["clinic_admin"] },
+      // { href: "settings/users", label: "مدیریت کاربران", icon: UserCog, roles: ["clinic_admin"] },
       { href: "settings/roles", label: "نقش‌ها و دسترسی‌ها", icon: ShieldCheck, roles: ["clinic_admin"] },
       { href: "settings/modules", label: "ماژول‌ها", icon: LayoutGrid, roles: ["clinic_admin"] },
       { href: "settings/logs", label: "لاگ تغییرات", icon: History, roles: ["clinic_admin"] },

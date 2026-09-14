@@ -1,4 +1,3 @@
-
 "use client";
 
 import { use, useMemo, useState } from "react";
@@ -17,6 +16,7 @@ import Image from "next/image";
 
 import { getPatients } from "@/lib/api/patients";
 import { queryKeys } from "@/lib/query/keys";
+import { useDoctorPatientScope } from "@/hooks/use-doctor-patient-scope";
 import { LoadingLogo } from "@/components/LoadingLogo";
 
 const STATUS_STYLE: Record<
@@ -76,12 +76,19 @@ export default function RecordsPage({
     enabled: !!clinicSlug,
   });
 
+  const { isDoctor, patientIds: doctorPatientIds, isLoading: scopeLoading } = useDoctorPatientScope(clinicSlug);
+
+  const visiblePatients = useMemo(() => {
+    if (!isDoctor || !doctorPatientIds) return patients;
+    return patients.filter((p) => doctorPatientIds.has(p.id));
+  }, [patients, isDoctor, doctorPatientIds]);
+
   const stats = useMemo(
     () => ({
-      total: patients.length,
-      withVisit: patients.filter((p) => p.lastVisitAt).length,
+      total: visiblePatients.length,
+      withVisit: visiblePatients.filter((p) => p.lastVisitAt).length,
     }),
-    [patients]
+    [visiblePatients]
   );
 
   return (
@@ -111,7 +118,7 @@ export default function RecordsPage({
             </div>
 
             <div className="text-base font-bold text-gray-900 dark:text-white">
-              {isLoading
+              {isLoading || scopeLoading
                 ? "…"
                 : `${stats.total.toLocaleString("fa-IR")} پرونده`}
             </div>
@@ -129,7 +136,7 @@ export default function RecordsPage({
             </div>
 
             <div className="text-base font-bold text-gray-900 dark:text-white">
-              {isLoading
+              {isLoading || scopeLoading
                 ? "…"
                 : `${stats.withVisit.toLocaleString("fa-IR")} پرونده`}
             </div>
@@ -163,7 +170,7 @@ export default function RecordsPage({
         </div>
 
         {/* Loading */}
-        {isLoading && (
+        {(isLoading || scopeLoading) && (
           <div className="py-10">
             <LoadingLogo />
           </div>
@@ -177,10 +184,10 @@ export default function RecordsPage({
         )}
 
         {/* List */}
-        {!isLoading && !error && (
+        {!isLoading && !scopeLoading && !error && (
           <div className="space-y-3">
-            {patients.length > 0 ? (
-              patients.map((p) => {
+            {visiblePatients.length > 0 ? (
+              visiblePatients.map((p) => {
                 const status = p.status
                   ? STATUS_STYLE[p.status]
                   : null;
@@ -252,4 +259,3 @@ export default function RecordsPage({
     </div>
   );
 }
-

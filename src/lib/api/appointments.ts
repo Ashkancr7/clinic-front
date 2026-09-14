@@ -1,3 +1,4 @@
+
 import { apiClient } from "./client";
 
 interface LaravelEnvelope<T> {
@@ -6,74 +7,126 @@ interface LaravelEnvelope<T> {
   data: T;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Response Helpers                                                           */
+/* -------------------------------------------------------------------------- */
+
 function unwrapList<T>(res: unknown): T[] {
-  if (Array.isArray(res)) return res as T[];
+  if (Array.isArray(res)) {
+    return res as T[];
+  }
+
   if (res && typeof res === "object") {
     const outer = res as Record<string, unknown>;
-    if (Array.isArray(outer.data)) return outer.data as T[];
-    if (outer.data && typeof outer.data === "object") {
-      const inner = outer.data as Record<string, unknown>;
-      if (Array.isArray(inner.data)) return inner.data as T[];
+
+    if (Array.isArray(outer.data)) {
+      return outer.data as T[];
+    }
+
+    if (
+      outer.data &&
+      typeof outer.data === "object"
+    ) {
+      const inner =
+        outer.data as Record<string, unknown>;
+
+      if (Array.isArray(inner.data)) {
+        return inner.data as T[];
+      }
     }
   }
+
   return [];
 }
 
 function unwrapObject<T>(res: unknown): T {
-  if (res && typeof res === "object" && "data" in (res as Record<string, unknown>)) {
+  if (
+    res &&
+    typeof res === "object" &&
+    "data" in (res as Record<string, unknown>)
+  ) {
     return (res as { data: unknown }).data as T;
   }
+
   return res as T;
 }
 
-export type AppointmentStatus = "pending" | "confirmed" | "rescheduled" | "cancelled" | "completed" | "no_show";
+/* -------------------------------------------------------------------------- */
+/* Appointment Types                                                          */
+/* -------------------------------------------------------------------------- */
+
+export type AppointmentStatus =
+  | "pending"
+  | "confirmed"
+  | "rescheduled"
+  | "cancelled"
+  | "completed"
+  | "no_show";
 
 export interface AppointmentStatusHistory {
   id?: string | number;
+
   status: AppointmentStatus;
+
   created_at?: string;
   updated_at?: string;
+
   created_by?: number | null;
+
   changed_by?: {
     id?: number;
     full_name?: string;
   } | null;
+
   reason?: string | null;
   notes?: string | null;
+
   from_status?: AppointmentStatus | null;
   to_status?: AppointmentStatus | null;
 }
 
 export interface AppointmentPatient {
   id: string;
+
   user_id?: string | null;
+
   first_name: string;
   last_name: string;
+
   national_id?: string | null;
   birth_date?: string | null;
   gender?: string | null;
   phone?: string | null;
+
   emergency_contact?: string | null;
 }
 
 export interface AppointmentDoctor {
   id: number;
+
   full_name: string;
+
   phone?: string | null;
   email?: string | null;
+
   avatar_file_id?: string | null;
 }
 
 export interface AppointmentService {
   id: string;
+
   name: string;
+
   description?: string | null;
+
   default_duration_minutes?: number;
+
   base_price?: string | number;
 }
 
 export interface CalendarAppointment {
   id: string;
+
   startTime: string;
   endTime: string;
 
@@ -86,220 +139,648 @@ export interface CalendarAppointment {
 
   serviceName: string;
 
-  appointmentType: "in_person" | "online" | string;
+  appointmentType:
+    | "in_person"
+    | "online"
+    | "followup"
+    | string;
+
   status: AppointmentStatus;
+
   source: string | null;
   notes: string | null;
 
   cancellationReason?: string | null;
 
   patient?: AppointmentPatient | null;
+
   doctor?: AppointmentDoctor | null;
+
   service?: AppointmentService | null;
 
   statusHistory?: AppointmentStatusHistory[];
 }
 
-function mapAppointment(a: Record<string, unknown>): CalendarAppointment {
-  const patient = a.patient as Record<string, unknown> | undefined;
-  const service = a.service as Record<string, unknown> | undefined;
-  const doctor = (a.doctor ?? a.doctor_user) as Record<string, unknown> | undefined;
+/* -------------------------------------------------------------------------- */
+/* Appointment Mapper                                                         */
+/* -------------------------------------------------------------------------- */
+
+function mapAppointment(
+  a: Record<string, unknown>
+): CalendarAppointment {
+  const patient =
+    a.patient &&
+    typeof a.patient === "object"
+      ? (a.patient as Record<string, unknown>)
+      : undefined;
+
+  const service =
+    a.service &&
+    typeof a.service === "object"
+      ? (a.service as Record<string, unknown>)
+      : undefined;
+
+  const doctorSource =
+    a.doctor ?? a.doctor_user;
+
+  const doctor =
+    doctorSource &&
+    typeof doctorSource === "object"
+      ? (doctorSource as Record<string, unknown>)
+      : undefined;
 
   return {
-  id: String(a.id ?? ""),
-  startTime: String(a.start_time ?? ""),
-  endTime: String(a.end_time ?? ""),
+    id: String(a.id ?? ""),
 
-  patientId: (a.patient_id as string | null) ?? null,
+    startTime: String(
+      a.start_time ?? ""
+    ),
 
-  patientName:
-    patient?.first_name && patient?.last_name
-      ? `${patient.first_name} ${patient.last_name}`
-      : (a.patient_name as string | undefined) ?? "بیمار",
+    endTime: String(
+      a.end_time ?? ""
+    ),
 
-  patientPhone: (patient?.phone as string | undefined) ?? "",
+    patientId:
+      a.patient_id !== null &&
+      a.patient_id !== undefined
+        ? String(a.patient_id)
+        : null,
 
-  serviceName:
-    (service?.name as string | undefined) ??
-    (a.service_name as string | undefined) ??
-    "-",
+    patientName:
+      patient?.first_name &&
+      patient?.last_name
+        ? `${String(
+            patient.first_name
+          )} ${String(
+            patient.last_name
+          )}`
+        : typeof a.patient_name ===
+            "string"
+          ? a.patient_name
+          : "بیمار",
 
-  doctorId: (a.doctor_user_id as number | null) ?? null,
+    patientPhone:
+      patient?.phone !== null &&
+      patient?.phone !== undefined
+        ? String(patient.phone)
+        : "",
 
-  doctorName:
-    (doctor?.full_name as string | undefined) ??
-    (a.doctor_name as string | undefined) ??
-    "-",
+    serviceName:
+      typeof service?.name ===
+      "string"
+        ? service.name
+        : typeof a.service_name ===
+            "string"
+          ? a.service_name
+          : "-",
 
-  appointmentType:
-    (a.appointment_type as CalendarAppointment["appointmentType"]) ??
-    "in_person",
+    doctorId:
+      a.doctor_user_id !== null &&
+      a.doctor_user_id !== undefined
+        ? Number(a.doctor_user_id)
+        : doctor?.id !== null &&
+            doctor?.id !== undefined
+          ? Number(doctor.id)
+          : null,
 
-  status: (a.status as AppointmentStatus) ?? "pending",
+    doctorName:
+      typeof doctor?.full_name ===
+      "string"
+        ? doctor.full_name
+        : typeof a.doctor_name ===
+            "string"
+          ? a.doctor_name
+          : "-",
 
-  source: (a.source as string | null) ?? null,
+    appointmentType:
+      typeof a.appointment_type ===
+      "string"
+        ? (a.appointment_type as CalendarAppointment["appointmentType"])
+        : "in_person",
 
-  notes: (a.notes as string | null) ?? null,
+    status:
+      typeof a.status ===
+      "string"
+        ? (a.status as AppointmentStatus)
+        : "pending",
 
-  cancellationReason:
-    (a.cancellation_reason as string | null) ?? null,
+    source:
+      a.source !== null &&
+      a.source !== undefined
+        ? String(a.source)
+        : null,
 
-  patient: patient
-    ? {
-        id: String(patient.id ?? ""),
-        user_id: (patient.user_id as string | null) ?? null,
-        first_name: String(patient.first_name ?? ""),
-        last_name: String(patient.last_name ?? ""),
-        national_id: (patient.national_id as string | null) ?? null,
-        birth_date: (patient.birth_date as string | null) ?? null,
-        gender: (patient.gender as string | null) ?? null,
-        phone: (patient.phone as string | null) ?? null,
-        emergency_contact:
-          (patient.emergency_contact as string | null) ?? null,
-      }
-    : null,
+    notes:
+      a.notes !== null &&
+      a.notes !== undefined
+        ? String(a.notes)
+        : null,
 
-  doctor: doctor
-    ? {
-        id: Number(doctor.id),
-        full_name: String(doctor.full_name ?? ""),
-        phone: (doctor.phone as string | null) ?? null,
-        email: (doctor.email as string | null) ?? null,
-        avatar_file_id:
-          (doctor.avatar_file_id as string | null) ?? null,
-      }
-    : null,
+    cancellationReason:
+      a.cancellation_reason !==
+        null &&
+      a.cancellation_reason !==
+        undefined
+        ? String(
+            a.cancellation_reason
+          )
+        : null,
 
-  service: service
-    ? {
-        id: String(service.id ?? ""),
-        name: String(service.name ?? ""),
-        description:
-          (service.description as string | null) ?? null,
-        default_duration_minutes:
-          Number(service.default_duration_minutes ?? 0),
-        base_price:
-          (service.base_price as string | number | undefined) ?? 0,
-      }
-    : null,
+    patient: patient
+      ? {
+          id: String(
+            patient.id ?? ""
+          ),
 
-  statusHistory: Array.isArray(a.status_history)
-    ? (a.status_history as CalendarAppointment["statusHistory"])
-    : [],
-};
+          user_id:
+            patient.user_id !==
+              null &&
+            patient.user_id !==
+              undefined
+              ? String(
+                  patient.user_id
+                )
+              : null,
+
+          first_name: String(
+            patient.first_name ?? ""
+          ),
+
+          last_name: String(
+            patient.last_name ?? ""
+          ),
+
+          national_id:
+            patient.national_id !==
+              null &&
+            patient.national_id !==
+              undefined
+              ? String(
+                  patient.national_id
+                )
+              : null,
+
+          birth_date:
+            patient.birth_date !==
+              null &&
+            patient.birth_date !==
+              undefined
+              ? String(
+                  patient.birth_date
+                )
+              : null,
+
+          gender:
+            patient.gender !==
+              null &&
+            patient.gender !==
+              undefined
+              ? String(
+                  patient.gender
+                )
+              : null,
+
+          phone:
+            patient.phone !==
+              null &&
+            patient.phone !==
+              undefined
+              ? String(
+                  patient.phone
+                )
+              : null,
+
+          emergency_contact:
+            patient.emergency_contact !==
+              null &&
+            patient.emergency_contact !==
+              undefined
+              ? String(
+                  patient.emergency_contact
+                )
+              : null,
+        }
+      : null,
+
+    doctor: doctor
+      ? {
+          id: Number(
+            doctor.id ?? 0
+          ),
+
+          full_name: String(
+            doctor.full_name ?? ""
+          ),
+
+          phone:
+            doctor.phone !==
+              null &&
+            doctor.phone !==
+              undefined
+              ? String(
+                  doctor.phone
+                )
+              : null,
+
+          email:
+            doctor.email !==
+              null &&
+            doctor.email !==
+              undefined
+              ? String(
+                  doctor.email
+                )
+              : null,
+
+          avatar_file_id:
+            doctor.avatar_file_id !==
+              null &&
+            doctor.avatar_file_id !==
+              undefined
+              ? String(
+                  doctor.avatar_file_id
+                )
+              : null,
+        }
+      : null,
+
+    service: service
+      ? {
+          id: String(
+            service.id ?? ""
+          ),
+
+          name: String(
+            service.name ?? ""
+          ),
+
+          description:
+            service.description !==
+              null &&
+            service.description !==
+              undefined
+              ? String(
+                  service.description
+                )
+              : null,
+
+          default_duration_minutes:
+            service.default_duration_minutes !==
+              null &&
+            service.default_duration_minutes !==
+              undefined
+              ? Number(
+                  service.default_duration_minutes
+                )
+              : 0,
+
+          base_price:
+            typeof service.base_price ===
+                "string" ||
+            typeof service.base_price ===
+                "number"
+              ? service.base_price
+              : 0,
+        }
+      : null,
+
+    statusHistory:
+      Array.isArray(
+        a.status_history
+      )
+        ? (a.status_history as AppointmentStatusHistory[])
+        : [],
+  };
 }
+
+/* -------------------------------------------------------------------------- */
+/* Get Appointments                                                           */
+/* -------------------------------------------------------------------------- */
 
 export async function getAppointments(
   clinicSlug: string,
-  params: { from?: string; to?: string; doctorUserId?: number; status?: string } = {}
+  params: {
+    from?: string;
+    to?: string;
+    doctorUserId?: number;
+    status?: string;
+  } = {}
 ): Promise<CalendarAppointment[]> {
-  const query = new URLSearchParams();
-  if (params.from) query.set("from", params.from);
+  const query =
+    new URLSearchParams();
 
-  // برخی پیاده‌سازی‌های بک‌اند بازه‌ی [from, to] را با کران بالای منحصر
-  // (exclusive) مقایسه می‌کنند؛ برای پوشش کامل بازه‌ی «to»، یک روز به آن اضافه
-  // می‌کنیم تا نوبت‌های بعدازظهر/عصرِ همان روز هم داخل بازه قرار بگیرند.
-  if (params.to) {
-    const toDate = new Date(`${params.to}T00:00:00`);
-    toDate.setDate(toDate.getDate() + 1);
-    query.set("to", toLocalIsoDate(toDate));
+  if (params.from) {
+    query.set(
+      "from",
+      params.from
+    );
   }
 
-  if (params.doctorUserId) query.set("doctor_user_id", String(params.doctorUserId));
-  if (params.status) query.set("status", params.status);
+  /*
+   * بعضی پیاده‌سازی‌های بک‌اند
+   * بازه‌ی to را به صورت exclusive
+   * در نظر می‌گیرند.
+   *
+   * بنابراین یک روز به to اضافه می‌کنیم
+   * تا تمام نوبت‌های همان روز نیز
+   * دریافت شوند.
+   */
+  if (params.to) {
+    const toDate = new Date(
+      `${params.to}T00:00:00`
+    );
 
-  const url = `/appointments?${query.toString()}`;
-  console.log("Requesting appointments URL:", url); // این خط رو موقت اضافه کن
+    if (
+      !Number.isNaN(
+        toDate.getTime()
+      )
+    ) {
+      toDate.setDate(
+        toDate.getDate() + 1
+      );
 
-  const res = await apiClient<LaravelEnvelope<Record<string, unknown>[]> | Record<string, unknown>[]>(url, {
+      query.set(
+        "to",
+        toLocalIsoDate(toDate)
+      );
+    }
+  }
+
+  if (
+    params.doctorUserId !==
+      undefined &&
+    params.doctorUserId !== null
+  ) {
+    query.set(
+      "doctor_user_id",
+      String(
+        params.doctorUserId
+      )
+    );
+  }
+
+  if (params.status) {
+    query.set(
+      "status",
+      params.status
+    );
+  }
+
+  const queryString =
+    query.toString();
+
+  const url = queryString
+    ? `/appointments?${queryString}`
+    : "/appointments";
+
+  const res = await apiClient<
+    LaravelEnvelope<
+      Record<string, unknown>[]
+    > |
+      Record<string, unknown>[]
+  >(url, {
     clinicSlug,
   });
 
-  console.log("RAW /appointments response:", JSON.stringify(res, null, 2)); // این خط رو موقت اضافه کن
-
-  return unwrapList<Record<string, unknown>>(res).map(mapAppointment);
+  return unwrapList<
+    Record<string, unknown>
+  >(res).map(mapAppointment);
 }
 
-export async function getAppointmentDetail(clinicSlug: string, appointmentId: string): Promise<CalendarAppointment> {
-  const res = await apiClient<LaravelEnvelope<Record<string, unknown>> | Record<string, unknown>>(
-    `/appointments/${appointmentId}`,
-    { clinicSlug }
+/* -------------------------------------------------------------------------- */
+/* Appointment Detail                                                         */
+/* -------------------------------------------------------------------------- */
+
+export async function getAppointmentDetail(
+  clinicSlug: string,
+  appointmentId: string
+): Promise<CalendarAppointment> {
+  const res =
+    await apiClient<
+      LaravelEnvelope<
+        Record<string, unknown>
+      > |
+        Record<string, unknown>
+    >(
+      `/appointments/${appointmentId}`,
+      {
+        clinicSlug,
+      }
+    );
+
+  return mapAppointment(
+    unwrapObject<
+      Record<string, unknown>
+    >(res)
   );
-  return mapAppointment(unwrapObject<Record<string, unknown>>(res));
 }
+
+/* -------------------------------------------------------------------------- */
+/* Create Appointment                                                         */
+/* -------------------------------------------------------------------------- */
 
 export interface CreateAppointmentPayload {
   patient_id: string;
+
   doctor_user_id: number;
+
   service_id?: string;
   service_option_id?: string;
-  appointment_type: "in_person" | "online" | "followup";
+
+  appointment_type:
+    | "in_person"
+    | "online"
+    | "followup";
+
   start_time: string;
   end_time: string;
+
   notes?: string;
 }
 
-export async function createAppointment(clinicSlug: string, payload: CreateAppointmentPayload) {
-  const res = await apiClient<LaravelEnvelope<Record<string, unknown>> | Record<string, unknown>>("/appointments", {
-    method: "POST",
-    body: JSON.stringify(payload),
-    clinicSlug,
-  });
-  return unwrapObject<Record<string, unknown>>(res);
+export async function createAppointment(
+  clinicSlug: string,
+  payload: CreateAppointmentPayload
+): Promise<Record<string, unknown>> {
+  const res =
+    await apiClient<
+      LaravelEnvelope<
+        Record<string, unknown>
+      > |
+        Record<string, unknown>
+    >("/appointments", {
+      method: "POST",
+      body: JSON.stringify(
+        payload
+      ),
+      clinicSlug,
+    });
+
+  return unwrapObject<
+    Record<string, unknown>
+  >(res);
 }
 
-export type UpdateAppointmentPayload = Partial<{
-  doctor_user_id: number;
-  service_id: string;
-  service_option_id: string;
-  appointment_type: "in_person" | "online" | "followup";
-  notes: string;
-}>;
+/* -------------------------------------------------------------------------- */
+/* Update Appointment                                                         */
+/* -------------------------------------------------------------------------- */
 
-// --- ویرایش اطلاعات نوبت (پزشک/خدمت/نوع/یادداشت؛ برای تغییر زمان از reschedule استفاده کنید) ---
+export type UpdateAppointmentPayload =
+  Partial<{
+    doctor_user_id: number;
+
+    service_id: string;
+    service_option_id: string;
+
+    appointment_type:
+      | "in_person"
+      | "online"
+      | "followup";
+
+    notes: string;
+  }>;
+
+/*
+ * ویرایش اطلاعات نوبت:
+ * - پزشک
+ * - خدمت
+ * - گزینه خدمت
+ * - نوع نوبت
+ * - یادداشت
+ *
+ * برای تغییر زمان از
+ * rescheduleAppointment استفاده کنید.
+ */
+
 export async function updateAppointment(
   clinicSlug: string,
   appointmentId: string,
   payload: UpdateAppointmentPayload
 ): Promise<CalendarAppointment> {
-  const res = await apiClient<LaravelEnvelope<Record<string, unknown>> | Record<string, unknown>>(
-    `/appointments/${appointmentId}`,
-    { method: "PATCH", body: JSON.stringify(payload), clinicSlug }
+  const res =
+    await apiClient<
+      LaravelEnvelope<
+        Record<string, unknown>
+      > |
+        Record<string, unknown>
+    >(
+      `/appointments/${appointmentId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(
+          payload
+        ),
+        clinicSlug,
+      }
+    );
+
+  return mapAppointment(
+    unwrapObject<
+      Record<string, unknown>
+    >(res)
   );
-  return mapAppointment(unwrapObject<Record<string, unknown>>(res));
 }
+
+/* -------------------------------------------------------------------------- */
+/* Reschedule                                                                 */
+/* -------------------------------------------------------------------------- */
 
 export async function rescheduleAppointment(
   clinicSlug: string,
   appointmentId: string,
-  payload: { start_time: string; end_time: string; reason?: string }
+  payload: {
+    start_time: string;
+    end_time: string;
+    reason?: string;
+  }
 ) {
-  return apiClient(`/appointments/${appointmentId}/reschedule`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-    clinicSlug,
-  });
+  return apiClient(
+    `/appointments/${appointmentId}/reschedule`,
+    {
+      method: "POST",
+      body: JSON.stringify(
+        payload
+      ),
+      clinicSlug,
+    }
+  );
 }
 
-export async function cancelAppointment(clinicSlug: string, appointmentId: string, reason: string) {
-  return apiClient(`/appointments/${appointmentId}/cancel`, {
-    method: "POST",
-    body: JSON.stringify({ reason }),
-    clinicSlug,
-  });
+/* -------------------------------------------------------------------------- */
+/* Cancel                                                                     */
+/* -------------------------------------------------------------------------- */
+
+export async function cancelAppointment(
+  clinicSlug: string,
+  appointmentId: string,
+  reason: string
+) {
+  return apiClient(
+    `/appointments/${appointmentId}/cancel`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        reason,
+      }),
+      clinicSlug,
+    }
+  );
 }
 
-export async function completeAppointment(clinicSlug: string, appointmentId: string) {
-  return apiClient(`/appointments/${appointmentId}/complete`, { method: "POST", clinicSlug });
+/* -------------------------------------------------------------------------- */
+/* Complete                                                                   */
+/* -------------------------------------------------------------------------- */
+
+export async function completeAppointment(
+  clinicSlug: string,
+  appointmentId: string
+) {
+  return apiClient(
+    `/appointments/${appointmentId}/complete`,
+    {
+      method: "POST",
+      clinicSlug,
+    }
+  );
 }
 
-export async function markNoShow(clinicSlug: string, appointmentId: string) {
-  return apiClient(`/appointments/${appointmentId}/no-show`, { method: "POST", clinicSlug });
+/* -------------------------------------------------------------------------- */
+/* No Show                                                                    */
+/* -------------------------------------------------------------------------- */
+
+export async function markNoShow(
+  clinicSlug: string,
+  appointmentId: string
+) {
+  return apiClient(
+    `/appointments/${appointmentId}/no-show`,
+    {
+      method: "POST",
+      clinicSlug,
+    }
+  );
 }
 
-export async function sendAppointmentReminder(clinicSlug: string, appointmentId: string) {
-  return apiClient(`/appointments/${appointmentId}/reminders/send`, { method: "POST", clinicSlug });
+/* -------------------------------------------------------------------------- */
+/* Reminder                                                                   */
+/* -------------------------------------------------------------------------- */
+
+export async function sendAppointmentReminder(
+  clinicSlug: string,
+  appointmentId: string
+) {
+  return apiClient(
+    `/appointments/${appointmentId}/reminders/send`,
+    {
+      method: "POST",
+      clinicSlug,
+    }
+  );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Availability                                                               */
+/* -------------------------------------------------------------------------- */
 
 export interface AvailabilitySlot {
   start: string;
@@ -308,146 +789,498 @@ export interface AvailabilitySlot {
 
 export async function getAvailability(
   clinicSlug: string,
-  params: { doctorUserId: number; date: string; serviceId?: string }
+  params: {
+    doctorUserId: number;
+    date: string;
+    serviceId?: string;
+  }
 ): Promise<AvailabilitySlot[]> {
-  const query = new URLSearchParams({ doctor_user_id: String(params.doctorUserId), date: params.date });
-  if (params.serviceId) query.set("service_id", params.serviceId);
+  const query =
+    new URLSearchParams({
+      doctor_user_id: String(
+        params.doctorUserId
+      ),
+      date: params.date,
+    });
 
-  const res = await apiClient<LaravelEnvelope<Record<string, unknown>[]> | Record<string, unknown>[]>(
-    `/appointments/availability?${query.toString()}`,
-    { clinicSlug }
-  );
+  if (params.serviceId) {
+    query.set(
+      "service_id",
+      params.serviceId
+    );
+  }
 
-  console.log("RAW /appointments/availability response:", JSON.stringify(res, null, 2)); // ا
+  const res =
+    await apiClient<
+      LaravelEnvelope<
+        Record<string, unknown>[]
+      > |
+        Record<string, unknown>[]
+    >(
+      `/appointments/availability?${query.toString()}`,
+      {
+        clinicSlug,
+      }
+    );
 
-  return unwrapList<Record<string, unknown>>(res).map((s) => ({
-    start: String(s.start ?? s.start_time ?? ""),
-    end: String(s.end ?? s.end_time ?? ""),
+  return unwrapList<
+    Record<string, unknown>
+  >(res).map((slot) => ({
+    start: String(
+      slot.start ??
+        slot.start_time ??
+        ""
+    ),
+
+    end: String(
+      slot.end ??
+        slot.end_time ??
+        ""
+    ),
   }));
 }
 
-// --- پزشکان (از لیست کارکنان، فیلترشده بر اساس نقش) ---
+/* -------------------------------------------------------------------------- */
+/* Doctors                                                                    */
+/* -------------------------------------------------------------------------- */
+
 export interface DoctorOption {
   userId: number;
   fullName: string;
 }
 
-export async function getDoctors(clinicSlug: string): Promise<DoctorOption[]> {
-  const res = await apiClient<LaravelEnvelope<Record<string, unknown>[]> | Record<string, unknown>[]>(
-    "/clinics/current/staff",
-    { clinicSlug }
-  );
+/*
+ * دریافت پزشکان از لیست کارکنان کلینیک
+ *
+ * فقط کارکنانی که:
+ *
+ * role.key === "doctor"
+ *
+ * دارند به عنوان پزشک برگردانده می‌شوند.
+ */
 
-  console.log("RAW /clinics/current/staff response:", JSON.stringify(res, null, 2)); // این خط رو موقت اضافه کن
+export async function getDoctors(
+  clinicSlug: string
+): Promise<DoctorOption[]> {
+  const res =
+    await apiClient<
+      LaravelEnvelope<
+        Record<string, unknown>[]
+      > |
+        Record<string, unknown>[]
+    >(
+      "/clinics/current/staff",
+      {
+        clinicSlug,
+      }
+    );
 
-  const staff = unwrapList<Record<string, unknown>>(res);
+  const staff =
+    unwrapList<
+      Record<string, unknown>
+    >(res);
 
   return staff
-    .filter((s) => {
-      const role = s.role as Record<string, unknown> | undefined;
-      return role?.key === "doctor";
+    .filter((member) => {
+      const role =
+        member.role &&
+        typeof member.role ===
+          "object"
+          ? (member.role as Record<
+              string,
+              unknown
+            >)
+          : undefined;
+
+      return role?.key ===
+        "doctor";
     })
-    .map((s) => {
-      const user = s.user as Record<string, unknown> | undefined;
+    .map((member) => {
+      const user =
+        member.user &&
+        typeof member.user ===
+          "object"
+          ? (member.user as Record<
+              string,
+              unknown
+            >)
+          : undefined;
+
       return {
-        userId: Number(s.user_id ?? user?.id ?? 0),
-        fullName: (user?.full_name as string | undefined) ?? "پزشک",
+        userId: Number(
+          member.user_id ??
+            user?.id ??
+            0
+        ),
+
+        fullName:
+          typeof user?.full_name ===
+          "string"
+            ? user.full_name
+            : "پزشک",
       };
-    });
+    })
+    .filter(
+      (doctor) =>
+        Number.isFinite(
+          doctor.userId
+        ) &&
+        doctor.userId > 0
+    );
 }
 
-// --- خدمات ---
+/* -------------------------------------------------------------------------- */
+/* Services                                                                   */
+/* -------------------------------------------------------------------------- */
+
 export interface ServiceOption {
   id: string;
   name: string;
   defaultDurationMinutes: number;
 }
 
-export async function getServicesForBooking(clinicSlug: string): Promise<ServiceOption[]> {
-  const res = await apiClient<LaravelEnvelope<Record<string, unknown>[]> | Record<string, unknown>[]>("/services?active=true", {
-    clinicSlug,
-  });
-  return unwrapList<Record<string, unknown>>(res).map((s) => ({
-    id: String(s.id ?? ""),
-    name: String(s.name ?? ""),
-    defaultDurationMinutes: Number(s.default_duration_minutes ?? 30),
-  }));
+export async function getServicesForBooking(
+  clinicSlug: string
+): Promise<ServiceOption[]> {
+  const res =
+    await apiClient<
+      LaravelEnvelope<
+        Record<string, unknown>[]
+      > |
+        Record<string, unknown>[]
+    >("/services?active=true", {
+      clinicSlug,
+    });
+
+  return unwrapList<
+    Record<string, unknown>
+  >(res)
+    .map((service) => ({
+      id: String(
+        service.id ?? ""
+      ),
+
+      name: String(
+        service.name ?? ""
+      ),
+
+      defaultDurationMinutes:
+        service.default_duration_minutes !==
+          null &&
+        service.default_duration_minutes !==
+          undefined
+          ? Number(
+              service.default_duration_minutes
+            )
+          : 30,
+    }))
+    .filter(
+      (service) =>
+        service.id.length > 0 &&
+        service.name.length > 0
+    );
 }
 
-export function addMinutesToIso(iso: string, minutes: number): string {
+/* -------------------------------------------------------------------------- */
+/* Date / Time Helpers                                                        */
+/* -------------------------------------------------------------------------- */
+
+export function addMinutesToIso(
+  iso: string,
+  minutes: number
+): string {
   const d = new Date(iso);
-  d.setMinutes(d.getMinutes() + minutes);
+
+  if (
+    Number.isNaN(
+      d.getTime()
+    )
+  ) {
+    throw new Error(
+      `تاریخ ISO نامعتبر است: "${iso}"`
+    );
+  }
+
+  d.setMinutes(
+    d.getMinutes() + minutes
+  );
+
   return d.toISOString();
 }
 
-// رشته‌ی ساعت را که ممکن است در چند فرمت مختلف از بک‌اند بیاید، به Date معتبر تبدیل می‌کند:
-// - ISO کامل: "2026-08-23T09:00:00"
-// - "HH:mm:ss YYYY-MM-DD" یا "YYYY-MM-DD HH:mm:ss" (با فاصله جدا شده)
-// - فقط ساعت: "09:00" یا "09:00:00" (که با تاریخ ورودی ترکیب می‌شود)
-export function buildDateTime(dateIso: string, time: string): string {
-  const trimmed = time.trim();
+/**
+ * رشته‌ی ساعت را که ممکن است
+ * در چند فرمت مختلف از بک‌اند
+ * دریافت شود به ISO تبدیل می‌کند.
+ *
+ * پشتیبانی:
+ *
+ * 2026-08-23T09:00:00
+ *
+ * 2026-08-23 09:00:00
+ *
+ * 09:00:00 2026-08-23
+ *
+ * 09:00
+ *
+ * 09:00:00
+ */
+
+export function buildDateTime(
+  dateIso: string,
+  time: string
+): string {
+  const trimmed =
+    time.trim();
+
+  /* ---------------------------------------------------------------------- */
+  /* ISO کامل                                                               */
+  /* ---------------------------------------------------------------------- */
 
   if (trimmed.includes("T")) {
-    const d = new Date(trimmed);
-    if (!Number.isNaN(d.getTime())) return d.toISOString();
-  }
+    const d = new Date(
+      trimmed
+    );
 
-  if (trimmed.includes(" ")) {
-    const parts = trimmed.split(" ").filter(Boolean);
-    const datePart = parts.find((p) => /^\d{4}-\d{2}-\d{2}$/.test(p));
-    const timePart = parts.find((p) => /^\d{2}:\d{2}(:\d{2})?$/.test(p));
-    if (datePart && timePart) {
-      const normalizedTime = timePart.length === 5 ? `${timePart}:00` : timePart;
-      const d = new Date(`${datePart}T${normalizedTime}`);
-      if (!Number.isNaN(d.getTime())) return d.toISOString();
+    if (
+      !Number.isNaN(
+        d.getTime()
+      )
+    ) {
+      return d.toISOString();
     }
   }
 
-  // فقط ساعت (بدون تاریخ) → با تاریخ ورودی ترکیب می‌شود
-  const normalizedTime = trimmed.length === 5 ? `${trimmed}:00` : trimmed;
-  const d = new Date(`${dateIso}T${normalizedTime}`);
-  if (!Number.isNaN(d.getTime())) return d.toISOString();
+  /* ---------------------------------------------------------------------- */
+  /* datetime با فاصله                                                      */
+  /* ---------------------------------------------------------------------- */
 
-  throw new Error(`فرمت ساعت قابل تشخیص نیست: "${time}"`);
+  if (trimmed.includes(" ")) {
+    const parts =
+      trimmed
+        .split(" ")
+        .filter(Boolean);
+
+    const datePart =
+      parts.find((part) =>
+        /^\d{4}-\d{2}-\d{2}$/.test(
+          part
+        )
+      );
+
+    const timePart =
+      parts.find((part) =>
+        /^\d{2}:\d{2}(:\d{2})?$/.test(
+          part
+        )
+      );
+
+    if (
+      datePart &&
+      timePart
+    ) {
+      const normalizedTime =
+        timePart.length === 5
+          ? `${timePart}:00`
+          : timePart;
+
+      const d = new Date(
+        `${datePart}T${normalizedTime}`
+      );
+
+      if (
+        !Number.isNaN(
+          d.getTime()
+        )
+      ) {
+        return d.toISOString();
+      }
+    }
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* فقط ساعت                                                                */
+  /* ---------------------------------------------------------------------- */
+
+  const normalizedTime =
+    trimmed.length === 5
+      ? `${trimmed}:00`
+      : trimmed;
+
+  const d = new Date(
+    `${dateIso}T${normalizedTime}`
+  );
+
+  if (
+    !Number.isNaN(
+      d.getTime()
+    )
+  ) {
+    return d.toISOString();
+  }
+
+  throw new Error(
+    `فرمت ساعت قابل تشخیص نیست: "${time}"`
+  );
 }
 
-// برای نمایش تمیز روی دکمه‌ها (فقط ساعت را از رشته‌ی خام استخراج می‌کند)
-export function extractTimeLabel(raw: string): string {
-  const match = raw.match(/(\d{2}:\d{2})(:\d{2})?/);
-  return match ? match[1] : raw;
+/**
+ * استخراج HH:mm از مقدار خام
+ */
+export function extractTimeLabel(
+  raw: string
+): string {
+  const match =
+    raw.match(
+      /(\d{2}:\d{2})(:\d{2})?/
+    );
+
+  return match
+    ? match[1]
+    : raw;
 }
 
-// برخلاف toISOString() که تاریخ را به UTC تبدیل می‌کند (و می‌تواند یک روز
-// جابه‌جا شود)، این تابع تاریخ محلی مرورگر را بدون تغییر منطقه‌ی زمانی برمی‌گرداند
-export function toLocalIsoDate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+/**
+ * تبدیل Date به YYYY-MM-DD
+ * بر اساس timezone محلی مرورگر
+ *
+ * از toISOString استفاده نمی‌کنیم
+ * چون ممکن است تاریخ را یک روز
+ * جابه‌جا کند.
+ */
+
+export function toLocalIsoDate(
+  d: Date
+): string {
+  const y =
+    d.getFullYear();
+
+  const m =
+    String(
+      d.getMonth() + 1
+    ).padStart(2, "0");
+
+  const day =
+    String(
+      d.getDate()
+    ).padStart(2, "0");
+
   return `${y}-${m}-${day}`;
 }
 
-function getLocalHourMinute(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+/* -------------------------------------------------------------------------- */
+/* Time Helpers                                                               */
+/* -------------------------------------------------------------------------- */
+
+function getLocalHourMinute(
+  iso: string
+): string {
+  const date =
+    new Date(iso);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "";
+  }
+
+  return date.toLocaleTimeString(
+    "en-GB",
+    {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }
+  );
 }
 
-// چون endpoint availability فعلاً نوبت‌های از قبل رزروشده را از لیست کم نمی‌کند،
-// این تابع به‌عنوان یک لایه‌ی دفاعی سمت فرانت، اسلات‌هایی که با نوبت فعال
-// موجود همان پزشک/روز هم‌زمان هستند را حذف می‌کند
+/* -------------------------------------------------------------------------- */
+/* Filter Booked Slots                                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * چون endpoint availability ممکن است
+ * نوبت‌های رزروشده را از لیست حذف نکند،
+ * این تابع یک لایه دفاعی سمت فرانت است.
+ *
+ * نوبت‌های cancelled و no_show
+ * آزاد محسوب می‌شوند.
+ */
+
 export function filterBookedSlots(
   slots: AvailabilitySlot[],
   existingAppointments: CalendarAppointment[]
 ): AvailabilitySlot[] {
-  const bookedTimes = new Set(
-    existingAppointments
-      .filter((a) => a.status !== "cancelled" && a.status !== "no_show")
-      .map((a) => getLocalHourMinute(a.startTime))
+  const bookedTimes =
+    new Set(
+      existingAppointments
+        .filter(
+          (appointment) =>
+            appointment.status !==
+              "cancelled" &&
+            appointment.status !==
+              "no_show"
+        )
+        .map((appointment) =>
+          getLocalHourMinute(
+            appointment.startTime
+          )
+        )
+        .filter(Boolean)
+    );
+
+  return slots.filter(
+    (slot) =>
+      !bookedTimes.has(
+        extractTimeLabel(
+          slot.start
+        )
+      )
   );
-
-  return slots.filter((s) => !bookedTimes.has(extractTimeLabel(s.start)));
 }
 
-export function formatDurationMinutes(startIso: string, endIso: string): number | null {
-  if (!startIso || !endIso) return null;
-  const diff = (new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000;
-  return Number.isFinite(diff) && diff > 0 ? Math.round(diff) : null;
+/* -------------------------------------------------------------------------- */
+/* Duration                                                                   */
+/* -------------------------------------------------------------------------- */
+
+export function formatDurationMinutes(
+  startIso: string,
+  endIso: string
+): number | null {
+  if (
+    !startIso ||
+    !endIso
+  ) {
+    return null;
+  }
+
+  const start =
+    new Date(
+      startIso
+    ).getTime();
+
+  const end =
+    new Date(
+      endIso
+    ).getTime();
+
+  if (
+    Number.isNaN(start) ||
+    Number.isNaN(end)
+  ) {
+    return null;
+  }
+
+  const diff =
+    (end - start) /
+    60000;
+
+  return Number.isFinite(
+    diff
+  ) && diff > 0
+    ? Math.round(diff)
+    : null;
 }
+
