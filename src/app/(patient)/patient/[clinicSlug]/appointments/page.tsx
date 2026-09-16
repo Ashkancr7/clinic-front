@@ -1,6 +1,7 @@
 "use client";
 
-import { use, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarPlus,
@@ -50,14 +51,16 @@ interface KnownService {
 function NewAppointmentModal({
   clinicSlug,
   knownServices,
+  initialServiceId,
   onClose,
 }: {
   clinicSlug: string;
   knownServices: KnownService[];
+  initialServiceId?: string;
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
-  const [serviceId, setServiceId] = useState("");
+  const [serviceId, setServiceId] = useState(initialServiceId ?? "");
   const [dateTime, setDateTime] = useState("");
   const [notes, setNotes] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -170,8 +173,18 @@ function NewAppointmentModal({
 
 export default function AppointmentsPage({ params }: { params: Promise<{ clinicSlug: string }> }) {
   const { clinicSlug } = use(params);
+  const searchParams = useSearchParams();
+  const preselectedServiceId = searchParams.get("service") ?? undefined;
+
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]["key"]>("upcoming");
   const [modalOpen, setModalOpen] = useState(false);
+
+  // دیپ‌لینک از صفحه‌ی «خدمات من»: /appointments?service=<id>&open=1
+  useEffect(() => {
+    if (searchParams.get("open") === "1") {
+      setModalOpen(true);
+    }
+  }, [searchParams]);
 
   const { data: appointments = [], isLoading } = useQuery({
     queryKey: queryKeys.patientPortal.appointments(clinicSlug),
@@ -371,7 +384,12 @@ export default function AppointmentsPage({ params }: { params: Promise<{ clinicS
       </div>
 
       {modalOpen && (
-        <NewAppointmentModal clinicSlug={clinicSlug} knownServices={knownServices} onClose={() => setModalOpen(false)} />
+        <NewAppointmentModal
+          clinicSlug={clinicSlug}
+          knownServices={knownServices}
+          initialServiceId={preselectedServiceId}
+          onClose={() => setModalOpen(false)}
+        />
       )}
     </div>
   );

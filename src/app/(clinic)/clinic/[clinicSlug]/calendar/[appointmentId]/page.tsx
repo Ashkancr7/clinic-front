@@ -48,6 +48,22 @@ import { ApiError } from "@/lib/api/client";
 import { getPatientDetail, getPatientDebt } from "@/lib/api/patients";
 
 import {
+  getInvoices,
+  createInvoice,
+  issueInvoice,
+  createPayment,
+  type Invoice,
+} from "@/lib/api/finance";
+
+import {
+  INVOICE_STATUS_LABEL,
+  INVOICE_STATUS_TONE,
+  PAYMENT_METHOD_LABEL,
+  formatToman,
+} from "@/lib/finance-labels";
+import type { PaymentMethod } from "@/lib/api/finance";
+
+import {
   getAppointmentDetail,
   rescheduleAppointment,
   cancelAppointment,
@@ -312,6 +328,101 @@ export default function AppointmentDetailPage({
     queryFn: () =>
       getPatientDebt(clinicSlug, appt!.patientId!),
     enabled: !!clinicSlug && !!appt?.patientId,
+  });
+
+  /* =========================
+     فاکتور / پرداخت
+     توجه: بک‌اند هیچ لینک مستقیمی بین appointment و invoice ندارد
+     (اسکیمای Invoice فیلد appointment_id ندارد)، پس اینجا آخرین
+     فاکتورِ بازِ (unpaid/draft) همین بیمار را به‌عنوان فاکتور مرتبط
+     با این ویزیت در نظر می‌گیریم، نه لزوماً فاکتور خودِ این نوبت.
+  ========================= */
+
+  const { data: patientInvoices = [] } = useQuery({
+    queryKey: [
+      ...queryKeys.patients.detail(clinicSlug, appt?.patientId ?? ""),
+      "invoices",
+    ],
+    queryFn: () => getInvoices(clinicSlug, { patientId: appt!.patientId! }),
+    enabled: !!clinicSlug && !!appt?.patientId,
+  });
+
+  const activeInvoice: Invoice | null =
+    patientInvoices.find(
+      (inv) => inv.status !== "cancelled" && inv.status !== "paid"
+    ) ?? null;
+
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [financeError, setFinanceError] = useState<string | null>(null);
+
+  function invalidateFinance() {
+    queryClient.invalidateQueries({
+      queryKey: [
+        ...queryKeys.patients.detail(clinicSlug, appt?.patientId ?? ""),
+        "invoices",
+      ],
+    });
+    queryClient.invalidateQueries({
+      queryKey: [
+        ...queryKeys.patients.detail(clinicSlug, appt?.patientId ?? ""),
+        "debt",
+      ],
+    });
+  }
+
+  const createInvoiceMutation = useMutation({
+    mutationFn: () =>
+      createInvoice(clinicSlug, {
+        patient_id: appt!.patientId!,
+        items: [
+          {
+            service_id: appt?.service?.id,
+            description: appt?.serviceName || "خدمت",
+            quantity: 1,
+            unit_price: Number(appt?.service?.base_price ?? 0),
+          },
+        ],
+      }),
+    onSuccess: () => {
+      setFinanceError(null);
+      invalidateFinance();
+    },
+    onError: (e) =>
+      setFinanceError(
+        e instanceof Error ? e.message : "ایجاد فاکتور ناموفق بود."
+      ),
+  });
+
+  const issueInvoiceMutation = useMutation({
+    mutationFn: (invoiceId: string) => issueInvoice(clinicSlug, invoiceId),
+    onSuccess: () => {
+      setFinanceError(null);
+      invalidateFinance();
+    },
+    onError: (e) =>
+      setFinanceError(
+        e instanceof Error ? e.message : "صدور فاکتور ناموفق بود."
+      ),
+  });
+
+  const paymentMutation = useMutation({
+    mutationFn: (invoiceId: string) =>
+      createPayment(clinicSlug, invoiceId, {
+        amount: Number(paymentAmount),
+        method: paymentMethod,
+      }),
+    onSuccess: () => {
+      setFinanceError(null);
+      setShowPaymentForm(false);
+      setPaymentAmount("");
+      invalidateFinance();
+    },
+    onError: (e) =>
+      setFinanceError(
+        e instanceof Error ? e.message : "ثبت پرداخت ناموفق بود."
+      ),
   });
 
   function invalidateAppointment() {
@@ -730,8 +841,16 @@ export default function AppointmentDetailPage({
 
           <SummaryItem
             custom={
-              <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] text-danger dark:bg-red-500/10 dark:text-red-300">
-                پرداخت نشده
+              <span
+                className={`rounded-full px-2.5 py-1 text-[11px] ${
+                  activeInvoice
+                    ? INVOICE_STATUS_TONE[activeInvoice.status]
+                    : "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400"
+                }`}
+              >
+                {activeInvoice
+                  ? INVOICE_STATUS_LABEL[activeInvoice.status]
+                  : "بدون فاکتور"}
               </span>
             }
             label="وضعیت پرداخت"
@@ -1122,67 +1241,178 @@ export default function AppointmentDetailPage({
               پرداخت و صورت‌حساب
             </h3>
 
-            <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400 dark:text-gray-500">
-                  وضعیت پرداخت
-                </span>
+            {financeError && (
+              <p className="mb-2 rounded-lg bg-red-50 px-2.5 py-2 text-[11px] text-red-500 dark:bg-red-500/10 dark:text-red-300">
+                {financeError}
+              </p>
+            )}
 
-                <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] text-danger dark:bg-red-500/10 dark:text-red-300">
-                  پرداخت نشده
-                </span>
+            {!activeInvoice ? (
+              <div className="space-y-3">
+                <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                  هنوز فاکتوری برای این بیمار صادر نشده.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => createInvoiceMutation.mutate()}
+                  disabled={
+                    createInvoiceMutation.isPending || !appt?.patientId
+                  }
+                  className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary py-2 text-[11px] font-medium text-white transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary/90 dark:hover:bg-primary"
+                >
+                  <Receipt className="h-3.5 w-3.5" />
+                  {createInvoiceMutation.isPending
+                    ? "در حال ایجاد..."
+                    : "ایجاد فاکتور برای این خدمت"}
+                </button>
               </div>
+            ) : (
+              <>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400 dark:text-gray-500">
+                      وضعیت فاکتور
+                    </span>
 
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400 dark:text-gray-500">
-                  مبلغ خدمات
-                </span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] ${INVOICE_STATUS_TONE[activeInvoice.status]}`}
+                    >
+                      {INVOICE_STATUS_LABEL[activeInvoice.status]}
+                    </span>
+                  </div>
 
-                <span className="text-gray-700 dark:text-gray-200">
-                  ۱,۴۸۰,۰۰۰ تومان
-                </span>
-              </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400 dark:text-gray-500">
+                      مبلغ خدمات
+                    </span>
 
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400 dark:text-gray-500">
-                  تخفیف
-                </span>
+                    <span className="text-gray-700 dark:text-gray-200">
+                      {formatToman(activeInvoice.subtotal)}
+                    </span>
+                  </div>
 
-                <span className="text-gray-700 dark:text-gray-200">
-                  ۰ تومان
-                </span>
-              </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400 dark:text-gray-500">
+                      تخفیف
+                    </span>
 
-              <div className="flex items-center justify-between border-t border-gray-50 pt-2 dark:border-white/10">
-                <span className="font-medium text-gray-600 dark:text-gray-300">
-                  مبلغ قابل پرداخت
-                </span>
+                    <span className="text-gray-700 dark:text-gray-200">
+                      {formatToman(activeInvoice.discountTotal)}
+                    </span>
+                  </div>
 
-                <span className="font-bold text-gray-800 dark:text-gray-100">
-                  ۱,۴۸۰,۰۰۰ تومان
-                </span>
-              </div>
-            </div>
+                  {activeInvoice.paidAmount > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400 dark:text-gray-500">
+                        پرداخت‌شده
+                      </span>
 
-            <div className="mt-3 flex gap-2">
-              <button
-                type="button"
-                className="flex-1 rounded-lg bg-primary py-2 text-[11px] font-medium text-white transition hover:bg-primary-dark dark:bg-primary/90 dark:hover:bg-primary"
-              >
-                دریافت پرداخت
-              </button>
+                      <span className="text-gray-700 dark:text-gray-200">
+                        {formatToman(activeInvoice.paidAmount)}
+                      </span>
+                    </div>
+                  )}
 
-              <button
-                type="button"
-                className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-200 py-2 text-[11px] text-gray-600 transition hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/10"
-              >
-                <Receipt className="h-3.5 w-3.5" />
-                صدور فاکتور
-              </button>
-            </div>
+                  <div className="flex items-center justify-between border-t border-gray-50 pt-2 dark:border-white/10">
+                    <span className="font-medium text-gray-600 dark:text-gray-300">
+                      مبلغ قابل پرداخت
+                    </span>
+
+                    <span className="font-bold text-gray-800 dark:text-gray-100">
+                      {formatToman(activeInvoice.remainingAmount)}
+                    </span>
+                  </div>
+                </div>
+
+                {showPaymentForm ? (
+                  <div className="mt-3 space-y-2 rounded-xl border border-gray-100 p-2.5 dark:border-white/10">
+                    <input
+                      type="number"
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      placeholder="مبلغ (تومان)"
+                      className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] text-gray-700 outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-200"
+                    />
+
+                    <select
+                      value={paymentMethod}
+                      onChange={(e) =>
+                        setPaymentMethod(e.target.value as PaymentMethod)
+                      }
+                      className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] text-gray-700 outline-none focus:border-primary dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-200 dark:[color-scheme:dark]"
+                    >
+                      {(Object.keys(PAYMENT_METHOD_LABEL) as PaymentMethod[]).map(
+                        (m) => (
+                          <option key={m} value={m}>
+                            {PAYMENT_METHOD_LABEL[m]}
+                          </option>
+                        )
+                      )}
+                    </select>
+
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => paymentMutation.mutate(activeInvoice.id)}
+                        disabled={
+                          paymentMutation.isPending ||
+                          !paymentAmount ||
+                          Number(paymentAmount) <= 0
+                        }
+                        className="flex-1 rounded-lg bg-primary py-1.5 text-[11px] font-medium text-white transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {paymentMutation.isPending ? "در حال ثبت..." : "تایید پرداخت"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowPaymentForm(false);
+                          setFinanceError(null);
+                        }}
+                        className="rounded-lg border border-gray-200 px-3 text-[11px] text-gray-500 transition hover:bg-gray-50 dark:border-white/10 dark:text-gray-400 dark:hover:bg-white/10"
+                      >
+                        انصراف
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentAmount(String(activeInvoice.remainingAmount || ""));
+                        setShowPaymentForm(true);
+                      }}
+                      disabled={
+                        activeInvoice.status === "draft" ||
+                        activeInvoice.remainingAmount <= 0
+                      }
+                      className="flex-1 rounded-lg bg-primary py-2 text-[11px] font-medium text-white transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary/90 dark:hover:bg-primary"
+                    >
+                      دریافت پرداخت
+                    </button>
+
+                    {activeInvoice.status === "draft" && (
+                      <button
+                        type="button"
+                        onClick={() => issueInvoiceMutation.mutate(activeInvoice.id)}
+                        disabled={issueInvoiceMutation.isPending}
+                        className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-200 py-2 text-[11px] text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/10"
+                      >
+                        <Receipt className="h-3.5 w-3.5" />
+                        {issueInvoiceMutation.isPending ? "در حال صدور..." : "صدور فاکتور"}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       </div>
+
 
       {/* Status Legend */}
       <div className="rounded-2xl border border-gray-100 bg-white p-5 dark:border-white/10 dark:bg-white/[0.06]">

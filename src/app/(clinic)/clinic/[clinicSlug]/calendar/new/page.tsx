@@ -31,6 +31,7 @@ import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
 
 import { ApiError } from "@/lib/api/client";
+import { getCurrentClinicUser } from "@/lib/api/session";
 
 import {
   searchPatients,
@@ -120,6 +121,26 @@ export default function NewAppointmentPage({
   const isoDate = toLocalIsoDate(date.toDate());
 
   /*
+   * نقش کاربر جاری — اگر پزشک بود، خودش را به‌عنوان پزشکِ نوبت قفل می‌کنیم
+   * (همان الگویی که توی صفحه‌ی تقویم روزانه استفاده شده) چون پزشک باید
+   * بتواند مستقیماً برای بیمار خودش نوبت ثبت کند، نه اینکه از لیست کل
+   * کادر درمانی خودش را پیدا و انتخاب کند.
+   */
+  const { data: currentUser } = useQuery({
+    queryKey: queryKeys.session.currentUser(clinicSlug),
+    queryFn: () => getCurrentClinicUser(clinicSlug),
+    enabled: !!clinicSlug,
+  });
+
+  const isDoctor = currentUser?.roleKey === "doctor";
+
+  useEffect(() => {
+    if (isDoctor && currentUser?.userId) {
+      setDoctorId(currentUser.userId);
+    }
+  }, [isDoctor, currentUser?.userId]);
+
+  /*
    * با تغییر تاریخ، ساعت قبلی دیگر معتبر نیست.
    */
   useEffect(() => {
@@ -145,6 +166,8 @@ export default function NewAppointmentPage({
 
   /*
    * پزشکان
+   * (پزشک نیازی به لیست کل کادر درمانی ندارد، چون خودش قفل است — درست
+   * مثل صفحه‌ی تقویم روزانه)
    */
   const { data: doctors = [] } = useQuery({
     queryKey:
@@ -152,7 +175,7 @@ export default function NewAppointmentPage({
 
     queryFn: () => getDoctors(clinicSlug),
 
-    enabled: !!clinicSlug,
+    enabled: !!clinicSlug && !isDoctor,
   });
 
   /*
@@ -1073,64 +1096,96 @@ export default function NewAppointmentPage({
                     </span>
                   </label>
 
-                  <div
-                    className={`
-                      flex items-center
-                      rounded-xl
-                      border border-gray-200
-                      bg-white
-                      px-3 py-2.5
-                      transition
-                      focus-within:border-primary
-                      dark:border-white/10
-                      dark:bg-white/[0.04]
-                      dark:focus-within:border-primary-light
-                    `}
-                  >
-                    <Stethoscope
+                  {isDoctor ? (
+                    <div
                       className={`
-                        ml-2
-                        h-3.5 w-3.5
-                        shrink-0
-                        text-gray-300
-                        dark:text-gray-500
-                      `}
-                    />
-
-                    <select
-                      value={doctorId ?? ""}
-                      onChange={(e) =>
-                        handleDoctorChange(
-                          e.target.value
-                        )
-                      }
-                      className={`
-                        w-full
-                        bg-transparent
+                        flex items-center gap-2
+                        rounded-xl
+                        border border-gray-200
+                        bg-gray-50
+                        px-3 py-2.5
                         text-xs
                         text-gray-700
-                        outline-none
-
+                        dark:border-white/10
+                        dark:bg-white/[0.04]
                         dark:text-gray-200
-                        dark:[color-scheme:dark]
                       `}
                     >
-                      <option value="">
-                        انتخاب پزشک / متخصص
-                      </option>
+                      <Stethoscope
+                        className={`
+                          h-3.5 w-3.5
+                          shrink-0
+                          text-primary-dark
+                          dark:text-primary-light
+                        `}
+                      />
+                      <span className="font-medium">
+                        {currentUser?.fullName || "شما"}
+                      </span>
+                      <span className="mr-auto text-[10px] text-gray-400 dark:text-gray-500">
+                        (این نوبت برای خودِ شما ثبت می‌شود)
+                      </span>
+                    </div>
+                  ) : (
+                    <div
+                      className={`
+                        flex items-center
+                        rounded-xl
+                        border border-gray-200
+                        bg-white
+                        px-3 py-2.5
+                        transition
+                        focus-within:border-primary
+                        dark:border-white/10
+                        dark:bg-white/[0.04]
+                        dark:focus-within:border-primary-light
+                      `}
+                    >
+                      <Stethoscope
+                        className={`
+                          ml-2
+                          h-3.5 w-3.5
+                          shrink-0
+                          text-gray-300
+                          dark:text-gray-500
+                        `}
+                      />
 
-                      {doctors.map(
-                        (doctor) => (
-                          <option
-                            key={doctor.userId}
-                            value={doctor.userId}
-                          >
-                            {doctor.fullName}
-                          </option>
-                        )
-                      )}
-                    </select>
-                  </div>
+                      <select
+                        value={doctorId ?? ""}
+                        onChange={(e) =>
+                          handleDoctorChange(
+                            e.target.value
+                          )
+                        }
+                        className={`
+                          w-full
+                          bg-transparent
+                          text-xs
+                          text-gray-700
+                          outline-none
+
+                          dark:text-gray-200
+                          dark:[color-scheme:dark]
+                        `}
+                      >
+                        <option value="">
+                          انتخاب پزشک / متخصص
+                        </option>
+
+                        {doctors.map(
+                          (doctor) => (
+                            <option
+                              key={doctor.userId}
+                              value={doctor.userId}
+                            >
+                              {doctor.fullName}
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 {/* =============================================
