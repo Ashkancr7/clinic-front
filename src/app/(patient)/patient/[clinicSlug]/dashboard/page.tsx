@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -135,14 +135,6 @@ export default function PatientDashboardPage({ params }: { params: Promise<{ cli
     enabled: !!clinicSlug,
   });
 
-  // TODO موقتی برای دیباگ صورت‌حساب — بعد از پیدا کردن مشکل حذف شود.
-  useEffect(() => {
-    if (summary) {
-      console.log("[billing-debug] patient dashboard summary:", summary);
-      console.log("[billing-debug] patient.id used for /invoices query:", summary.id);
-    }
-  }, [summary]);
-
   const { data: appointments = [], isLoading: appointmentsLoading } = useQuery({
     queryKey: queryKeys.patientPortal.appointments(clinicSlug),
     queryFn: () => getPatientAppointments(clinicSlug),
@@ -168,14 +160,33 @@ export default function PatientDashboardPage({ params }: { params: Promise<{ cli
    * دقیقاً همان محدودیتی که برای /services تأیید شده بود)، به‌جای کرش یا
    * خالی ماندن ساکت، در پایین پیام روشنی نشان داده می‌شود.
    */
+  /*
+   * شناسه‌ی پرونده‌ی بیمار همیشه در پاسخ /patient-portal/dashboard نمی‌آید
+   * (کلید id داخل patient خالی برمی‌گردد). چون بدون آن کوئری فاکتورها اصلاً
+   * اجرا نمی‌شود، همان شناسه را از روی رکوردهای دیگری که قطعاً patient_id
+   * دارند (نوبت‌ها، رضایت‌نامه‌ها، تصاویر) هم برمی‌داریم.
+   */
+  const patientId = useMemo(() => {
+    return (
+      summary?.id ??
+      appointments.find((a) => a.patientId)?.patientId ??
+      consents.find((c) => c.patientId)?.patientId ??
+      images.find((i) => i.patientId)?.patientId ??
+      null
+    );
+  }, [summary?.id, appointments, consents, images]);
+
+  const identityResolving = !summary || appointmentsLoading || consentsLoading || imagesLoading;
+  const patientIdMissing = !identityResolving && !patientId;
+
   const {
     data: invoices = [],
     isLoading: invoicesLoading,
     error: invoicesError,
   } = useQuery({
-    queryKey: [...queryKeys.patientPortal.dashboard(clinicSlug), "invoices", summary?.id],
-    queryFn: () => getInvoices(clinicSlug, { patientId: summary!.id! }),
-    enabled: !!clinicSlug && !!summary?.id,
+    queryKey: [...queryKeys.patientPortal.dashboard(clinicSlug), "invoices", patientId],
+    queryFn: () => getInvoices(clinicSlug, { patientId: patientId! }),
+    enabled: !!clinicSlug && !!patientId,
     retry: false,
   });
 
@@ -519,11 +530,21 @@ export default function PatientDashboardPage({ params }: { params: Promise<{ cli
                   )}
                 </div>
 
-                {invoicesLoading && (
+                {(invoicesLoading || (identityResolving && !patientId)) && (
                   <div className="py-6 text-center text-xs text-gray-300 dark:text-gray-500">در حال بارگذاری...</div>
                 )}
 
-                {!invoicesLoading && invoicesForbidden && (
+                {patientIdMissing && (
+                  <div className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-[11px] text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span>
+                      شناسه‌ی پرونده‌ی شما در پاسخ سرور موجود نیست، بنابراین صورت‌حساب قابل بازیابی نبود. لطفاً با پذیرش
+                      کلینیک تماس بگیرید.
+                    </span>
+                  </div>
+                )}
+
+                {!invoicesLoading && !patientIdMissing && invoicesForbidden && (
                   <div className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-[11px] text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
                     <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                     <span>
@@ -533,13 +554,13 @@ export default function PatientDashboardPage({ params }: { params: Promise<{ cli
                   </div>
                 )}
 
-                {!invoicesLoading && invoicesError && !invoicesForbidden && (
+                {!invoicesLoading && !patientIdMissing && invoicesError && !invoicesForbidden && (
                   <div className="py-6 text-center text-xs text-danger dark:text-red-300">
                     دریافت صورت‌حساب با خطا مواجه شد.
                   </div>
                 )}
 
-                {!invoicesLoading && !invoicesError && (
+                {!invoicesLoading && !patientIdMissing && !invoicesError && (
                   <div className="space-y-3">
                     {invoices.map((inv) => (
                       <div key={inv.id} className="rounded-xl border border-gray-100 p-3 text-xs dark:border-white/10">

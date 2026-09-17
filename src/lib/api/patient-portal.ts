@@ -26,6 +26,20 @@ function unwrapObject<T>(res: unknown): T {
   return res as T;
 }
 
+/**
+ * اولین مقدار معتبر (رشته یا عدد) را به صورت string برمی‌گرداند.
+ * علت وجودش: بک‌اند برای شناسه‌ی بیمار همیشه کلید `id` را نمی‌فرستد و
+ * بسته به endpoint ممکن است `patient_id` یا `uuid` باشد؛ همچنین اگر id
+ * عددی باشد `as string` قبلی باعث می‌شد مقدار غیررشته‌ای به query برود.
+ */
+function pickId(...candidates: unknown[]): string | null {
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim() !== "") return c;
+    if (typeof c === "number" && Number.isFinite(c)) return String(c);
+  }
+  return null;
+}
+
 // --- خلاصه داشبورد بیمار — فرمت واقعی تأیید شده ---
 export interface PatientVisitService {
   description: string | null;
@@ -78,14 +92,22 @@ export async function getPatientDashboardSummary(clinicSlug: string): Promise<Pa
   const data = unwrapObject<Record<string, unknown>>(res);
   const patient = (data.patient as Record<string, unknown>) ?? {};
 
-  // TODO موقتی برای دیباگ صورت‌حساب — بعد از پیدا کردن مشکل حذف شود.
-  console.log("[billing-debug] RAW data.patient from /patient-portal/dashboard:", patient);
-
   const nextAppointmentRaw = data.next_appointment as Record<string, unknown> | null;
   const recentVisitsRaw = (data.recent_visits as Record<string, unknown>[]) ?? [];
 
+  // شناسه‌ی بیمار ممکن است زیر کلیدهای مختلفی بیاید یا اصلاً در پاسخ داشبورد
+  // نباشد (PatientResource آن را expose نکند). آخرین fallback، شناسه‌ی روی
+  // خود نوبت بعدی است که همیشه patient_id دارد.
+  const patientId = pickId(
+    patient.id,
+    patient.patient_id,
+    patient.uuid,
+    data.patient_id,
+    nextAppointmentRaw?.patient_id
+  );
+
   return {
-    id: (patient.id as string | undefined) ?? null,
+    id: patientId,
     fullName: (patient.full_name as string | undefined) ?? null,
     completedVisitsCount: Number(data.completed_visits_count ?? 0),
     pastAppointmentsCount: Number(data.past_appointments_count ?? 0),
@@ -99,6 +121,8 @@ export async function getPatientDashboardSummary(clinicSlug: string): Promise<Pa
 // --- نوبت‌های بیمار — فرمت واقعی تأیید شده (paginator داخل envelope) ---
 export interface PatientAppointment {
   id: string;
+  /** شناسه‌ی پرونده‌ی بیمار — برای endpointهایی مثل /invoices?patient_id= لازم است */
+  patientId: string | null;
   serviceId: string;
   startTime: string;
   endTime: string;
@@ -113,8 +137,10 @@ export interface PatientAppointment {
 function mapPatientAppointment(a: Record<string, unknown>): PatientAppointment {
   const service = a.service as Record<string, unknown> | undefined;
   const doctor = a.doctor as Record<string, unknown> | undefined;
+  const patient = a.patient as Record<string, unknown> | undefined;
   return {
     id: String(a.id ?? ""),
+    patientId: pickId(a.patient_id, patient?.id),
     serviceId: String(service?.id ?? a.service_id ?? ""),
     startTime: String(a.start_time ?? ""),
     endTime: String(a.end_time ?? ""),
@@ -158,6 +184,7 @@ export async function requestPatientAppointment(
   const data = unwrapObject<Record<string, unknown>>(res);
   return {
     id: String(data.id ?? ""),
+    patientId: pickId(data.patient_id),
     serviceId: String(data.service_id ?? payload.serviceId ?? ""),
     startTime: String(data.start_time ?? ""),
     endTime: String(data.end_time ?? ""),
@@ -173,6 +200,7 @@ export async function requestPatientAppointment(
 // --- تصاویر قبل/بعد مجاز برای نمایش به بیمار — هر رکورد یک تصویر است (before یا after) ---
 export interface PatientGalleryImage {
   id: string;
+  patientId: string | null;
   imageType: "before" | "after" | string;
   bodyArea: string | null;
   createdAt: string | null;
@@ -191,6 +219,7 @@ export async function getPatientImages(clinicSlug: string): Promise<PatientGalle
     const file = img.file as Record<string, unknown> | undefined;
     return {
       id: String(img.id ?? ""),
+      patientId: pickId(img.patient_id),
       imageType: (img.image_type as string | undefined) ?? "before",
       bodyArea: (img.body_area as string | undefined) ?? null,
       createdAt: (img.created_at as string | null) ?? null,
@@ -216,6 +245,7 @@ export function groupImagesByVisitService(images: PatientGalleryImage[]) {
 // --- رضایت‌نامه‌های امضاشده — فرمت واقعی تأیید شده ---
 export interface PatientConsentItem {
   id: string;
+  patientId: string | null;
   title: string;
   content: string | null;
   signedAt: string | null;
@@ -232,6 +262,7 @@ export async function getPatientConsents(clinicSlug: string): Promise<PatientCon
     const template = version?.template as Record<string, unknown> | undefined;
     return {
       id: String(c.id ?? ""),
+      patientId: pickId(c.patient_id),
       title: (template?.title as string | undefined) ?? "رضایت‌نامه",
       content: (version?.content as string | undefined) ?? null,
       signedAt: (c.signed_at as string | null) ?? null,
