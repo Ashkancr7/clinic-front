@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -21,6 +21,8 @@ import {
   Gift,
   Lock,
   Info,
+  Wallet,
+  Phone,
 } from "lucide-react";
 import { PatientHeader } from "@/components/layout/PatientHeader";
 import Image from "next/image";
@@ -32,11 +34,15 @@ import {
   getPatientConsents,
   groupImagesByVisitService,
 } from "@/lib/api/patient-portal";
+import { getInvoices } from "@/lib/api/finance";
+import { INVOICE_STATUS_LABEL, INVOICE_STATUS_TONE, formatToman } from "@/lib/finance-labels";
+import { ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query/keys";
 
 const TABS = [
   { key: "appointments", label: "نوبت‌های من", icon: CalendarCheck },
   { key: "records", label: "پرونده پزشکی", icon: FolderHeart },
+  { key: "billing", label: "صورت‌حساب", icon: Wallet },
   { key: "consents", label: "رضایت‌نامه‌ها", icon: ShieldCheck },
   { key: "gallery", label: "تصاویر من", icon: Images },
   { key: "files", label: "فایل‌ها", icon: FileText },
@@ -129,6 +135,14 @@ export default function PatientDashboardPage({ params }: { params: Promise<{ cli
     enabled: !!clinicSlug,
   });
 
+  // TODO موقتی برای دیباگ صورت‌حساب — بعد از پیدا کردن مشکل حذف شود.
+  useEffect(() => {
+    if (summary) {
+      console.log("[billing-debug] patient dashboard summary:", summary);
+      console.log("[billing-debug] patient.id used for /invoices query:", summary.id);
+    }
+  }, [summary]);
+
   const { data: appointments = [], isLoading: appointmentsLoading } = useQuery({
     queryKey: queryKeys.patientPortal.appointments(clinicSlug),
     queryFn: () => getPatientAppointments(clinicSlug),
@@ -146,6 +160,30 @@ export default function PatientDashboardPage({ params }: { params: Promise<{ cli
     queryFn: () => getPatientConsents(clinicSlug),
     enabled: !!clinicSlug,
   });
+
+  /*
+   * صورت‌حساب — بک‌اند endpoint اختصاصی پرتال بیمار برای فاکتورها ندارد؛
+   * از همان GET /invoices?patient_id=... استفاده می‌کنیم که برای staff
+   * ساخته شده. اگر نقش بیمار به این endpoint دسترسی نداشته باشد (۴۰۳،
+   * دقیقاً همان محدودیتی که برای /services تأیید شده بود)، به‌جای کرش یا
+   * خالی ماندن ساکت، در پایین پیام روشنی نشان داده می‌شود.
+   */
+  const {
+    data: invoices = [],
+    isLoading: invoicesLoading,
+    error: invoicesError,
+  } = useQuery({
+    queryKey: [...queryKeys.patientPortal.dashboard(clinicSlug), "invoices", summary?.id],
+    queryFn: () => getInvoices(clinicSlug, { patientId: summary!.id! }),
+    enabled: !!clinicSlug && !!summary?.id,
+    retry: false,
+  });
+
+  const invoicesForbidden = invoicesError instanceof ApiError && invoicesError.status === 403;
+  const totalDue = useMemo(
+    () => invoices.reduce((sum, inv) => sum + (inv.status !== "cancelled" ? inv.remainingAmount : 0), 0),
+    [invoices]
+  );
 
   const completed = useMemo(() => appointments.filter((a) => a.status === "completed"), [appointments]);
   const nextAppointment = summary?.nextAppointment ?? null;
@@ -467,6 +505,80 @@ export default function PatientDashboardPage({ params }: { params: Promise<{ cli
                     <div className="py-6 text-center text-xs text-gray-300 dark:text-gray-500">ویزیتی ثبت نشده.</div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {activeTab === "billing" && (
+              <div className="rounded-2xl border border-gray-100 bg-white p-5 dark:border-white/10 dark:bg-white/[0.06]">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-sm font-bold text-primary dark:text-primary-light">صورت‌حساب</h2>
+                  {invoices.length > 0 && !invoicesForbidden && (
+                    <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                      مانده‌ی کل: <span className="font-medium text-gray-700 dark:text-gray-200">{formatToman(totalDue)}</span>
+                    </span>
+                  )}
+                </div>
+
+                {invoicesLoading && (
+                  <div className="py-6 text-center text-xs text-gray-300 dark:text-gray-500">در حال بارگذاری...</div>
+                )}
+
+                {!invoicesLoading && invoicesForbidden && (
+                  <div className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-[11px] text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span>
+                      مشاهده‌ی صورت‌حساب فعلاً از طریق پرتال بیمار در دسترس نیست. برای اطلاع از فاکتورها و مانده‌ی حساب خود
+                      با پذیرش کلینیک تماس بگیرید.
+                    </span>
+                  </div>
+                )}
+
+                {!invoicesLoading && invoicesError && !invoicesForbidden && (
+                  <div className="py-6 text-center text-xs text-danger dark:text-red-300">
+                    دریافت صورت‌حساب با خطا مواجه شد.
+                  </div>
+                )}
+
+                {!invoicesLoading && !invoicesError && (
+                  <div className="space-y-3">
+                    {invoices.map((inv) => (
+                      <div key={inv.id} className="rounded-xl border border-gray-100 p-3 text-xs dark:border-white/10">
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="font-medium text-gray-700 dark:text-gray-200">
+                            {inv.invoiceNumber ?? "فاکتور پیش‌نویس"}
+                          </span>
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] ${INVOICE_STATUS_TONE[inv.status]}`}>
+                            {INVOICE_STATUS_LABEL[inv.status]}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-[11px] text-gray-400 dark:text-gray-500">
+                          <span>مبلغ کل: {formatToman(inv.totalAmount)}</span>
+                          {inv.remainingAmount > 0 ? (
+                            <span className="font-medium text-danger dark:text-red-300">
+                              مانده: {formatToman(inv.remainingAmount)}
+                            </span>
+                          ) : (
+                            <span className="font-medium text-primary-dark dark:text-primary-light">تسویه‌شده</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+
+                    {invoices.length === 0 && (
+                      <div className="py-6 text-center text-xs text-gray-300 dark:text-gray-500">
+                        فاکتوری برای شما ثبت نشده.
+                      </div>
+                    )}
+
+                    {totalDue > 0 && (
+                      <div className="flex items-center gap-2 rounded-xl bg-gray-50 p-3 text-[11px] text-gray-500 dark:bg-white/[0.04] dark:text-gray-400">
+                        <Phone className="h-3.5 w-3.5 shrink-0" />
+                        <span>برای پرداخت مانده‌ی حساب با پذیرش کلینیک تماس بگیرید.</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

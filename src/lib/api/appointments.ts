@@ -457,23 +457,25 @@ function mapAppointment(
 /* Get Appointments                                                           */
 /* -------------------------------------------------------------------------- */
 
-export async function getAppointments(
-  clinicSlug: string,
-  params: {
-    from?: string;
-    to?: string;
-    doctorUserId?: number;
-    status?: string;
-  } = {}
-): Promise<CalendarAppointment[]> {
-  const query =
-    new URLSearchParams();
+interface AppointmentsQueryParams {
+  from?: string;
+  to?: string;
+  doctorUserId?: number;
+  status?: string;
+}
+
+/*
+ * ساخت query string مشترک بین getAppointments و getAllAppointments
+ * تا منطق from/to/doctor_user_id/status یک‌جا نگه‌داری شود.
+ */
+function buildAppointmentsQuery(
+  params: AppointmentsQueryParams,
+  page?: number
+): URLSearchParams {
+  const query = new URLSearchParams();
 
   if (params.from) {
-    query.set(
-      "from",
-      params.from
-    );
+    query.set("from", params.from);
   }
 
   /*
@@ -486,48 +488,34 @@ export async function getAppointments(
    * دریافت شوند.
    */
   if (params.to) {
-    const toDate = new Date(
-      `${params.to}T00:00:00`
-    );
+    const toDate = new Date(`${params.to}T00:00:00`);
 
-    if (
-      !Number.isNaN(
-        toDate.getTime()
-      )
-    ) {
-      toDate.setDate(
-        toDate.getDate() + 1
-      );
-
-      query.set(
-        "to",
-        toLocalIsoDate(toDate)
-      );
+    if (!Number.isNaN(toDate.getTime())) {
+      toDate.setDate(toDate.getDate() + 1);
+      query.set("to", toLocalIsoDate(toDate));
     }
   }
 
-  if (
-    params.doctorUserId !==
-      undefined &&
-    params.doctorUserId !== null
-  ) {
-    query.set(
-      "doctor_user_id",
-      String(
-        params.doctorUserId
-      )
-    );
+  if (params.doctorUserId !== undefined && params.doctorUserId !== null) {
+    query.set("doctor_user_id", String(params.doctorUserId));
   }
 
   if (params.status) {
-    query.set(
-      "status",
-      params.status
-    );
+    query.set("status", params.status);
   }
 
-  const queryString =
-    query.toString();
+  if (page !== undefined) {
+    query.set("page", String(page));
+  }
+
+  return query;
+}
+
+export async function getAppointments(
+  clinicSlug: string,
+  params: AppointmentsQueryParams = {}
+): Promise<CalendarAppointment[]> {
+  const queryString = buildAppointmentsQuery(params).toString();
 
   const url = queryString
     ? `/appointments?${queryString}`
@@ -545,6 +533,84 @@ export async function getAppointments(
   return unwrapList<
     Record<string, unknown>
   >(res).map(mapAppointment);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Get ALL Appointments (همه‌ی صفحات)                                         */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * طبق مستندات، GET /appointments پاسخ صفحه‌بندی‌شده برمی‌گرداند.
+ * getAppointments فقط یک صفحه را می‌گیرد — برای مواردی که واقعاً به
+ * «همه‌ی نتایج» نیاز داریم (مثلاً پیدا کردن همه‌ی مراجعینِ یک پزشک برای
+ * محدودسازی دسترسی در useDoctorPatientScope)، این تابع تمام صفحات را
+ * پشت سر هم می‌گیرد.
+ *
+ * - اگر بک‌اند متادیتای صفحه‌بندی (current_page/last_page) برگرداند، دقیقاً
+ *   تا last_page ادامه می‌دهیم.
+ * - اگر متادیتا نبود، تا وقتی صفحه‌ی جدید آیتم تازه (id جدید) بدهد ادامه
+ *   می‌دهیم؛ به محض تکراری بودن کامل یک صفحه (یعنی بک‌اند اصلاً به page
+ *   واکنش نشان نداده) متوقف می‌شویم.
+ * - maxPages یک سقف ایمنی است تا در هیچ حالتی حلقه‌ی بی‌نهایت نشود.
+ */
+function extractAppointmentsPaginationMeta(
+  res: unknown
+): { currentPage: number; lastPage: number } | null {
+  if (!res || typeof res !== "object") return null;
+
+  const outer = res as Record<string, unknown>;
+  const candidate =
+    outer.data && typeof outer.data === "object" && !Array.isArray(outer.data)
+      ? (outer.data as Record<string, unknown>)
+      : outer;
+
+  const currentPage = candidate.current_page;
+  const lastPage = candidate.last_page;
+
+  if (typeof currentPage === "number" && typeof lastPage === "number") {
+    return { currentPage, lastPage };
+  }
+
+  return null;
+}
+
+export async function getAllAppointments(
+  clinicSlug: string,
+  params: AppointmentsQueryParams = {},
+  maxPages = 50
+): Promise<CalendarAppointment[]> {
+  const all: CalendarAppointment[] = [];
+  const seenIds = new Set<string>();
+  let page = 1;
+
+  while (page <= maxPages) {
+    const queryString = buildAppointmentsQuery(params, page).toString();
+
+    const res = await apiClient<
+      LaravelEnvelope<
+        Record<string, unknown>[]
+      > |
+        Record<string, unknown>[]
+    >(`/appointments?${queryString}`, {
+      clinicSlug,
+    });
+
+    const pageItems = unwrapList<Record<string, unknown>>(res).map(mapAppointment);
+    const newItems = pageItems.filter((item) => !seenIds.has(item.id));
+
+    if (newItems.length === 0) break;
+
+    newItems.forEach((item) => seenIds.add(item.id));
+    all.push(...newItems);
+
+    const meta = extractAppointmentsPaginationMeta(res);
+    if (meta && meta.currentPage >= meta.lastPage) break;
+    if (!meta && pageItems.length === 0) break;
+
+    page += 1;
+  }
+
+  return all;
 }
 
 /* -------------------------------------------------------------------------- */

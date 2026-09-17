@@ -18,6 +18,7 @@ export interface CurrentClinicUser {
   fullName: string;
   roleKey: "clinic_admin" | "doctor" | "receptionist" | null;
   roleName: string;
+  accessScope: "all_patients" | "assigned_patients" | "limited" | null;
 }
 
 // فرمت واقعی و تأییدشده‌ی /auth/me: { data: { user: {...}, clinics: [{ id, name, slug,
@@ -49,12 +50,15 @@ export async function getCurrentClinicUser(clinicSlug: string): Promise<CurrentC
   const currentClinic = clinics.find((c) => c.slug === clinicSlug);
   const pivot = currentClinic?.pivot as Record<string, unknown> | undefined;
   const roleId = pivot?.role_id != null ? Number(pivot.role_id) : null;
+  const accessScope =
+    (pivot?.access_scope as CurrentClinicUser["accessScope"] | undefined) ?? null;
 
   return {
     userId,
     fullName,
     roleKey: roleId != null ? (ROLE_ID_TO_KEY[roleId] ?? null) : null,
     roleName: roleId != null ? (ROLE_ID_TO_NAME[roleId] ?? "") : "",
+    accessScope,
   };
 }
 

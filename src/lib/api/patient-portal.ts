@@ -42,6 +42,7 @@ export interface PatientVisit {
 }
 
 export interface PatientDashboardSummary {
+  id: string | null;
   fullName: string | null;
   completedVisitsCount: number;
   pastAppointmentsCount: number;
@@ -76,10 +77,15 @@ export async function getPatientDashboardSummary(clinicSlug: string): Promise<Pa
   );
   const data = unwrapObject<Record<string, unknown>>(res);
   const patient = (data.patient as Record<string, unknown>) ?? {};
+
+  // TODO موقتی برای دیباگ صورت‌حساب — بعد از پیدا کردن مشکل حذف شود.
+  console.log("[billing-debug] RAW data.patient from /patient-portal/dashboard:", patient);
+
   const nextAppointmentRaw = data.next_appointment as Record<string, unknown> | null;
   const recentVisitsRaw = (data.recent_visits as Record<string, unknown>[]) ?? [];
 
   return {
+    id: (patient.id as string | undefined) ?? null,
     fullName: (patient.full_name as string | undefined) ?? null,
     completedVisitsCount: Number(data.completed_visits_count ?? 0),
     pastAppointmentsCount: Number(data.past_appointments_count ?? 0),
